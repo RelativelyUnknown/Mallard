@@ -33,7 +33,10 @@ All settings are environment variables. In Docker Compose, set them in `.env`. I
 | `INFLUX_BUCKET` | no | `metrics` | InfluxDB bucket |
 | `API_KEYS` | no | `""` | `label:key` pairs, comma-separated. Only meaningful for OpenBao's seed step or for constructing a `StaticCredentialVerifier` directly in tests — the running server always reads credentials from the configured secret manager. |
 | `LOG_LEVEL` | no | `INFO` | `DEBUG\|INFO\|WARNING\|ERROR\|CRITICAL` |
-| `RATE_LIMIT` | no | `60/minute` | Post-auth per-label rate limit (slowapi format); a pre-auth per-IP limit also applies |
+| `RATE_LIMIT` | no | `60/minute` | Post-auth per-label rate limit (slowapi format); a pre-auth per-IP limit also applies (`/health` is exempt) |
+| `REDIS_URL` | no | `""` | Shared Redis for the per-label limiter (needed with more than one replica). If Redis becomes unreachable the limiter fails open to a per-process limit and `/health` reports `"rate_limiter": "degraded"` (still HTTP 200) |
+| `TRUSTED_PROXIES` | no | `""` | IPs/CIDRs of reverse proxies whose `X-Forwarded-For` (all header lines, right-most untrusted hop) keys the pre-auth per-IP limiter |
+| `ALLOW_PLACEHOLDER_SECRETS` | no | `false` | Dev only. By default the server refuses to start while `INFLUX_TOKEN`, `API_KEYS`, `MQTT_PASSWORD`, `WEBHOOK_HMAC_SECRETS`, `JWT_HMAC_SECRET` or `SECRET_MANAGER_TOKEN` still contain a `CHANGE_ME` placeholder from the example files |
 
 ### MQTT
 
@@ -41,6 +44,7 @@ All settings are environment variables. In Docker Compose, set them in `.env`. I
 |---|---|---|---|
 | `MQTT_ENABLED` | no | `false` | Enable the embedded amqtt broker |
 | `MQTT_PORT` | no | `8083` | WebSocket port for MQTT |
+| `MQTT_TOPIC_PREFIX` | no | `mallard/` | Topic ACL: clients can only publish, subscribe and receive under this prefix (enforced by the broker), and only messages under it are ingested |
 | `MQTT_PASSWORD` | no | none | Single shared broker password for MQTT auth (all MQTT ingest tagged `source=mqtt`) |
 
 ### Secret management
@@ -53,6 +57,7 @@ All settings are environment variables. In Docker Compose, set them in `.env`. I
 | `SECRET_MANAGER_CA_CERT_PATH` | no | none | Path to CA cert for TLS verification |
 | `OPENBAO_SECRET_PATH` | no | `secret/data/mallard/server` | KV path in OpenBao |
 | `OPENBAO_NAMESPACE` | no | `""` | OpenBao namespace (leave empty for community edition) |
+| `CREDENTIAL_MAX_STALE_SECONDS` | no | `86400` | With OpenBao: how long a cached credential store may keep serving while refreshes fail. Older than this, ingest answers 503 and `/health` reports the secret manager as down, so a revoked key can't outlive an outage |
 
 With `SECRET_MANAGER_TYPE=openbao`, a missing URL or token fails `Settings()` validation at startup with a clear error, rather than failing obscurely on the first ingest request.
 
@@ -120,7 +125,7 @@ With OpenBao, credentials are fetched with a 30-second TTL cache; rotation requi
 
 Rate-limited in two layers: pre-auth per client IP (prevents bucket-minting via junk credentials), then post-auth per verified label. Body must be ≤ 64 KB.
 
-Returns `202 Accepted` on success, `401 Unauthorized` for bad credentials, `503 Service Unavailable` if InfluxDB is unreachable.
+Returns `202 Accepted` on success, `400 Bad Request` for a body that isn't a JSON object (or can't be parsed), `401 Unauthorized` for bad credentials or signature, `413` over 64 KB, `422 Unprocessable` for values InfluxDB can't store (timestamp or token count out of range, non-finite numbers), `429` over the rate limit, `503 Service Unavailable` if InfluxDB or the secret manager is unreachable.
 
 ```json
 {
@@ -148,7 +153,7 @@ See the [Metrics Schema reference](https://relativelyunknown.github.io/Mallard/r
 
 ### `GET /health`
 
-Returns `{"status": "ok"|"degraded", "influx": "pong"|"error", "min_known_schema_version": 3, "max_known_schema_version": 3}`. Always HTTP 200.
+Returns `{"status": "ok"|"degraded", "influx": "pong"|"error", "secret_manager": "ok"|"error", "rate_limiter": "ok"|"degraded", "min_known_schema_version": 1, "max_known_schema_version": 1}`. HTTP 200 when InfluxDB and the secret manager are reachable, 503 otherwise (this is the Kubernetes readiness probe). Redis is not a hard dependency: a down Redis only sets `"rate_limiter": "degraded"`.
 
 ---
 
@@ -169,6 +174,17 @@ Returns `{"status": "ok"|"degraded", "influx": "pong"|"error", "min_known_schema
 - **Remote rotation (OpenBao):** update the credential in OpenBao; the server re-fetches within 30 seconds, no restart needed.
 - **Scaling:** `kubectl get hpa -n mallard` / `kubectl get pdb -n mallard`
 - **InfluxDB backup:** `docker compose exec influxdb influx backup /tmp/backup --token $INFLUX_TOKEN`
+
+---
+
+## Releases and image tags
+
+CI (`.github/workflows/server.yml`) builds the image, scans it with Trivy (the push is blocked on a fixed HIGH/CRITICAL finding) and then publishes `ghcr.io/relativelyunknown/mallard-server`:
+
+- every push to `main`: `:latest` and `:<git-sha>`;
+- every `vMAJOR.MINOR.PATCH` git tag (e.g. `v1.0.0`): `:vMAJOR.MINOR.PATCH` and `:<git-sha>`.
+
+The Kubernetes manifests pin the immutable `:v1.0.0` tag (`k8s/server/deployment.yaml` and the `images:` block in `k8s/server/kustomization.yaml`), so cut the release by pushing that git tag **before** deploying, and bump both places for the next release.
 
 ---
 

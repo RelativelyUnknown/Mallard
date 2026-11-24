@@ -29,6 +29,6 @@ export interface ParseContext {
    * in full or incrementally, so re-parsing never duplicates or drops events.
    */
   baseOffset?: number;
-  /** Pre-detected surface hint (e.g. from a glob-level agent-mode pre-scan). */
+  /** Explicit surface override; connectors otherwise derive it per row. */
   surface?: Surface;
 }

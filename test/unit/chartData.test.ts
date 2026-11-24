@@ -5,13 +5,16 @@ import {
   buildChartData,
   buildDailyBarsData,
   buildHeatmapData,
+  buildCategoryTrendData,
   buildHourlyTimelineData,
   buildModelBreakdownData,
+  buildTokensDailyData,
+  buildWeekdayData,
   buildWeekdayTotals,
 } from '../../src/extension-backend/domain/chartData';
 import { PricingManifest } from '../../src/extension-backend/domain/pricing';
 import { BudgetState, Forecast, TopEntry } from '../../src/extension-backend/domain/types';
-import { DAY_MS, startOf } from '../../src/extension-backend/util/time';
+import { DAY_MS, daysInMonth, startOf } from '../../src/extension-backend/util/time';
 import { makeEvent } from './helpers';
 
 const EMPTY_BUDGET: BudgetState = {
@@ -76,13 +79,15 @@ describe('buildDailyBarsData', () => {
     const budget: BudgetState = { ...EMPTY_BUDGET, includedCredits: 100 };
     const data = buildDailyBarsData(dayAggs, budget, INSUF_FORECAST, now);
 
-    assert.strictEqual(data.budgetLine, 100 / 30);
-    // day with 1 credit out of (100/30 ≈ 3.33) → ratio ≈ 0.3 → blue (0)
+    // The daily budget is the month's allowance spread over the month (it used to be
+    // divided by the 30-day chart window, which only agreed for 30-day months).
+    assert.strictEqual(data.budgetLine, 100 / daysInMonth(now));
+    // day with 1 credit out of ≈3.3 → ratio ≈ 0.3 → blue (0)
     const lowDay = data.points.find((p) => p.credits === 1);
     assert.ok(lowDay, 'expected a low-credit day');
     assert.strictEqual(lowDay!.colorIndex, 0);
 
-    // day with 8 credits out of (100/30 ≈ 3.33) → ratio ≈ 2.4 → red (2)
+    // day with 8 credits out of ≈3.3 → ratio ≈ 2.4 → red (2)
     const highDay = data.points.find((p) => p.credits === 8);
     assert.ok(highDay, 'expected a high-credit day');
     assert.strictEqual(highDay!.colorIndex, 2);
@@ -92,8 +97,7 @@ describe('buildDailyBarsData', () => {
     const now = startOf(Date.now(), 'day');
     const evts = [makeEvent({ ts: now - 1 * DAY_MS, credits: 2.5, cost: 0.1 })];
     const dayAggs = aggregateBy(evts, 'day');
-    // dailyBudget = 30/30 = 1.0, ratio = 2.5/1.0 = 2.5 → well above 1.0 → colorIndex=2
-    // Let's use includedCredits=90 → dailyBudget=3, credits=2.5 → ratio=0.833 → colorIndex=1
+    // includedCredits=90 → dailyBudget = 90 / daysInMonth ≈ 2.9–3.2, credits=2.5 → ratio ≈ 0.78–0.86 → colorIndex=1
     const budget: BudgetState = { ...EMPTY_BUDGET, includedCredits: 90 };
     const data = buildDailyBarsData(dayAggs, budget, INSUF_FORECAST, now);
     const day = data.points.find((p) => p.credits === 2.5);
@@ -103,8 +107,9 @@ describe('buildDailyBarsData', () => {
 
   it('sets projectedLine when forecast is available', () => {
     const forecast: Forecast = { ...INSUF_FORECAST, basis: 'linear', projectedCredits: 300 };
-    const data = buildDailyBarsData([], EMPTY_BUDGET, forecast, Date.now());
-    assert.strictEqual(data.projectedLine, 10); // 300 / 30
+    const now = Date.now();
+    const data = buildDailyBarsData([], EMPTY_BUDGET, forecast, now);
+    assert.strictEqual(data.projectedLine, 300 / daysInMonth(now)); // month projection spread over the month
   });
 
   it('formats dates as MM-DD', () => {
@@ -166,7 +171,7 @@ describe('buildModelBreakdownData', () => {
 
 describe('buildHourlyTimelineData', () => {
   it('accumulates credits per hour', () => {
-    const now = startOf(Date.now(), 'day') + 10 * 3600_000; // 10am today
+    const now = new Date(2026, 2, 18, 10).getTime(); // 10am local
     const events = [
       makeEvent({ ts: now, credits: 3, modelId: 'gpt-4o' }),
       makeEvent({ ts: now, credits: 5, modelId: 'claude-sonnet-4' }),
@@ -177,7 +182,7 @@ describe('buildHourlyTimelineData', () => {
   });
 
   it('skips events that do not match the filter', () => {
-    const now = startOf(Date.now(), 'day') + 10 * 3600_000;
+    const now = new Date(2026, 2, 18, 10).getTime();
     const events = [
       makeEvent({ ts: now, credits: 5, modelId: 'gpt-4o' }),
       makeEvent({ ts: now, credits: 3, modelId: 'claude-sonnet-4' }),
@@ -301,5 +306,214 @@ describe('buildChartData', () => {
     // heatmap loop: for (i = weeks*7; i >= 0; i--) → inclusive → weeks*7+1 cells
     assert.strictEqual(result.heatmap.cells.length, 6 * 7 + 1);
     assert.ok(result.modelBreakdown.labels.length === 0); // no models in input
+  });
+});
+
+/** Run `fn` with the process time zone set to `tz`, restoring it afterwards. */
+function withTimezone<T>(tz: string, fn: () => T): T {
+  const original = process.env.TZ;
+  process.env.TZ = tz;
+  try {
+    return fn();
+  } finally {
+    if (original === undefined) delete process.env.TZ;
+    else process.env.TZ = original;
+  }
+}
+
+/** The MM-DD label of each of the last `count` calendar days ending on `now`'s local date, oldest first. */
+function expectedDayLabels(now: number, count: number): string[] {
+  const t = new Date(now);
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() - (count - 1 - i));
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+}
+
+describe('chartData — daily budget / projected lines', () => {
+  // February 2026 has 28 days.
+  const feb = new Date(2026, 1, 15, 12).getTime();
+
+  it('REGRESSION: the budget line is includedCredits / days-in-month, not / window', () => {
+    const budget: BudgetState = { ...EMPTY_BUDGET, includedCredits: 280 };
+    for (const window of [7, 14, 30]) {
+      const data = buildDailyBarsData([], budget, INSUF_FORECAST, feb, window);
+      assert.strictEqual(data.budgetLine, 10, `window ${window}`);
+    }
+  });
+
+  it('REGRESSION: the projected line is projectedCredits / days-in-month, not / window', () => {
+    const forecast: Forecast = { ...INSUF_FORECAST, basis: 'linear', projectedCredits: 560 };
+    for (const window of [7, 30]) {
+      assert.strictEqual(buildDailyBarsData([], EMPTY_BUDGET, forecast, feb, window).projectedLine, 20);
+    }
+    const march = new Date(2026, 2, 10, 12).getTime(); // 31 days
+    assert.strictEqual(buildDailyBarsData([], EMPTY_BUDGET, { ...forecast, projectedCredits: 310 }, march).projectedLine, 10);
+  });
+
+  it('colour thresholds follow the per-day share of the month', () => {
+    const aggs = aggregateBy(
+      [makeEvent({ ts: new Date(2026, 1, 14, 12).getTime(), credits: 9 }), makeEvent({ ts: new Date(2026, 1, 13, 12).getTime(), credits: 4 })],
+      'day',
+    );
+    const data = buildDailyBarsData(aggs, { ...EMPTY_BUDGET, includedCredits: 280 }, INSUF_FORECAST, feb, 7);
+    assert.strictEqual(data.points.find((p) => p.credits === 9)!.colorIndex, 1, '9 of 10 → amber');
+    assert.strictEqual(data.points.find((p) => p.credits === 4)!.colorIndex, 0, '4 of 10 → blue');
+  });
+});
+
+describe('chartData — window / weeks / topN clamping', () => {
+  const now = new Date(2026, 5, 15, 12).getTime();
+  const budget: BudgetState = { ...EMPTY_BUDGET, includedCredits: 300 };
+
+  it('REGRESSION: a window of 0 no longer yields an Infinity budget line or zero points', () => {
+    for (const window of [0, -5, NaN]) {
+      const data = buildDailyBarsData([], budget, INSUF_FORECAST, now, window);
+      assert.ok(data.points.length >= 1, `window ${window}`);
+      assert.ok(Number.isFinite(data.budgetLine ?? 0), `window ${window} budgetLine`);
+    }
+    assert.strictEqual(buildDailyBarsData([], budget, INSUF_FORECAST, now, 0).points.length, 1);
+    assert.strictEqual(buildDailyBarsData([], budget, INSUF_FORECAST, now, NaN).points.length, 30, 'NaN → default');
+  });
+
+  it('REGRESSION: an absurd window is capped at 366 days instead of looping for ages', () => {
+    assert.strictEqual(buildDailyBarsData([], budget, INSUF_FORECAST, now, 100_000).points.length, 366);
+    assert.strictEqual(buildDailyBarsData([], budget, INSUF_FORECAST, now, Infinity).points.length, 366);
+    assert.strictEqual(buildTokensDailyData([], now, 100_000).dates.length, 366);
+    assert.strictEqual(buildCategoryTrendData([], now, 100_000).dates.length, 366);
+    assert.strictEqual(buildTokensDailyData([], now, -3).dates.length, 1);
+  });
+
+  it('REGRESSION: heatmap weeks are clamped to [1, 104]', () => {
+    assert.strictEqual(buildHeatmapData([], now, 0).cells.length, 7 + 1);
+    assert.strictEqual(buildHeatmapData([], now, -4).cells.length, 7 + 1);
+    assert.strictEqual(buildHeatmapData([], now, 100_000).cells.length, 104 * 7 + 1);
+    assert.strictEqual(buildHeatmapData([], now, NaN).cells.length, 52 * 7 + 1);
+  });
+
+  it('REGRESSION: topN is clamped to [1, 50]', () => {
+    const tops: TopEntry[] = Array.from({ length: 80 }, (_, i) => ({ key: `m${i}`, credits: i, cost: i, tokens: i }));
+    assert.strictEqual(buildModelBreakdownData(tops, 0.04, undefined, 0).labels.length, 1);
+    assert.strictEqual(buildModelBreakdownData(tops, 0.04, undefined, -3).labels.length, 1);
+    assert.strictEqual(buildModelBreakdownData(tops, 0.04, undefined, 1_000_000).labels.length, 50);
+    assert.strictEqual(buildModelBreakdownData(tops, 0.04, undefined, NaN).labels.length, 8);
+  });
+});
+
+describe('chartData — calendar-day stepping across DST', () => {
+  // [zone, local instants straddling that zone's spring-forward and fall-back changes]
+  const CASES: Array<[string, Array<[number, number, number, number, number]>]> = [
+    ['America/New_York', [
+      [2026, 2, 8, 0, 30], [2026, 2, 9, 0, 30], [2026, 2, 9, 23, 30], [2026, 2, 10, 0, 30], [2026, 2, 12, 12, 0],
+      [2026, 10, 1, 0, 30], [2026, 10, 2, 0, 30], [2026, 10, 2, 23, 30], [2026, 10, 3, 0, 30],
+    ]],
+    ['Europe/Berlin', [
+      [2026, 2, 29, 0, 30], [2026, 2, 30, 0, 30], [2026, 2, 30, 23, 30],
+      [2026, 9, 25, 0, 30], [2026, 9, 26, 0, 30], [2026, 9, 26, 23, 30],
+    ]],
+    ['Australia/Sydney', [
+      [2026, 3, 5, 0, 30], [2026, 3, 6, 0, 30], [2026, 9, 4, 0, 30], [2026, 9, 5, 0, 30], [2026, 9, 5, 23, 30],
+    ]],
+  ];
+
+  for (const [zone, instants] of CASES) {
+    it(`REGRESSION (${zone}): every chart lists consecutive distinct calendar days and keys data to the right day`, () => {
+      withTimezone(zone, () => {
+        for (const [y, m, d, h, min] of instants) {
+          const now = new Date(y, m, d, h, min).getTime();
+          for (const window of [3, 10, 45]) {
+            const want = expectedDayLabels(now, window);
+            const ctxMsg = `${zone} ${y}-${m + 1}-${d} ${h}:${min} window ${window}`;
+            assert.deepStrictEqual(buildTokensDailyData([], now, window).dates, want, `tokens ${ctxMsg}`);
+            assert.deepStrictEqual(buildCategoryTrendData([], now, window).dates, want, `trend ${ctxMsg}`);
+            assert.deepStrictEqual(
+              buildDailyBarsData([], EMPTY_BUDGET, INSUF_FORECAST, now, window).points.map((p) => p.date),
+              want,
+              `bars ${ctxMsg}`,
+            );
+          }
+
+          // Credits recorded at local noon on each of the last 5 days land on exactly that day's bar.
+          const events = Array.from({ length: 5 }, (_, i) =>
+            makeEvent({ ts: new Date(y, m, d - i, 12).getTime(), credits: i + 1 }),
+          );
+          const bars = buildDailyBarsData(aggregateBy(events, 'day'), EMPTY_BUDGET, INSUF_FORECAST, now, 5);
+          assert.deepStrictEqual(
+            bars.points.map((p) => p.credits),
+            [5, 4, 3, 2, 1],
+            `credits per day ${zone} ${y}-${m + 1}-${d} ${h}:${min}`,
+          );
+        }
+      });
+    });
+  }
+
+  it('REGRESSION (America/New_York): heatmap cells are consecutive local dates across both changes', () => {
+    withTimezone('America/New_York', () => {
+      for (const now of [new Date(2026, 2, 9, 0, 30).getTime(), new Date(2026, 10, 2, 0, 30).getTime()]) {
+        const cells = buildHeatmapData([], now, 52).cells.map((c) => c.date);
+        assert.strictEqual(cells.length, 52 * 7 + 1);
+        assert.strictEqual(new Set(cells).size, cells.length, 'no repeated day');
+        for (let i = 1; i < cells.length; i++) {
+          const prev = new Date(`${cells[i - 1]}T12:00:00Z`).getTime();
+          assert.strictEqual(new Date(`${cells[i]}T12:00:00Z`).getTime() - prev, DAY_MS, `gap before ${cells[i]}`);
+        }
+      }
+    });
+  });
+});
+
+describe('chartData — per-event local hour and weekday', () => {
+  it('REGRESSION: hourly buckets use each event\'s own UTC offset (summer vs winter), not today\'s', () => {
+    withTimezone('America/New_York', () => {
+      const events = [
+        makeEvent({ ts: new Date(2026, 6, 15, 9, 15).getTime(), credits: 2 }), // EDT
+        makeEvent({ ts: new Date(2026, 0, 15, 9, 45).getTime(), credits: 3 }), // EST
+      ];
+      const data = buildHourlyTimelineData(events);
+      assert.strictEqual(data.hours[9], 5);
+      assert.strictEqual(data.peakHour, 9);
+    });
+  });
+
+  it('REGRESSION: hourly buckets handle timestamps before 1970 (negative modulo)', () => {
+    withTimezone('UTC', () => {
+      const data = buildHourlyTimelineData([makeEvent({ ts: Date.UTC(1969, 11, 31, 10, 30), credits: 4 })]);
+      assert.strictEqual(data.hours[10], 4);
+      assert.strictEqual(data.hours.reduce((a, b) => a + b, 0), 4);
+    });
+  });
+
+  it('REGRESSION: weekday totals use each event\'s own local date and handle pre-1970 timestamps', () => {
+    withTimezone('America/New_York', () => {
+      // Monday 00:30 EDT is Sunday 23:30 under the winter (-5) offset that is in force today.
+      const totals = buildWeekdayTotals([
+        makeEvent({ ts: new Date(2026, 6, 13, 0, 30).getTime(), credits: 2 }), // Mon 2026-07-13 EDT
+        makeEvent({ ts: new Date(2026, 0, 11, 23, 30).getTime(), credits: 3 }), // Sun 2026-01-11 EST
+      ]);
+      assert.strictEqual(totals[1], 2, 'Monday');
+      assert.strictEqual(totals[0], 3, 'Sunday');
+    });
+    withTimezone('UTC', () => {
+      // 1969-12-31 was a Wednesday.
+      const totals = buildWeekdayTotals([makeEvent({ ts: Date.UTC(1969, 11, 31, 12), credits: 1 })]);
+      assert.strictEqual(totals[3], 1);
+      assert.strictEqual(totals.reduce((a, b) => a + b, 0), 1);
+    });
+  });
+});
+
+describe('buildWeekdayData', () => {
+  it('REGRESSION: peakWeekday is null for an all-zero week (like peakHour), not Sunday', () => {
+    assert.strictEqual(buildWeekdayData([]).peakWeekday, null);
+    assert.strictEqual(buildWeekdayData([0, 0, 0, 0, 0, 0, 0]).peakWeekday, null);
+  });
+
+  it('reports the busiest weekday (Sun=0) and keeps the numeric `peak`', () => {
+    const data = buildWeekdayData([1, 2, 9, 3, 0, 0, 4]);
+    assert.strictEqual(data.peakWeekday, 2);
+    assert.strictEqual(data.peak, 2);
+    assert.deepStrictEqual(data.totals, [1, 2, 9, 3, 0, 0, 4]);
+    assert.strictEqual(buildWeekdayData([]).peak, 0);
   });
 });

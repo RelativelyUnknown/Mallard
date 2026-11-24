@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 # ---------------------------------------------------------------------------
 # Default env vars so Settings() can be constructed without a real .env file
@@ -32,6 +33,24 @@ _DEFAULT_ENV = {
 }
 
 VALID_API_KEY = "test-key-valid"
+
+
+class BrokenRedis:
+    """A Redis whose every command fails the way an unreachable server does."""
+
+    def __init__(self, exc: Exception | None = None) -> None:
+        self.exc = exc or RedisConnectionError("connection refused")
+        self.eval_calls = 0
+
+    async def eval(self, *args, **kwargs):
+        self.eval_calls += 1
+        raise self.exc
+
+    async def ping(self):
+        raise self.exc
+
+    async def aclose(self) -> None:
+        pass
 
 
 def _patch_env_and_settings(monkeypatch: pytest.MonkeyPatch) -> None:

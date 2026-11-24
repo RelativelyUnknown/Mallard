@@ -22,10 +22,10 @@ Under the hood it's a DuckDB-backed dashboard with branch-aware spend tracking, 
 
 ## What talks to the network
 
-By default, Mallard reads only local log files and sends nothing anywhere. Two background reference fetches are unconditional (no user data is sent):
+By default, Mallard reads only local log files and sends none of your usage data anywhere. Two background reference fetches are unconditional: they carry no usage data, but like any HTTPS request they reveal your IP address to the hosts below (GitHub's raw-content host, OpenRouter, and Frankfurter):
 
 - **Pricing manifest** — the Copilot credit-multiplier table is fetched daily from `raw.githubusercontent.com/RelativelyUnknown/mallard/main/media/pricing-manifest.json`. Per-token model prices are fetched from OpenRouter's public `/api/v1/models` endpoint (LiteLLM's community price sheet as fallback).
-- **Currency rates** — daily FX rates from `api.frankfurter.app` for display-currency conversion.
+- **Currency rates** — daily FX rates from `api.frankfurter.app` for display-currency conversion. Today this fetch happens even when your display currency is USD and no conversion is needed.
 
 If you opt in to metric export, payloads are sent to your self-hosted server only. If you opt in to GitHub billing, the extension calls GitHub's billing API using your token.
 

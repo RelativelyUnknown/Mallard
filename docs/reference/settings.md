@@ -12,6 +12,7 @@ the dashboard's header selector instead.
 |---------|------|---------|-------------|
 | `mallard.enabledConnectors` | `("copilot" \| "claude-code")[]` | both | Which connectors Mallard ingests from. Set automatically by the onboarding flow when both Copilot and Claude Code are installed. Changing it requires reloading the window — Mallard prompts for the reload when it changes. |
 | `mallard.copilotLogPath` | `string` | `""` | Override the log directory. Blank means auto-detect via `vscode.env.logUri`. |
+| `mallard.copilotOtelPath` | `string` | `""` | Override the path to Copilot's OpenTelemetry export target — a JSONL file, or a `.sqlite`/`.db` database. Blank means auto-detect from `github.copilot.chat.otel.outfile`. Run **Mallard: Enable Copilot Usage Tracking** to set it up automatically. |
 | `mallard.pricingManifestUrl` | `string` | `""` | Override the pricing manifest URL. Blank means use the built-in URL. |
 | `mallard.palette` | `"swiss" \| "theme"` | `"swiss"` | Dashboard chart palette. `swiss` is the fixed duotone; `theme` derives the accent from your VS Code theme. Both keep the duotone structure and are checked for accessibility. |
 | `mallard.refreshIntervalMinutes` | `number` | `10` | How often Mallard re-scans logs and rebuilds the snapshot. Range: 1–60 minutes. Lower values update the dashboard faster but increase CPU usage. |
@@ -46,12 +47,12 @@ Credentials**) from the Command Palette.
 
 ### MQTT
 
-Active when `mallard.export.transport = "mqtt"`. Only `wss://` URLs are accepted.
+Active when `mallard.export.transport = "mqtt"`. Only TLS URLs are accepted — `wss://` or `mqtts://`; plain `mqtt://` and `ws://` are rejected. The bundled server broker is reached over `wss://<host>/mqtt`.
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `mallard.mqtt.url` | `string` | `""` | MQTT broker WebSocket URL (e.g. `wss://mallard.example.com/mqtt`). Overrides `mallard.server.url` for MQTT. |
-| `mallard.mqtt.auth` | `"password" \| "certificate"` | `"password"` | Auth method. |
+| `mallard.mqtt.auth` | `"password" \| "certificate"` | `"password"` | Auth method. The Mallard server's embedded broker authenticates by the shared broker password only (it sits behind a TLS-terminating proxy and never sees a client certificate), so `"certificate"` is only useful against your own broker that verifies certificates itself — against the Mallard server, use `"password"`. For mTLS against the server, use the webhook transport. |
 | `mallard.mqtt.username` | `string` | `""` | MQTT username, sent in CONNECT as broker metadata. The server identifies you by the shared broker password and tags all MQTT data `source='mqtt'` — the username is **not** used for identification. |
 
 Run **Mallard: Set MQTT Export Password** from the Command Palette to store the password securely in VS Code's SecretStorage (never written to settings files).
@@ -68,7 +69,7 @@ Used by any transport when `auth = certificate`.
 
 ### Payload schema
 
-Each publish sends a single JSON object, built by `buildMetricPayload` and published to the `mallard/v3/metrics` topic. The extension sends `schema_version: 3`. The Metrics Schema reference page has the full field table, aggregation semantics, and how the server handles a schema version it doesn't recognize yet.
+Each publish sends a single JSON batch of usage events, built by `buildStreamBatch`. Over MQTT it is published to `mallard/v1/<machineHash>[/<workspaceHash>]`, which the server broker accepts because it lies under its `MQTT_TOPIC_PREFIX` (default `mallard/`). The extension sends `schema_version: 1`. The Metrics Schema reference page has the full field table, aggregation semantics, and how the server handles a schema version it doesn't recognize yet.
 
 ### Webhook example (API key)
 
@@ -130,6 +131,10 @@ certificate paths are shared):
 Then run **Mallard: Set MQTT Export Password** from the Command Palette.
 
 ### MQTT example (mTLS)
+
+Only for a broker that verifies client certificates itself. The Mallard server's
+embedded broker does not (see `mallard.mqtt.auth` above): it needs the shared
+password, so this configuration is rejected by it.
 
 ```json
 "mallard.server.url": "https://your-server",

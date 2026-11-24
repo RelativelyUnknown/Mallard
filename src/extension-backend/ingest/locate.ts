@@ -177,15 +177,28 @@ export async function findLogFiles(
 // ── Claude Code log discovery ─────────────────────────────────────────────────
 
 /**
- * Platform-default directories where Claude Code writes its JSONL session logs.
- * Claude Code stores one `.jsonl` file per session under
- * `~/.claude/projects/<hashed-workspace-path>/`.
+ * Directories where Claude Code writes its JSONL session logs. It stores one
+ * `.jsonl` file per session under `<config dir>/projects/<hashed-workspace-path>/`.
+ * `CLAUDE_CONFIG_DIR` (comma-separated for several) replaces the config dir;
+ * otherwise both the classic `~/.claude` and the XDG `~/.config/claude`
+ * (`$XDG_CONFIG_HOME/claude`) locations are candidates.
  */
-export function claudeCodeLogRoots(): string[] {
-  const home = os.homedir();
-  const base = path.join(home, '.claude', 'projects');
-  // Windows: Claude Code follows XDG/home convention even on Windows
-  return [base];
+export function claudeCodeLogRoots(
+  env: NodeJS.ProcessEnv = process.env,
+  home: string = os.homedir(),
+): string[] {
+  const configured = (env['CLAUDE_CONFIG_DIR'] ?? '')
+    .split(',')
+    .map((d) => d.trim())
+    .filter((d) => d.length > 0);
+  const configDirs =
+    configured.length > 0
+      ? configured
+      : [
+          path.join(home, '.claude'),
+          path.join(env['XDG_CONFIG_HOME']?.trim() || path.join(home, '.config'), 'claude'),
+        ];
+  return [...new Set(configDirs.map((d) => path.join(d, 'projects')))];
 }
 
 /** Returns directories that actually exist on disk. */

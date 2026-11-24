@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
@@ -16,7 +17,7 @@ from .config import get_settings
 from .credential_verifier import create_verifier
 from .influx import make_client
 from .mqtt import run_mqtt_broker
-from .rate_limit import InProcessRateLimiter, create_rate_limiter
+from .rate_limit import create_rate_limiter, prune_expired
 from .routers import health as health_router
 from .routers import ingest as ingest_router
 
@@ -68,7 +69,11 @@ def _get_key_for_rate_limit(request: Request) -> str:
         except ValueError:  # pragma: no cover - uvicorn always hands us an IP
             return peer
         if any(peer_ip in net for net in trusted):
-            xff = request.headers.get("x-forwarded-for")
+            # A proxy may append its hop as a *separate* header line instead of
+            # extending the first one; RFC 9110 treats repeated lines as one
+            # comma-joined list. Reading only the first line would key the
+            # limiter on whatever the client itself put there.
+            xff = ",".join(request.headers.getlist("x-forwarded-for"))
             if xff:
                 client = _client_ip_from_xff(xff, trusted)
                 if client is not None:
@@ -88,15 +93,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     logger.info("Starting Mallard ingest server (InfluxDB: %s)", settings.influx_url)
 
-    import asyncio
-
     influx_client = make_client(settings)
     write_api = influx_client.write_api()
     verifier = create_verifier(settings)
 
     # Post-auth per-credential limiter (the slowapi middleware above is per-IP).
-    # Redis-backed in production so the limit holds across replicas; in-process
-    # fallback for single-node/dev needs periodic pruning of expired keys.
+    # Redis-backed in production so the limit holds across replicas; the
+    # in-process limiter (single-node/dev, and the Redis fail-open fallback)
+    # needs periodic pruning of expired keys.
     label_limiter = await create_rate_limiter(settings)
 
     # Stash on app.state so routers can access them via request.app.state
@@ -106,12 +110,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.verifier = verifier
     app.state.label_limiter = label_limiter
 
-    cleanup_task: asyncio.Task | None = None
-    if isinstance(label_limiter, InProcessRateLimiter):
-        cleanup_task = asyncio.create_task(_prune_limiter(label_limiter, settings))
+    cleanup_task = asyncio.create_task(prune_expired(label_limiter))
 
     if settings.mqtt_enabled:
         mqtt_task = asyncio.create_task(run_mqtt_broker(settings, write_api, verifier))
+        mqtt_task.add_done_callback(_log_mqtt_task_exit)
         app.state.mqtt_task = mqtt_task
         logger.info("MQTT broker started on port %d", settings.mqtt_port)
 
@@ -120,30 +123,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Shutting down — closing InfluxDB client")
     if settings.mqtt_enabled and hasattr(app.state, "mqtt_task"):
         app.state.mqtt_task.cancel()
-    if cleanup_task is not None:
-        cleanup_task.cancel()
+    cleanup_task.cancel()
     await label_limiter.aclose()
     await influx_client.close()
 
 
-async def _prune_limiter(limiter: InProcessRateLimiter, settings) -> None:
-    """Periodically evict expired keys from the in-process limiter so its map
-    doesn't grow unbounded. (The Redis backend uses per-key TTLs instead.)"""
-    import asyncio
-
-    interval = 300.0
-    try:
-        while True:
-            await asyncio.sleep(interval)
-            limiter.cleanup()
-    except asyncio.CancelledError:  # pragma: no cover - shutdown path
-        pass
+def _log_mqtt_task_exit(task: "asyncio.Task[None]") -> None:
+    """Surface an embedded-broker crash. Without this the task's exception is
+    only reported when the task is garbage collected, so a broker that dies
+    at startup (port in use, bad plugin config) looks like a healthy server
+    with MQTT silently gone."""
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        logger.error("MQTT broker task exited unexpectedly: %s", exc, exc_info=exc)
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
 
     limiter = Limiter(key_func=_get_key_for_rate_limit, default_limits=[settings.rate_limit])
+    # Orchestrator readiness probes and uptime checks hit /health from a handful
+    # of IPs on a fixed cadence; counting them would 429 the probe (and with it
+    # drain the pod) long before any real client hits the limit.
+    limiter.exempt(health_router.health)
 
     app = FastAPI(
         title="Mallard Ingest Server",
@@ -184,8 +188,13 @@ def create_app() -> FastAPI:
         return await call_next(request)
 
     # ── Routers ───────────────────────────────────────────────────────────────
-    app.include_router(health_router.router)
-    app.include_router(ingest_router.router)
+    # Not app.include_router(): FastAPI resolves included routers lazily, so
+    # app.routes holds opaque _IncludedRouter objects with no `endpoint`, and
+    # slowapi's middleware (which finds the handler by walking app.routes)
+    # silently skipped every route — the per-IP limiter never applied at all.
+    # The routers carry their own prefix, so their routes can be mounted as-is.
+    app.router.routes.extend(health_router.router.routes)
+    app.router.routes.extend(ingest_router.router.routes)
 
     return app
 

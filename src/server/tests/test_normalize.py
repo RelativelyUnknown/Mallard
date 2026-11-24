@@ -8,6 +8,7 @@ from server.normalize import (
     KNOWN_SCHEMA_VERSIONS,
     InvalidIngestPayload,
     NormalizedBatch,
+    PayloadOutOfRange,
     normalize_payload,
 )
 
@@ -139,3 +140,59 @@ class TestNormalizeBatch:
     def test_non_dict_body_raises(self) -> None:
         with pytest.raises(InvalidIngestPayload):
             normalize_payload([1, 2, 3])  # type: ignore[arg-type]
+
+
+class TestOutOfRangeValues:
+    """Well-typed values InfluxDB can't store raise PayloadOutOfRange (a 422)."""
+
+    _MAX_TS = (2**63 - 1) // 1_000_000
+
+    @staticmethod
+    def _event(**fields) -> dict:
+        return _batch(events=[fields])
+
+    def test_is_an_invalid_payload(self) -> None:
+        assert issubclass(PayloadOutOfRange, InvalidIngestPayload)
+
+    @pytest.mark.parametrize("ts", [0, 1, _MAX_TS])
+    def test_ts_inside_range_accepted(self, ts: int) -> None:
+        assert normalize_payload(self._event(ts=ts)).events[0].ts_ms == ts
+
+    @pytest.mark.parametrize("ts", [-1, _MAX_TS + 1, 10**30, 1e30])
+    def test_ts_outside_range_rejected(self, ts: float) -> None:
+        with pytest.raises(PayloadOutOfRange):
+            normalize_payload(self._event(ts=ts))
+
+    def test_out_of_range_sent_at_rejected_when_it_becomes_the_event_ts(self) -> None:
+        with pytest.raises(PayloadOutOfRange):
+            normalize_payload(_batch(sent_at=-5, events=[{}]))
+
+    def test_out_of_range_sent_at_ignored_when_every_event_has_a_ts(self) -> None:
+        assert normalize_payload(_batch(sent_at=-5)).events[0].ts_ms == 1_700_000_000_000
+
+    @pytest.mark.parametrize("tokens", [0, 2**63 - 1])
+    def test_tokens_inside_range_accepted(self, tokens: int) -> None:
+        assert normalize_payload(self._event(prompt_tokens=tokens)).events[0].tokens == {
+            "prompt_tokens": tokens
+        }
+
+    @pytest.mark.parametrize("tokens", [-1, 2**63, 2**70])
+    @pytest.mark.parametrize("name", ["prompt_tokens", "completion_tokens", "thinking_tokens"])
+    def test_tokens_outside_range_rejected(self, name: str, tokens: int) -> None:
+        with pytest.raises(PayloadOutOfRange):
+            normalize_payload(self._event(**{name: tokens}))
+
+    @pytest.mark.parametrize("value", [10**400, float("inf"), float("-inf"), float("nan")])
+    @pytest.mark.parametrize("name", ["credits", "cost_usd"])
+    def test_unrepresentable_floats_rejected(self, name: str, value: float) -> None:
+        with pytest.raises(PayloadOutOfRange):
+            normalize_payload(self._event(**{name: value}))
+
+    def test_unrepresentable_cost_by_category_value_rejected(self) -> None:
+        with pytest.raises(PayloadOutOfRange):
+            normalize_payload(self._event(cost_by_category={"input": 10**400}))
+
+    def test_wrong_types_are_still_dropped_not_rejected(self) -> None:
+        e = normalize_payload(self._event(credits="many", prompt_tokens=True, ts="soon")).events[0]
+        assert e.credits == 0.0
+        assert e.tokens == {}

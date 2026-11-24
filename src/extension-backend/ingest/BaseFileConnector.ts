@@ -37,6 +37,13 @@ export abstract class BaseFileConnector implements LogConnector {
   /** Map one raw DuckDB row to a UsageEvent, or null to skip. */
   protected abstract mapRow(row: Record<string, unknown>, ctx: ParseContext): UsageEvent | null;
 
+  /**
+   * Optional: combine two events sharing an id within one ingest batch (e.g.
+   * a streamed message logged as several lines). Without it the writer keeps
+   * the first occurrence.
+   */
+  protected mergeDuplicate?(kept: UsageEvent, incoming: UsageEvent, ctx: ParseContext): UsageEvent;
+
   /** MetaStore key for this connector's timestamp watermark. Derived from id by default. */
   protected get watermarkKey(): string {
     return `${this.id}:watermark`;
@@ -47,9 +54,10 @@ export abstract class BaseFileConnector implements LogConnector {
 
   private status: ConnectorStatus = 'idle';
   private eventsSeenEver = false;
-  private watchers: Array<{ close(): void }> = [];
+  /** Active watchers keyed by watched directory, so repeated start() calls reuse them. */
+  private watchers = new Map<string, { close(): void }>();
   private debounceTimer?: ReturnType<typeof setTimeout>;
-  private currentTarget?: DiscoverResult;
+  private currentTarget: DiscoverResult | undefined;
   private ingestRunning = false;
   private rerunQueued = false;
 
@@ -61,15 +69,23 @@ export abstract class BaseFileConnector implements LogConnector {
     protected readonly logger: Logger = defaultLogger,
   ) {}
 
+  /**
+   * Discover and ingest, then watch for changes. UsageService calls this on
+   * every refresh, so it is idempotent: watchers are reconciled against the
+   * discovered roots rather than added again, and status only reads
+   * 'loading' for the first pass.
+   */
   async start(): Promise<void> {
     const target = await this.discover();
     this.searchedDirs_ = target.searchedDirs;
     if (isEmptyTarget(target)) {
       this.status = 'empty';
+      this.currentTarget = undefined;
+      this.watchDirs([]);
       return;
     }
     this.currentTarget = target;
-    this.status = 'loading';
+    if (this.status === 'idle') this.status = 'loading';
     await this.runIngest(target);
     this.watchDirs(target.allowedRoots);
   }
@@ -105,7 +121,13 @@ export abstract class BaseFileConnector implements LogConnector {
       const { inserted, maxEventTs } =
         'kind' in target
           ? await this.fileReader.ingestSqlite(target.dbPath, target.query, mapRow, ctx)
-          : await this.fileReader.ingestGlob(target.globs, mapRow, ctx, sinceMs ?? undefined);
+          : await this.fileReader.ingestGlob(
+              target.globs,
+              mapRow,
+              ctx,
+              sinceMs ?? undefined,
+              this.mergeDuplicate?.bind(this),
+            );
       if (inserted > 0) {
         this.eventsSeenEver = true;
         // Advance the watermark to the newest *event* timestamp, not the wall
@@ -153,18 +175,24 @@ export abstract class BaseFileConnector implements LogConnector {
 
   private watchDirs(roots: string[]): void {
     const dirs = new Set(roots);
+    for (const [dir, w] of this.watchers) {
+      if (dirs.has(dir)) continue;
+      try { w.close(); } catch { /* ignore */ }
+      this.watchers.delete(dir);
+    }
     for (const dir of dirs) {
+      if (this.watchers.has(dir)) continue;
       // Recursive: session files live in nested subdirectories (Claude Code
       // writes projects/<workspace>/<session>.jsonl, Copilot logs are per-window
       // trees) and non-recursive fs.watch on the root misses writes inside them.
       try {
-        this.watchers.push(this.fsWatcher.watch(dir, () => this.scheduleReparse(), true));
+        this.watchers.set(dir, this.fsWatcher.watch(dir, () => this.scheduleReparse(), true));
         continue;
       } catch (err) {
         this.logger.debug(this.id, `recursive fs.watch failed for ${dir}, retrying flat`, err);
       }
       try {
-        this.watchers.push(this.fsWatcher.watch(dir, () => this.scheduleReparse(), false));
+        this.watchers.set(dir, this.fsWatcher.watch(dir, () => this.scheduleReparse(), false));
       } catch (err) {
         // fs.watch unavailable — fall back to UsageService interval polling.
         this.logger.debug(this.id, `fs.watch unavailable for ${dir}; relying on interval polling`, err);
@@ -173,10 +201,13 @@ export abstract class BaseFileConnector implements LogConnector {
   }
 
   private scheduleReparse(): void {
-    const target = this.currentTarget;
-    if (!target) return;
+    if (!this.currentTarget) return;
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => void this.runIngest(target), DEBOUNCE_MS);
+    this.debounceTimer = setTimeout(() => {
+      // Read the target when the timer fires: a refresh may have re-discovered it.
+      const target = this.currentTarget;
+      if (target) void this.runIngest(target);
+    }, DEBOUNCE_MS);
   }
 
   private async loadWatermark(): Promise<number | null> {
@@ -190,10 +221,10 @@ export abstract class BaseFileConnector implements LogConnector {
 
   dispose(): void {
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    for (const w of this.watchers) {
+    for (const w of this.watchers.values()) {
       try { w.close(); } catch { /* ignore */ }
     }
-    this.watchers = [];
+    this.watchers.clear();
   }
 
   abstract readonly capabilities: import('./LogConnector').ConnectorCapabilities;

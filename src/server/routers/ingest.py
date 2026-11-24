@@ -15,8 +15,8 @@ from fastapi.responses import JSONResponse
 
 from ..credential_verifier import CredentialVerifier, _looks_like_jwt
 from ..deps import get_verifier
-from ..influx import write_payload
-from ..normalize import InvalidIngestPayload, normalize_payload
+from ..influx import tag_value, write_payload
+from ..normalize import InvalidIngestPayload, PayloadOutOfRange, normalize_payload
 
 logger = logging.getLogger(__name__)
 
@@ -87,10 +87,12 @@ def _verify_signature(body: bytes, header_value: str, secrets: list[str]) -> boo
     prefix = "sha256="
     if not header_value.startswith(prefix):
         return False
-    provided = header_value[len(prefix):].strip().lower()
+    # Compare as bytes: compare_digest raises TypeError on a non-ASCII str, and
+    # a header value is attacker-controlled (that was a 500, not a 401).
+    provided = header_value[len(prefix):].strip().lower().encode("utf-8", "replace")
     matched = False
     for secret in secrets:
-        expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+        expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest().encode()
         # No early exit: compare against every secret to keep timing flat.
         if hmac.compare_digest(provided, expected):
             matched = True
@@ -248,7 +250,9 @@ async def ingest(
 
     try:
         raw = json.loads(body)
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+    # ValueError also covers JSONDecodeError, UnicodeDecodeError and CPython's
+    # 4300-digit int-conversion limit; RecursionError is deeply nested input.
+    except (ValueError, RecursionError) as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Body is not valid JSON",
@@ -261,6 +265,9 @@ async def ingest(
 
     try:
         batch = normalize_payload(raw)
+    except PayloadOutOfRange as exc:
+        # Literal 422: the named constant was renamed across Starlette releases.
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except InvalidIngestPayload as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -284,7 +291,7 @@ async def ingest(
 
     logger.info(
         "Ingested batch: instance=%s schema_v=%d events=%d source=%s",
-        batch.instance_id,
+        tag_value(batch.instance_id or "unknown"),
         batch.schema_version,
         len(batch.events),
         source,
