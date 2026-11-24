@@ -1,6 +1,7 @@
 import { strict as assert } from 'assert';
-import { buildRuleContext } from '../../src/extension-backend/domain/expr/context';
-import type { UsageSnapshot } from '../../src/extension-backend/domain/types';
+import { buildRuleContext, type HistorySample } from '../../src/extension-backend/domain/expr/context';
+import { resolveVar } from '../../src/extension-backend/domain/expr/jsonCondition';
+import type { UsageAggregate, UsageSnapshot } from '../../src/extension-backend/domain/types';
 
 function minimalSnapshot(overrides: Partial<UsageSnapshot> = {}): UsageSnapshot {
   return {
@@ -228,5 +229,212 @@ describe('buildRuleContext — surface, model fallback, repo fallback branches',
     const repo = ctx['repo'] as Record<string, Record<string, number>>;
     assert.ok('org/b' in repo);
     assert.equal(repo['org/b']!['credits'], 0);
+  });
+});
+
+describe('buildRuleContext — window7d and month.tokens', () => {
+  // Wednesday 2026-03-18, midday local time.
+  const now = new Date(2026, 2, 18, 12, 0).getTime();
+  const dayStart = (daysAgo: number) => new Date(2026, 2, 18 - daysAgo).getTime();
+  const agg = (daysAgo: number, credits: number, cost: number, tokens: number) =>
+    ({ start: dayStart(daysAgo), credits, cost, tokens }) as unknown as UsageAggregate;
+
+  function withAggregates(dayAggregates: UsageAggregate[]): UsageSnapshot {
+    return minimalSnapshot({ chartInputs: { dayAggregates } } as unknown as Partial<UsageSnapshot>);
+  }
+
+  it('sums the last 7 calendar days (today + 6) from the snapshot day aggregates', () => {
+    const snap = withAggregates([
+      agg(8, 1000, 1000, 1000), // outside the window
+      agg(6, 1, 0.1, 10), // oldest day inside
+      agg(3, 2, 0.2, 20),
+      agg(0, 4, 0.4, 40), // today
+    ]);
+    const w = buildRuleContext({ snapshot: snap, now })['window7d'] as Record<string, number>;
+    assert.equal(w['credits'], 7);
+    assert.ok(Math.abs(w['cost']! - 0.7) < 1e-9);
+    assert.equal(w['tokens'], 70);
+  });
+
+  it('REGRESSION: window7d is no longer a copy of today', () => {
+    const snap = withAggregates([agg(1, 30, 1, 300), agg(0, 10, 0.4, 500)]);
+    const ctx = buildRuleContext({ snapshot: snap, now });
+    assert.deepEqual(ctx['today'], { credits: 10, cost: 0.4, tokens: 500 });
+    assert.equal((ctx['window7d'] as Record<string, number>)['credits'], 40);
+  });
+
+  it('falls back to the composed dailyBars/tokensDaily chart data (wire snapshot)', () => {
+    const points = Array.from({ length: 30 }, (_, i) => ({ date: '', credits: i < 23 ? 100 : 1, cost: i < 23 ? 9 : 0.5, colorIndex: 0 }));
+    const tokens = Array.from({ length: 30 }, (_, i) => (i < 23 ? 9999 : 2));
+    const snap = minimalSnapshot({
+      chartData: { dailyBars: { points }, tokensDaily: { tokens } },
+    } as unknown as Partial<UsageSnapshot>);
+    const w = buildRuleContext({ snapshot: snap, now })['window7d'] as Record<string, number>;
+    assert.equal(w['credits'], 7);
+    assert.equal(w['cost'], 3.5);
+    assert.equal(w['tokens'], 14);
+  });
+
+  it('is absent (not a fake zero) when the snapshot has no day-level data; zeros only for no snapshot', () => {
+    assert.equal(buildRuleContext({ snapshot: minimalSnapshot(), now })['window7d'], null);
+    assert.deepEqual(buildRuleContext({ snapshot: null, now })['window7d'], { credits: 0, cost: 0, tokens: 0 });
+    // A var path into it simply does not resolve.
+    assert.equal(resolveVar('window7d.credits', buildRuleContext({ snapshot: minimalSnapshot(), now })), undefined);
+  });
+
+  it('month.tokens sums this calendar month only; absent without day-level data', () => {
+    const snap = withAggregates([
+      { start: new Date(2026, 1, 28).getTime(), credits: 1, cost: 1, tokens: 5000 } as unknown as UsageAggregate, // Feb
+      { start: new Date(2026, 2, 1).getTime(), credits: 1, cost: 1, tokens: 100 } as unknown as UsageAggregate,
+      agg(0, 1, 1, 23),
+    ]);
+    const month = buildRuleContext({ snapshot: snap, now })['month'] as Record<string, number>;
+    assert.equal(month['tokens'], 123);
+    assert.equal(month['credits'], 50, 'credits still come from the budget');
+    const bare = buildRuleContext({ snapshot: minimalSnapshot(), now })['month'] as Record<string, unknown>;
+    assert.equal('tokens' in bare, false);
+  });
+});
+
+describe('buildRuleContext — surfaces, tokens and key safety', () => {
+  it('topSurface and surface.<id>.credits come from the model → surface links', () => {
+    const snap = minimalSnapshot({
+      allSurfaces: ['chat', 'inline', 'agent'] as unknown as UsageSnapshot['allSurfaces'],
+      sankeyLinks: [
+        { source: 'gpt-4o', target: 'chat', value: 5 },
+        { source: 'claude', target: 'chat', value: 7 },
+        { source: 'gpt-4o', target: 'agent', value: 20 },
+      ] as unknown as UsageSnapshot['sankeyLinks'],
+    });
+    const ctx = buildRuleContext({ snapshot: snap });
+    const surface = ctx['surface'] as Record<string, Record<string, number>>;
+    assert.equal(surface['chat']!['credits'], 12);
+    assert.equal(surface['agent']!['credits'], 20);
+    assert.equal(surface['inline']!['credits'], 0);
+    assert.deepEqual(ctx['topSurface'], { id: 'agent', credits: 20 });
+  });
+
+  it('model/repo entries carry the real token counts', () => {
+    const snap = minimalSnapshot({
+      topModels: [{ key: 'gpt-4o', credits: 30, cost: 1.2, tokens: 4200 }] as unknown as UsageSnapshot['topModels'],
+      byRepo: [{ key: 'org/a', credits: 10, cost: 0.4, tokens: 900 }] as unknown as UsageSnapshot['byRepo'],
+    });
+    const ctx = buildRuleContext({ snapshot: snap });
+    assert.equal((ctx['model'] as Record<string, Record<string, number>>)['gpt-4o']!['tokens'], 4200);
+    assert.equal((ctx['repo'] as Record<string, Record<string, number>>)['org/a']!['tokens'], 900);
+  });
+
+  it('REGRESSION: dotted model/repo keys are reachable through bracket paths', () => {
+    const snap = minimalSnapshot({
+      topModels: [{ key: 'gpt-4.1', credits: 12, cost: 1, tokens: 1 }] as unknown as UsageSnapshot['topModels'],
+      byRepo: [{ key: 'foo.js', credits: 3, cost: 1, tokens: 1 }] as unknown as UsageSnapshot['byRepo'],
+    });
+    const ctx = buildRuleContext({ snapshot: snap });
+    assert.equal(resolveVar('model["gpt-4.1"].credits', ctx), 12);
+    assert.equal(resolveVar("repo['foo.js'].credits", ctx), 3);
+  });
+
+  it('REGRESSION: a "__proto__" key is plain data and cannot touch the prototype', () => {
+    const snap = minimalSnapshot({
+      topModels: [{ key: '__proto__', credits: 9, cost: 1, tokens: 1 }] as unknown as UsageSnapshot['topModels'],
+    });
+    const ctx = buildRuleContext({
+      snapshot: snap,
+      vars: JSON.parse('{"__proto__": 5, "constructor": 6}') as Record<string, unknown>,
+    });
+    const model = ctx['model'] as Record<string, unknown>;
+    assert.equal(Object.getPrototypeOf(model), null);
+    assert.equal(resolveVar('model["__proto__"].credits', ctx), 9);
+    assert.equal(({} as Record<string, unknown>)['credits'], undefined, 'Object.prototype is untouched');
+    assert.equal(resolveVar('vars["__proto__"]', ctx), 5);
+    assert.equal(resolveVar('constructor', ctx), undefined);
+    assert.equal(resolveVar('model.constructor', ctx), undefined);
+    assert.equal(resolveVar('vars.hasOwnProperty', ctx), undefined);
+  });
+
+  it('exposes alert groups as ctx.group.<id> so restrictions see them too', () => {
+    const ctx = buildRuleContext({
+      snapshot: null,
+      groups: [{ id: 'on', active: true }, { id: 'off', active: false }],
+    });
+    assert.equal(resolveVar('group.on', ctx), true);
+    assert.equal(resolveVar('group.off', ctx), false);
+  });
+});
+
+describe('buildRuleContext — velocity over the history window', () => {
+  const H = 3_600_000;
+  const base = new Date(2026, 2, 18, 9, 0).getTime();
+  const velocity = (history: HistorySample[], extra: Partial<UsageSnapshot> = {}) =>
+    buildRuleContext({ snapshot: minimalSnapshot(extra), history })['velocity'] as Record<string, number>;
+
+  it('fits a least-squares rate instead of using only the two endpoints', () => {
+    // Endpoints alone say (30-0)/2h = 15/h; the fit through all four samples (an early burst
+    // that then flattens) is 12.74/h.
+    const v = velocity([
+      { ts: base, todayCredits: 0 },
+      { ts: base + 0.5 * H, todayCredits: 25 },
+      { ts: base + 1 * H, todayCredits: 28 },
+      { ts: base + 2 * H, todayCredits: 30 },
+    ]);
+    assert.ok(Math.abs(v['creditsPerHour']! - 12.74) < 0.01, String(v['creditsPerHour']));
+    assert.equal(v['windowMinutes'], 120);
+  });
+
+  it('a steady stream recovers its exact rate', () => {
+    const v = velocity([0, 1, 2, 3].map((i) => ({ ts: base + i * 0.25 * H, todayCredits: 10 + i * 5 })));
+    assert.ok(Math.abs(v['creditsPerHour']! - 20) < 1e-9);
+    assert.equal(v['windowMinutes'], 45);
+  });
+
+  it('REGRESSION: a counter reset (midnight / recompute) restarts the window instead of zeroing the rate', () => {
+    // Yesterday's total (200) falls to 0 at midnight, then climbs 10 credits per 30 minutes.
+    const v = velocity([
+      { ts: base - 2 * H, todayCredits: 190 },
+      { ts: base - 1 * H, todayCredits: 200 },
+      { ts: base, todayCredits: 0 },
+      { ts: base + 0.5 * H, todayCredits: 10 },
+      { ts: base + 1 * H, todayCredits: 20 },
+    ]);
+    assert.ok(Math.abs(v['creditsPerHour']! - 20) < 1e-9);
+    assert.equal(v['windowMinutes'], 60);
+  });
+
+  it('is zero right after a reset (a single post-reset sample is not a rate)', () => {
+    const v = velocity([
+      { ts: base - H, todayCredits: 200 },
+      { ts: base, todayCredits: 0 },
+    ]);
+    assert.equal(v['creditsPerHour'], 0);
+    assert.equal(v['windowMinutes'], 0);
+  });
+
+  it('REGRESSION: costPerHour is the credit rate priced at the snapshot price, not a hard 0', () => {
+    const v = velocity(
+      [
+        { ts: base, todayCredits: 0 },
+        { ts: base + H, todayCredits: 10 },
+      ],
+      { pricePerCredit: 0.04 },
+    );
+    assert.ok(Math.abs(v['creditsPerHour']! - 10) < 1e-9);
+    assert.ok(Math.abs(v['costPerHour']! - 0.4) < 1e-9);
+  });
+
+  it('flat history is a rate of 0 over a real window', () => {
+    const v = velocity([
+      { ts: base, todayCredits: 5 },
+      { ts: base + H, todayCredits: 5 },
+    ]);
+    assert.equal(v['creditsPerHour'], 0);
+    assert.equal(v['windowMinutes'], 60);
+  });
+
+  it('identical timestamps give no rate', () => {
+    const v = velocity([
+      { ts: base, todayCredits: 1 },
+      { ts: base, todayCredits: 2 },
+    ]);
+    assert.equal(v['creditsPerHour'], 0);
   });
 });
