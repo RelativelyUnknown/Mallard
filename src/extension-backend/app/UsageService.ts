@@ -35,18 +35,45 @@ import { UserConfigStore } from './UserConfigStore';
 import { activeBranch } from '../util/repo';
 import { defaultVscodeHost, VscodeHost } from '../util/vscodeHost';
 import { IntervalManager } from '../util/IntervalManager';
+import { defaultLogger, Logger } from '../util/logger';
 
 /** Keep ~1h of recent samples for velocity alerting. */
 const HISTORY_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * True when a billing failure means "the user simply isn't signed in" rather
+ * than a real error. Prefers the typed `kind` the billing layer attaches to
+ * its errors; the message check keeps older/third-party providers working.
+ */
+function isNotSignedIn(error: Error): boolean {
+  if ('kind' in error && error.kind === 'not-signed-in') return true;
+  return error.message.includes('Not signed in');
+}
 
 function isEmptyFilter(f: Filter): boolean {
   return !f.range && !f.models?.length && !f.surfaces?.length &&
          !f.repos?.length && !f.branches?.length && !f.sources?.length;
 }
 
+/** A snapshot with its billing keys removed, so a changed billing state replaces rather than merges into them. */
+function withoutBilling(data: SnapshotData): Omit<SnapshotData, keyof BillingState> {
+  const { authStatus: _status, authError: _error, githubBilling: _billing, ...rest } = data;
+  return rest;
+}
+
 export class UsageService implements vscode.Disposable {
   private readonly _onDidChange = new vscode.EventEmitter<SnapshotData>();
   readonly onDidChangeSnapshot = this._onDidChange.event;
+
+  /**
+   * Fires only for snapshots computed with NO filter active (and for billing
+   * changes merged into the last such snapshot). Alerts, the velocity history
+   * and the restriction engine feed off this stream: a filtered snapshot
+   * describes a slice of the data, so evaluating budgets or restriction rules
+   * against it would fire (or clear) them on the wrong numbers.
+   */
+  private readonly _onDidComputeUnfiltered = new vscode.EventEmitter<SnapshotData>();
+  readonly onDidComputeUnfiltered = this._onDidComputeUnfiltered.event;
 
   /** Fires when GitHub auth/billing changes — no usage recompute involved. */
   private readonly _onDidChangeBilling = new vscode.EventEmitter<BillingState>();
@@ -59,6 +86,11 @@ export class UsageService implements vscode.Disposable {
   readonly onAlertFired = this._onAlertFired.event;
 
   private data?: SnapshotData;
+  /** The latest snapshot computed with no filter (see onDidComputeUnfiltered). */
+  private unfiltered?: SnapshotData;
+  /** The compute currently running, and the single follow-up queued behind it. */
+  private inFlight?: Promise<void>;
+  private queued?: Promise<void>;
   /** Composed wire snapshot, cached until the next data/billing change. */
   private composed?: UsageSnapshot;
   private prevComposed?: UsageSnapshot;
@@ -78,11 +110,17 @@ export class UsageService implements vscode.Disposable {
     private readonly currency: CurrencyService,
     private readonly github?: IBillingProvider,
     private readonly host: VscodeHost = defaultVscodeHost,
+    private readonly logger: Logger = defaultLogger,
   ) {
     if (github) {
-      this.subs.push(github.onDidChange(() => void this.refreshGitHub()));
+      this.subs.push(github.onDidChange(() => this.background('GitHub billing refresh', this.refreshGitHub())));
     }
-    this.subs.push(userConfig.onDidChange(() => this.compute()));
+    this.subs.push(userConfig.onDidChange(() => this.background('recompute after config change', this.compute())));
+  }
+
+  /** Fire-and-forget with the failure logged instead of an unhandled rejection. */
+  private background(what: string, work: Promise<unknown>): void {
+    work.catch((err: unknown) => this.logger.error('usage', `${what} failed`, err));
   }
 
   /**
@@ -148,19 +186,19 @@ export class UsageService implements vscode.Disposable {
     // while the initial log parse runs in the background.
     await this.compute();
     this.scheduleTimer();
-    void this.refreshGitHub();
-    void this.ingest.start().then(() => this.compute());
+    this.background('GitHub billing refresh', this.refreshGitHub());
+    this.background('initial ingest', this.ingest.start().then(() => this.compute()));
   }
 
   onConfigChanged(): void {
     this.scheduleTimer();
-    void this.compute();
+    this.background('recompute after settings change', this.compute());
   }
 
   async refresh(): Promise<void> {
     await this.ingest.start();
     await this.compute();
-    void this.refreshGitHub();
+    this.background('GitHub billing refresh', this.refreshGitHub());
   }
 
   async signInGitHub(): Promise<void> {
@@ -188,11 +226,10 @@ export class UsageService implements vscode.Disposable {
     if (result.isOk()) {
       this.billing = { authStatus: 'signed-in', githubBilling: result.value };
     } else {
-      const msg = result.error.message;
-      const authStatus = msg.includes('Not signed in') ? ('signed-out' as const) : ('error' as const);
+      const authStatus = isNotSignedIn(result.error) ? ('signed-out' as const) : ('error' as const);
       this.billing = {
         authStatus,
-        ...(authStatus === 'error' ? { authError: msg } : {}),
+        ...(authStatus === 'error' ? { authError: result.error.message } : {}),
       };
     }
     await this.emitBillingChange();
@@ -207,7 +244,11 @@ export class UsageService implements vscode.Disposable {
   private async emitBillingChange(): Promise<void> {
     this.invalidateComposed();
     if (this.data) {
-      this.data = { ...this.data, ...this.billing };
+      this.data = { ...withoutBilling(this.data), ...this.billing };
+      if (this.unfiltered) {
+        this.unfiltered = { ...withoutBilling(this.unfiltered), ...this.billing };
+        this._onDidComputeUnfiltered.fire(this.unfiltered);
+      }
       this._onDidChange.fire(this.data);
     } else {
       await this.compute();
@@ -220,7 +261,32 @@ export class UsageService implements vscode.Disposable {
     delete this.composed;
   }
 
-  private async compute(): Promise<void> {
+  /**
+   * Serialised compute: one run in flight, at most one queued behind it. A
+   * burst of triggers (timer + filter change + config edit + ingest finishing)
+   * therefore collapses into the running compute plus ONE follow-up that reads
+   * the latest filter/config when it starts, so a slow older read can never
+   * land after — and overwrite — a newer one.
+   */
+  private compute(): Promise<void> {
+    if (!this.inFlight) return this.startCompute();
+    const go = (): Promise<void> => {
+      delete this.queued;
+      return this.startCompute();
+    };
+    this.queued ??= this.inFlight.then(go, go);
+    return this.queued;
+  }
+
+  private startCompute(): Promise<void> {
+    const run: Promise<void> = this.runCompute().finally(() => {
+      if (this.inFlight === run) delete this.inFlight;
+    });
+    this.inFlight = run;
+    return run;
+  }
+
+  private async runCompute(): Promise<void> {
     const userConfig = this.userConfig.get();
     const now = Date.now();
     for (const [key, ts] of this.alertFired)
@@ -257,8 +323,13 @@ export class UsageService implements vscode.Disposable {
     this.data = next;
     this.lastComputeFiltered = filtered;
     this.invalidateComposed();
-    this.recordSample(now, next);
-    this.fireAlerts(next, userConfig, now);
+    if (!filtered) {
+      // Filtered snapshots go to the UI only — see onDidComputeUnfiltered.
+      this.unfiltered = next;
+      this.recordSample(now, next);
+      this.fireAlerts(next, userConfig, now);
+      this._onDidComputeUnfiltered.fire(next);
+    }
     this._onDidChange.fire(next);
   }
 
@@ -441,13 +512,14 @@ export class UsageService implements vscode.Disposable {
   private scheduleTimer(): void {
     // readConfig() already clamps refreshIntervalMinutes to [1, 60]
     const mins = readConfig().refreshIntervalMinutes;
-    this.timer.schedule(() => void this.refresh(), mins * 60_000);
+    this.timer.schedule(() => this.background('scheduled refresh', this.refresh()), mins * 60_000);
   }
 
   dispose(): void {
     this.timer[Symbol.dispose]();
     this.ingest.dispose();
     this._onDidChange.dispose();
+    this._onDidComputeUnfiltered.dispose();
     this._onDidChangeBilling.dispose();
     this._onAlertFired.dispose();
     this.subs.forEach((d) => d.dispose());

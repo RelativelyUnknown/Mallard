@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import { AlertRule, DEFAULT_RESTRICTION_STATE, RestrictionState } from '../domain/types';
 import { buildRuleContext, EvalBuildInput } from '../domain/expr/context';
+import { evalCondition } from '../domain/expr/jsonCondition';
 import { evaluateRestrictionState } from '../domain/restriction/evaluator';
 import { JsonFileStore } from '../util/JsonFileStore';
 
@@ -23,10 +24,12 @@ export class RestrictionEngine {
 
   private state: RestrictionState = { ...DEFAULT_RESTRICTION_STATE };
   private readonly store: JsonFileStore<RestrictionState>;
+  private overrideTimer?: NodeJS.Timeout;
 
   constructor(storageDir: string) {
     this.store = new JsonFileStore<RestrictionState>(storageDir, STATE_FILE);
     this.state = this.readFromDisk();
+    this.armOverrideExpiry();
   }
 
   getState(): RestrictionState {
@@ -41,6 +44,7 @@ export class RestrictionEngine {
   /** Wipe the restriction state. */
   async clearAll(): Promise<void> {
     this.state = { ...DEFAULT_RESTRICTION_STATE };
+    this.armOverrideExpiry();
     this.writeToDisk();
     this._onDidChange.fire(this.getState());
   }
@@ -48,8 +52,33 @@ export class RestrictionEngine {
   /** Snooze the active restriction for `minutes` from now. */
   async snooze(minutes: number): Promise<void> {
     this.state.userOverrideUntil = Date.now() + minutes * 60_000;
+    this.armOverrideExpiry();
     this.writeToDisk();
     this._onDidChange.fire(this.getState());
+  }
+
+  /**
+   * An expired snooze is cleared with a change event, so listeners (the
+   * restriction popup) can re-prompt: nothing else would announce the moment
+   * a snooze ends while the restriction itself is unchanged.
+   */
+  private expireOverride(now: number): void {
+    const until = this.state.userOverrideUntil;
+    if (!until || until > now) return;
+    this.state = { ...this.state, userOverrideUntil: null };
+    this.writeToDisk();
+    this._onDidChange.fire(this.getState());
+  }
+
+  private armOverrideExpiry(): void {
+    clearTimeout(this.overrideTimer);
+    delete this.overrideTimer;
+    const until = this.state.userOverrideUntil;
+    if (!until) return;
+    // setTimeout caps at ~24.8 days; snoozes are bounded far below that.
+    const ms = Math.min(Math.max(until - Date.now(), 0), 2 ** 31 - 1);
+    this.overrideTimer = setTimeout(() => this.expireOverride(Date.now()), ms);
+    this.overrideTimer.unref();
   }
 
   /** Recompute against the current context and apply changes. Idempotent. */
@@ -59,6 +88,7 @@ export class RestrictionEngine {
     const now = input.now ?? Date.now();
     const ctx = buildRuleContext(input);
     const desired = evaluateRestrictionState(input.rules, ctx, now);
+    this.expireOverride(now);
     const state = this.state;
 
     // Honour active user override
@@ -72,7 +102,27 @@ export class RestrictionEngine {
       // the override is honoured by isRestricted() until it expires.
     }
 
-    if (!desired.active) {
+    // A rule whose `reEnableWhen` holds is lifted: it neither starts nor
+    // keeps restricting (so it cannot flap while `when` is still true).
+    const clearsNow = (rule: AlertRule): boolean => {
+      const reEnable = rule.restrict?.reEnableWhen;
+      if (reEnable === undefined) return false;
+      // The evaluator lists matching rules whose re-enable condition holds; a
+      // rule whose `when` has stopped matching is not in that list, so the
+      // condition is also evaluated directly.
+      return (desired.canClear ?? []).some((r) => r.id === rule.id) || evalCondition(reEnable, ctx);
+    };
+    let wanted = desired.matching.find((r) => !clearsNow(r));
+    if (!wanted && state.active) {
+      // Hysteresis: a rule with a `reEnableWhen` keeps restricting after its
+      // `when` stops matching, until that re-enable condition becomes true.
+      // (A rule without one clears as soon as it stops matching; a rule that
+      // was removed or no longer restricts clears too.)
+      const held = input.rules.find((r) => r.id === state.ruleId);
+      if (held?.restrict?.reEnableWhen !== undefined && !clearsNow(held)) wanted = held;
+    }
+
+    if (!wanted) {
       // No rule wants to restrict — make sure the state is clean.
       if (state.active) {
         this.state = { ...DEFAULT_RESTRICTION_STATE };
@@ -82,20 +132,20 @@ export class RestrictionEngine {
       return this.state;
     }
 
-    if (!state.active || state.ruleId !== desired.active.id) {
+    if (!state.active || state.ruleId !== wanted.id) {
       this.state = {
         version: 1,
         active: true,
-        ruleId: desired.active.id,
-        reasonMessage: desired.active.message,
+        ruleId: wanted.id,
+        reasonMessage: wanted.message,
         firedAt: now,
         userOverrideUntil: null,
       };
       this.writeToDisk();
       this._onDidChange.fire(this.getState());
-    } else if (this.state.reasonMessage !== desired.active.message) {
+    } else if (this.state.reasonMessage !== wanted.message) {
       // still restricted by the same rule; refresh the message in case it changed
-      this.state.reasonMessage = desired.active.message;
+      this.state.reasonMessage = wanted.message;
       this.writeToDisk();
       this._onDidChange.fire(this.getState());
     }
@@ -117,6 +167,7 @@ export class RestrictionEngine {
   }
 
   dispose(): void {
+    clearTimeout(this.overrideTimer);
     this._onDidChange.dispose();
   }
 
