@@ -6,7 +6,7 @@
  */
 import type { TooltipComponentOption } from './echarts';
 import { readTheme } from '../theme';
-import { UsageSnapshot } from '../../extension-backend/domain/types';
+import { UsageSnapshot, WeekdayData } from '../../extension-backend/domain/types';
 import { formatCredits } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
 import { escapeHtml } from '../escapeHtml';
@@ -26,7 +26,11 @@ class WeekdayRadialChart extends ChartComponent {
   }
 
   protected buildOption(s: UsageSnapshot): object {
-    const { totals, peak } = s.chartData.weekdayBreakdown;
+    // `peakWeekday` is optional on the wire; the cast keeps this compiling
+    // against a WeekdayData that predates it (it is then simply a no-op).
+    const { totals, peak, peakWeekday } = s.chartData.weekdayBreakdown as WeekdayData & {
+      peakWeekday?: number | null;
+    };
     const t = readTheme();
 
     // Rotate from Sun=0 storage to Mon=0 display: displayIdx → storedIdx = (displayIdx + 1) % 7
@@ -35,8 +39,12 @@ class WeekdayRadialChart extends ChartComponent {
       return Math.round(totals[storedIdx] ?? 0);
     });
 
-    // Convert stored peak (Sun=0) to display index (Mon=0): displayPeak = (peak + 6) % 7
-    const displayPeak = (peak + 6) % 7;
+    // The host's explicit busiest weekday (Sun=0), null when the week has no
+    // activity — then nothing is highlighted. `peak` alone can't say that: it is
+    // 0 (Sunday) for an all-zero week. Hosts that don't send peakWeekday fall back to it.
+    const storedPeak = peakWeekday === undefined ? (totals.some((v) => v > 0) ? peak : null) : peakWeekday;
+    // Convert stored peak (Sun=0) to display index (Mon=0): (peak + 6) % 7; -1 = no highlight.
+    const displayPeak = storedPeak === null ? -1 : (storedPeak + 6) % 7;
 
     const data = displayData.map((v, i) => ({
       value: v,
