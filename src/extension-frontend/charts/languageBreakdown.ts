@@ -10,6 +10,7 @@ import { readTheme } from '../theme';
 import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatCredits, formatMoney } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 const TOP_N = 8;
 
@@ -48,7 +49,7 @@ class LanguageBreakdownChart extends ChartComponent {
           if (!p) return '';
           const l = rows[p.dataIndex];
           if (!l) return '';
-          return `${l.key}<br/>${formatCredits(l.credits)} cr · ${formatMoney(l.cost, currency)}` +
+          return `${escapeHtml(l.key)}<br/>${formatCredits(l.credits)} cr · ${escapeHtml(formatMoney(l.cost, currency))}` +
             `<br/><i>≈ detected from the active editor</i>`;
         },
       },

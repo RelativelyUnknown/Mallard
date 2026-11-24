@@ -433,6 +433,13 @@ export interface Filter {
   branches?: string[];
   /** Filter to specific sources (e.g. 'local', 'claude-code'). */
   sources?: SourceKind[];
+  /**
+   * The date preset `range` was resolved from. Relative presets ('today',
+   * '7d', '30d', 'month') must be re-resolved against the clock — see
+   * `resolveRangePreset` — or the stored `range` goes stale and new events
+   * fall outside it. Also lets a reopened dashboard restore its preset button.
+   */
+  rangePreset?: DatePreset;
 }
 
 export interface Bucket {

@@ -9,6 +9,7 @@ import { readTheme } from '../theme';
 import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatCredits } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 export interface WeekdayRadialHandle {
   update(snapshot: UsageSnapshot): void;
@@ -52,7 +53,7 @@ class WeekdayRadialChart extends ChartComponent {
         trigger: 'item',
         formatter(p: TooltipComponentOption) {
           const item = p as unknown as { name: string; value: number };
-          return `${item.name}<br/>${formatCredits(item.value)} cr`;
+          return `${escapeHtml(item.name)}<br/>${formatCredits(item.value)} cr`;
         },
       },
       polar: { radius: ['18%', '78%'] },

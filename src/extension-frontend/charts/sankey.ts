@@ -9,6 +9,7 @@ import type { TooltipComponentOption } from './echarts';
 import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatCredits } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 export interface SankeyHandle {
   update(snapshot: UsageSnapshot): void;
@@ -57,9 +58,9 @@ class SankeyChart extends ChartComponent {
             data: { source?: string; target?: string; value?: number };
           };
           if (p.dataType === 'edge') {
-            return `${shortName(p.data.source ?? '')} → ${p.data.target}<br/>${formatCredits(p.data.value ?? 0)} cr`;
+            return `${escapeHtml(shortName(p.data.source ?? ''))} → ${escapeHtml(p.data.target)}<br/>${formatCredits(p.data.value ?? 0)} cr`;
           }
-          return `${shortName(p.name)}<br/>${formatCredits(p.value)} cr`;
+          return `${escapeHtml(shortName(p.name))}<br/>${formatCredits(p.value)} cr`;
         },
       },
       series: [

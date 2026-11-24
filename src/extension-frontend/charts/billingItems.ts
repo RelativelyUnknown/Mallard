@@ -8,6 +8,7 @@ import { readTheme } from '../theme';
 import { GitHubBillingItem, UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatMoney } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 const TOP_N = 8;
 
@@ -55,7 +56,7 @@ class BillingItemsChart extends ChartComponent {
           const detail = discount > 0.005
             ? `net ${formatMoney(it.netAmount)} · gross ${formatMoney(it.grossAmount)}`
             : formatMoney(it.netAmount);
-          return `${itemLabel(it)}<br/>${detail}`;
+          return `${escapeHtml(itemLabel(it))}<br/>${escapeHtml(detail)}`;
         },
       },
       grid: { left: 8, right: 16, top: 8, bottom: 20, containLabel: true },

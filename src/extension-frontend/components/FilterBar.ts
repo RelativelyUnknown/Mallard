@@ -5,10 +5,10 @@
  *   3. Model multi-select dropdown (populated from snapshot data)
  *   4. Surface chips (only when >1 surface present)
  */
-import { post } from '../api';
 import { setState, state } from '../store';
+import { postFilter } from '../filterSync';
 import { DatePreset, Filter, Metric, SourceKind, Surface, UsageSnapshot } from '../../extension-backend/domain/types';
-import { DAY_MS, nextBucketStart, startOf } from '../../extension-backend/util/time';
+import { resolveRangePreset } from '../../extension-backend/domain/rangePreset';
 
 export interface FilterBarHandle {
   update(snapshot: UsageSnapshot, metric: Metric): void;
@@ -28,30 +28,6 @@ const METRICS: Array<{ id: Metric; label: string }> = [
   { id: 'tokens', label: 'Tokens' },
 ];
 
-function presetToRange(preset: DatePreset, now: number): { start: number; end: number } | undefined {
-  switch (preset) {
-    case 'today': {
-      const s = startOf(now, 'day');
-      return { start: s, end: nextBucketStart(now, 'day') };
-    }
-    case '7d':
-      return { start: now - 7 * DAY_MS, end: now + 1 };
-    case '30d':
-      return { start: now - 30 * DAY_MS, end: now + 1 };
-    case 'month': {
-      const s = startOf(now, 'month');
-      return { start: s, end: nextBucketStart(now, 'month') };
-    }
-    case 'all':
-      return undefined;
-    /* c8 ignore next 4 */
-    default: {
-      const _exhaustive: never = preset;
-      throw new Error(`Unknown preset: ${String(_exhaustive)}`);
-    }
-  }
-}
-
 /** Copilot-type sources (LM calls, local OTel logs, GitHub billing). */
 const COPILOT_SOURCES: SourceKind[] = ['lm', 'local', 'github'];
 
@@ -60,17 +36,21 @@ function buildFilter(
   models: string[],
   surface: Surface | null,
   repos: string[],
+  branches: string[],
   sources: SourceKind[],
 ): Filter {
-  const now = Date.now();
-  const range = presetToRange(preset, now);
+  const range = resolveRangePreset(preset, Date.now());
   return {
     ...(range !== undefined ? { range } : {}),
+    // Sent alongside the range so the host can re-resolve a relative preset
+    // as time passes, and a reopened dashboard can restore the button.
+    rangePreset: preset,
     ...(models.length ? { models } : {}),
     ...(surface ? { surfaces: [surface] } : {}),
     ...(repos.length ? { repos } : {}),
+    ...(branches.length ? { branches } : {}),
     ...(sources.length ? { sources } : {}),
-  } as Filter;
+  };
 }
 
 export function mountFilterBar(el: HTMLElement): FilterBarHandle {
@@ -107,7 +87,15 @@ export function mountFilterBar(el: HTMLElement): FilterBarHandle {
   let activeModels: string[] = [];
   let activeSurface: Surface | null = null;
   let activeRepos: string[] = [];
+  let activeBranches: string[] = [];
   let activeSources: SourceKind[] = [];
+  // What each rebuilt region was last rendered from. Live snapshots arrive
+  // constantly; rebuilding a region whose inputs didn't change would drop
+  // keyboard focus and close open pickers, so each rebuilds only on change.
+  let repoKey: string | null = null;
+  let modelsKey: string | null = null;
+  let surfaceKey: string | null = null;
+  let sourceKey: string | null = null;
 
   function updatePresetUI() {
     el.querySelectorAll<HTMLElement>('[data-preset]').forEach((btn) => {
@@ -122,9 +110,11 @@ export function mountFilterBar(el: HTMLElement): FilterBarHandle {
   }
 
   function dispatchFilter() {
-    const filter = buildFilter(activePreset, activeModels, activeSurface, activeRepos, activeSources);
+    const filter = buildFilter(
+      activePreset, activeModels, activeSurface, activeRepos, activeBranches, activeSources,
+    );
     setState({ filter, datePreset: activePreset });
-    post({ type: 'setFilter', value: filter });
+    postFilter(filter);
   }
 
   const repoSelect = el.querySelector<HTMLSelectElement>('#repo-select')!;
@@ -229,6 +219,7 @@ export function mountFilterBar(el: HTMLElement): FilterBarHandle {
   }
 
   function rebuildModelDropdown(allModels: string[], focusModel?: string) {
+    modelsKey = JSON.stringify([allModels, activeModels]);
     modelDropdown.innerHTML = '';
 
     const allOpt = document.createElement('div');
@@ -324,63 +315,90 @@ export function mountFilterBar(el: HTMLElement): FilterBarHandle {
 
   return {
     update(s: UsageSnapshot, metric: Metric) {
-      // Sync with externally-set filter state (e.g. model spotlight from chart click)
-      activeModels = state().filter.models ?? [];
+      // Sync with externally-set filter state (a chart click, the sidebar's
+      // model list, or the filter restored from the host on panel reopen).
+      const f = state().filter;
+      activeModels = f.models ?? [];
+      activeSurface = f.surfaces?.[0] ?? null;
+      activeRepos = f.repos ?? [];
+      activeBranches = f.branches ?? [];
+      activeSources = f.sources ?? [];
       activePreset = state().datePreset;
       updatePresetUI();
       updateMetricUI(metric);
 
       if (s.allRepos.length > 1) {
         repoSelect.hidden = false;
-        const heuristicRepos = new Set(
-          s.byRepo.filter((r) => (r.heuristicShare ?? 0) > 0).map((r) => r.key),
-        );
-        rebuildRepoSelect(s.allRepos, heuristicRepos);
+        const heuristic = s.byRepo
+          .filter((r) => (r.heuristicShare ?? 0) > 0)
+          .map((r) => r.key)
+          .sort();
+        const key = JSON.stringify([s.allRepos, heuristic]);
+        if (key !== repoKey) {
+          repoKey = key;
+          const hadFocus = document.activeElement === repoSelect;
+          rebuildRepoSelect(s.allRepos, new Set(heuristic));
+          if (hadFocus) repoSelect.focus();
+        } else {
+          // Options unchanged — just reflect the active repo, keeping focus.
+          repoSelect.value = activeRepos[0] ?? '__all__';
+        }
       } else {
         repoSelect.hidden = true;
         activeRepos = [];
+        repoKey = null;
       }
 
       if (s.allModels.length > 1) {
         modelFilterEl.hidden = false;
-        rebuildModelDropdown(s.allModels);
+        if (JSON.stringify([s.allModels, activeModels]) !== modelsKey) {
+          const focused = document.activeElement as HTMLElement | null;
+          const focusModel = focused && modelDropdown.contains(focused) ? focused.dataset.model : undefined;
+          rebuildModelDropdown(s.allModels, focusModel);
+        }
       } else {
         modelFilterEl.hidden = true;
         activeModels = [];
+        modelsKey = null;
       }
+      updateModelLabel();
 
       if (s.allSurfaces.length > 1) {
         surfaceChips.hidden = false;
-        surfaceChips.innerHTML = '';
+        const key = JSON.stringify(s.allSurfaces);
+        if (key !== surfaceKey) {
+          surfaceKey = key;
+          surfaceChips.innerHTML = '';
 
-        const allChip = document.createElement('button');
-        allChip.className = 'wv-surface-chip';
-        allChip.dataset.surface = '__all__';
-        allChip.setAttribute('aria-pressed', String(activeSurface === null));
-        allChip.textContent = 'All';
-        allChip.addEventListener('click', () => {
-          activeSurface = null;
-          updateSurfaceUI();
-          dispatchFilter();
-        });
-        surfaceChips.appendChild(allChip);
-
-        for (const surf of s.allSurfaces) {
-          const chip = document.createElement('button');
-          chip.className = 'wv-surface-chip';
-          chip.dataset.surface = surf;
-          chip.setAttribute('aria-pressed', String(activeSurface === surf));
-          chip.textContent = surf;
-          chip.addEventListener('click', () => {
-            activeSurface = activeSurface === surf ? null : surf;
+          const allChip = document.createElement('button');
+          allChip.className = 'wv-surface-chip';
+          allChip.dataset.surface = '__all__';
+          allChip.textContent = 'All';
+          allChip.addEventListener('click', () => {
+            activeSurface = null;
             updateSurfaceUI();
             dispatchFilter();
           });
-          surfaceChips.appendChild(chip);
+          surfaceChips.appendChild(allChip);
+
+          for (const surf of s.allSurfaces) {
+            const chip = document.createElement('button');
+            chip.className = 'wv-surface-chip';
+            chip.dataset.surface = surf;
+            chip.textContent = surf;
+            chip.addEventListener('click', () => {
+              activeSurface = activeSurface === surf ? null : surf;
+              updateSurfaceUI();
+              dispatchFilter();
+            });
+            surfaceChips.appendChild(chip);
+          }
         }
+        updateSurfaceUI();
       } else {
         surfaceChips.hidden = true;
         activeSurface = null;
+        surfaceKey = null;
       }
 
       // The source group is always visible once at least one connector has
@@ -389,28 +407,30 @@ export function mountFilterBar(el: HTMLElement): FilterBarHandle {
       // choose between.
       const hasCopilot = s.allSources.some((src) => COPILOT_SOURCES.includes(src));
       const hasClaudeCode = s.allSources.includes('claude-code');
-      sourceChips.innerHTML = '';
+      const nextSourceKey = hasCopilot && hasClaudeCode ? 'both' : hasCopilot ? 'copilot' : hasClaudeCode ? 'claude-code' : 'none';
 
       if (hasCopilot && hasClaudeCode) {
         sourceChipGroup.hidden = false;
-
-        const sourceOptions: Array<{ group: string; label: string; sources: SourceKind[] }> = [
-          { group: '__all__', label: 'All', sources: [] },
-          { group: 'copilot', label: SOURCE_LABELS.copilot!, sources: COPILOT_SOURCES },
-          { group: 'claude-code', label: SOURCE_LABELS['claude-code']!, sources: ['claude-code'] },
-        ];
-        for (const opt of sourceOptions) {
-          const chip = document.createElement('button');
-          chip.className = 'wv-source-chip';
-          chip.dataset.sourceGroup = opt.group;
-          chip.setAttribute('aria-pressed', 'false');
-          chip.textContent = opt.label;
-          chip.addEventListener('click', () => {
-            activeSources = opt.sources;
-            updateSourceUI();
-            dispatchFilter();
-          });
-          sourceChips.appendChild(chip);
+        if (sourceKey !== nextSourceKey) {
+          sourceChips.innerHTML = '';
+          const sourceOptions: Array<{ group: string; label: string; sources: SourceKind[] }> = [
+            { group: '__all__', label: 'All', sources: [] },
+            { group: 'copilot', label: SOURCE_LABELS.copilot!, sources: COPILOT_SOURCES },
+            { group: 'claude-code', label: SOURCE_LABELS['claude-code']!, sources: ['claude-code'] },
+          ];
+          for (const opt of sourceOptions) {
+            const chip = document.createElement('button');
+            chip.className = 'wv-source-chip';
+            chip.dataset.sourceGroup = opt.group;
+            chip.setAttribute('aria-pressed', 'false');
+            chip.textContent = opt.label;
+            chip.addEventListener('click', () => {
+              activeSources = opt.sources;
+              updateSourceUI();
+              dispatchFilter();
+            });
+            sourceChips.appendChild(chip);
+          }
         }
         updateSourceUI();
       } else if (hasCopilot || hasClaudeCode) {
@@ -419,14 +439,19 @@ export function mountFilterBar(el: HTMLElement): FilterBarHandle {
         // active connector is never a mystery.
         sourceChipGroup.hidden = false;
         activeSources = [];
-        const chip = document.createElement('span');
-        chip.className = 'wv-source-chip wv-source-chip--info';
-        chip.textContent = hasCopilot ? SOURCE_LABELS.copilot! : SOURCE_LABELS['claude-code']!;
-        sourceChips.appendChild(chip);
+        if (sourceKey !== nextSourceKey) {
+          sourceChips.innerHTML = '';
+          const chip = document.createElement('span');
+          chip.className = 'wv-source-chip wv-source-chip--info';
+          chip.textContent = hasCopilot ? SOURCE_LABELS.copilot! : SOURCE_LABELS['claude-code']!;
+          sourceChips.appendChild(chip);
+        }
       } else {
         sourceChipGroup.hidden = true;
         activeSources = [];
+        if (sourceKey !== nextSourceKey) sourceChips.innerHTML = '';
       }
+      sourceKey = nextSourceKey;
     },
   };
 }
