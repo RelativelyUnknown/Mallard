@@ -4,6 +4,7 @@
  */
 import {
   DashboardLayout,
+  DatePreset,
   Filter,
   PaletteMode,
   RestrictionState,
@@ -65,6 +66,8 @@ const HOST_BOUND_TYPE_FLAGS: Record<HostBoundMsg['type'], true> = {
 };
 export const HOST_BOUND_TYPES = Object.keys(HOST_BOUND_TYPE_FLAGS) as ReadonlyArray<HostBoundMsg['type']>;
 
+const DATE_PRESET_FLAGS: Record<DatePreset, true> = { today: true, '7d': true, '30d': true, month: true, all: true };
+
 function isObject(m: unknown): m is Record<string, unknown> {
   return typeof m === 'object' && m !== null;
 }
@@ -106,6 +109,11 @@ export function parseFilter(value: unknown): Filter | undefined {
     if (list === undefined) continue;
     if (!isStringList(list)) return undefined;
     out[key] = [...list];
+  }
+  if (value.rangePreset !== undefined) {
+    if (typeof value.rangePreset !== 'string') return undefined;
+    // An unknown preset name (newer webview) is dropped, not trusted.
+    if (Object.hasOwn(DATE_PRESET_FLAGS, value.rangePreset)) out.rangePreset = value.rangePreset as DatePreset;
   }
   if (value.surfaces !== undefined) {
     if (!isStringList(value.surfaces)) return undefined;

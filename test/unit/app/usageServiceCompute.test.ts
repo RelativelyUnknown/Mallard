@@ -8,6 +8,7 @@ import type { IngestService } from '../../../src/extension-backend/ingest/Ingest
 import type { PricingService } from '../../../src/extension-backend/pricing/PricingService';
 import type { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
 import type { IEventSnapshotReader, SnapshotSourceData } from '../../../src/extension-backend/store/EventReader';
+import { resolveRangePreset } from '../../../src/extension-backend/domain/rangePreset';
 import type { Filter, UserConfig } from '../../../src/extension-backend/domain/types';
 
 const EMPTY: SnapshotSourceData = {
@@ -153,6 +154,65 @@ describe('UsageService — filtered snapshots do not feed alerts or restriction'
     fireBilling();
     await tick();
     assert.deepEqual(seen, [{}], 'only the unfiltered snapshot is re-emitted with the new billing state');
+    svc.dispose();
+  });
+});
+
+describe('UsageService — relative date presets are re-resolved on every compute', () => {
+  it('replaces a stale stored range with the current range of the preset', async () => {
+    const seen: Filter[] = [];
+    const { svc } = harness({
+      reader: {
+        readFilteredSnapshot: async (f) => {
+          seen.push(f);
+          return EMPTY;
+        },
+      },
+    });
+    const stale = { start: Date.UTC(2020, 0, 1), end: Date.UTC(2020, 0, 2) };
+    await svc.setFilter({ rangePreset: '7d', range: stale });
+    const expected = resolveRangePreset('7d', Date.now());
+    assert.ok(expected);
+    assert.equal(seen.length, 1);
+    assert.deepEqual(seen[0]!.range, expected, 'the 7d window around now, not the 2020 range stored with the filter');
+    assert.equal(seen[0]!.rangePreset, '7d');
+    // The snapshot still reports the filter the user chose.
+    assert.equal(svc.current?.filter.rangePreset, '7d');
+    svc.dispose();
+  });
+
+  it('leaves a non-relative preset ("all") on the fast unfiltered path', async () => {
+    let filteredReads = 0;
+    let cacheReads = 0;
+    const { svc } = harness({
+      reader: {
+        readFilteredSnapshot: async () => (filteredReads++, EMPTY),
+        readSnapshotCache: async () => (cacheReads++, EMPTY),
+      },
+    });
+    await svc.setFilter({ rangePreset: 'all' });
+    assert.equal(filteredReads, 0);
+    assert.equal(cacheReads, 1);
+    svc.dispose();
+  });
+
+  it('keeps resolving: a later compute moves the window with the clock', async () => {
+    const seen: Filter[] = [];
+    const { svc } = harness({
+      reader: {
+        readFilteredSnapshot: async (f) => (seen.push(f), EMPTY),
+      },
+    });
+    await svc.setFilter({ rangePreset: 'today' });
+    const realNow = Date.now;
+    try {
+      Date.now = () => realNow() + 3 * 86_400_000;
+      await svc.setFilter({ rangePreset: 'today' });
+    } finally {
+      Date.now = realNow;
+    }
+    assert.equal(seen.length, 2);
+    assert.ok(seen[1]!.range!.start > seen[0]!.range!.start, 'second compute resolved against the later clock');
     svc.dispose();
   });
 });

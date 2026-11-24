@@ -30,6 +30,19 @@ describe('parseFilter', () => {
     assert.deepEqual(parseFilter({ surfaces: ['chat', 'nope'], sources: ['nope'] }), { surfaces: ['chat'], sources: [] });
   });
 
+  it('keeps a known rangePreset, drops an unknown one, and rejects a non-string', () => {
+    assert.deepEqual(parseFilter({ rangePreset: '7d', range: { start: 1, end: 2 } }), {
+      range: { start: 1, end: 2 },
+      rangePreset: '7d',
+    });
+    for (const preset of ['today', '30d', 'month', 'all']) {
+      assert.equal(parseFilter({ rangePreset: preset })?.rangePreset, preset);
+    }
+    assert.deepEqual(parseFilter({ rangePreset: 'fortnight' }), {});
+    assert.deepEqual(parseFilter({ rangePreset: 'toString' }), {}, 'inherited property names are not presets');
+    assert.equal(parseFilter({ rangePreset: 7 }), undefined);
+  });
+
   it('rejects non-objects and wrong shapes', () => {
     for (const bad of [null, undefined, 'x', 42, [], [{ models: [] }]]) {
       assert.equal(parseFilter(bad), undefined, JSON.stringify(bad));

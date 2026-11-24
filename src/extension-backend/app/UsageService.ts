@@ -10,6 +10,7 @@ import { evaluateAlertRules, shouldNotify } from '../domain/alertRules';
 import { computeBudget } from '../domain/budget';
 import { buildChartData } from '../domain/chartData';
 import { forecastMonth } from '../domain/forecast';
+import { isRelativePreset, resolveRangePreset } from '../domain/rangePreset';
 import { isIncrementalUpdate } from '../domain/snapshot';
 import {
   BillingState,
@@ -51,6 +52,19 @@ function isNotSignedIn(error: Error): boolean {
   // Other providers may tag their errors the same way without sharing the class.
   if ('kind' in error && error.kind === 'not-signed-in') return true;
   return error.message.includes('Not signed in');
+}
+
+/**
+ * A relative date preset (today / 7d / 30d / month) is re-resolved against the
+ * clock on every compute: the range stored with the filter was correct only
+ * when the preset was picked, and goes stale (new events fall outside it) as
+ * soon as the day rolls over.
+ */
+function withResolvedRange(filter: Filter, now: number): Filter {
+  const preset = filter.rangePreset;
+  if (!isRelativePreset(preset)) return filter;
+  const range = resolveRangePreset(preset, now);
+  return range ? { ...filter, range } : filter;
 }
 
 function isEmptyFilter(f: Filter): boolean {
@@ -307,11 +321,12 @@ export class UsageService implements vscode.Disposable {
     // reads the pre-materialized snap_* tables, the filtered path pushes all
     // aggregation into DuckDB. Only the filtered path computes isIncremental
     // (partial dashboard updates only make sense while filtering).
-    const filtered = !isEmptyFilter(this.filter);
+    const filter = withResolvedRange(this.filter, now);
+    const filtered = !isEmptyFilter(filter);
     const dataPromise = filtered
       ? this.reader.readFilteredSnapshot({
-          ...this.filter,
-          range: this.filter.range ?? { start: startOf(now - 365 * DAY_MS, 'day'), end: now + DAY_MS },
+          ...filter,
+          range: filter.range ?? { start: startOf(now - 365 * DAY_MS, 'day'), end: now + DAY_MS },
         })
       : this.reader.readSnapshotCache();
     const [data, currentBranchCredits] = await Promise.all([
