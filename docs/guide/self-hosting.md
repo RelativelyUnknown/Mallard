@@ -17,7 +17,7 @@ software. Please conduct your own due diligence.*
 
 Mallard ships an optional ingest server that receives streamed usage events from one or more extension instances, stores them in InfluxDB v2, and visualises them in Grafana. The extension works fine without it. Self-hosting is for teams that want a centralised dashboard or want to keep data under their own control.
 
-Source: `server/` in this repo.
+Source: `src/server/` in this repo.
 
 ## How it works
 
@@ -37,7 +37,7 @@ flowchart LR
 
 The server is a single stateless FastAPI process. It accepts either:
 - **Webhook**: a `POST` to `/api/v1/ingest` with an `X-API-Key` header (or `Authorization: Bearer` for token-based auth, or a TLS client certificate for mTLS).
-- **MQTT**: a message published over a WebSocket-wrapped MQTT connection (`wss://your-server/mqtt`). The embedded amqtt broker accepts any topic; it doesn't filter by topic name, only by the authenticated client.
+- **MQTT**: a message published over a WebSocket-wrapped MQTT connection (`wss://your-server/mqtt`). The embedded amqtt broker authenticates the client (shared password) **and** filters by topic: only topics under `MQTT_TOPIC_PREFIX` (default `mallard/`) can be published, subscribed to or received — anything else is denied at the broker and never ingested.
 
 InfluxDB stores one point per usage event in a measurement named `mallard_events`, tagged by credential label, connector, model, surface, and detected language. Grafana reads from InfluxDB via Flux queries and derives every aggregate from the raw events.
 
@@ -47,8 +47,8 @@ The server reads its credentials from environment variables by default — the `
 
 | Backend | Docker Compose | Kubernetes |
 |---|---|---|
-| static (default) | base `docker-compose.yml` alone | `server/k8s/server/` with `secrets.yaml` filled in |
-| OpenBao | `docker-compose.openbao.yml` overlay | `server/k8s/openbao/` kustomize overlay |
+| static (default) | base `docker-compose.yml` alone | `src/server/k8s/server/` with `secrets.yaml` filled in |
+| OpenBao | `docker-compose.openbao.yml` overlay | `src/server/k8s/openbao/` kustomize overlay |
 
 With OpenBao, the server fetches credentials live and caches them for 30 seconds, so revocation or rotation propagates within one cache interval — no pod restart or container recreate needed.
 
@@ -56,23 +56,29 @@ With OpenBao, the server fetches credentials live and caches them for 30 seconds
 
 ```bash
 git clone https://github.com/RelativelyUnknown/Mallard.git
-cd Mallard/server/docker
+cd Mallard/src/server/docker
 cp .env.example .env
 ```
 
 Open `.env` and fill in the base values and credentials:
 
 ```bash
-# A random token for InfluxDB, generate with: openssl rand -hex 32
-INFLUX_TOKEN=change-me
+# InfluxDB and Grafana admin passwords (compose refuses to start while blank)
+INFLUX_ADMIN_PASSWORD=<a strong password>
+GF_SECURITY_ADMIN_PASSWORD=<a strong password>
 
-# Grafana admin password
-GF_SECURITY_ADMIN_PASSWORD=changeme
+# A random token for InfluxDB, generate with: openssl rand -hex 32
+INFLUX_TOKEN=<openssl rand -hex 32>
 
 # API keys the extension authenticates with.
 # Format: label:key  (the label appears as the "source" tag in InfluxDB)
-API_KEYS=my-machine:change-me-too
+API_KEYS=my-machine:<openssl rand -hex 32>
 ```
+
+`.env.example` ships `CHANGE_ME…` placeholders on purpose: the server refuses to
+start while `INFLUX_TOKEN`, `API_KEYS`, `MQTT_PASSWORD` or the other secret
+settings still contain one (`ALLOW_PLACEHOLDER_SECRETS=true` overrides this for
+throwaway local testing only).
 
 Then start the stack:
 
@@ -139,9 +145,11 @@ Run **Mallard: Set MQTT Export Password** from the Command Palette to store the 
 
 ## Named credentials and the `source` tag
 
-Every API key and MQTT credential can carry a **label** (`label:secret`), written as the
+Every API key can carry a **label** (`label:secret`), written as the
 `source` tag on every InfluxDB data point. This is what lets you filter Grafana
-dashboards by team, machine, or person.
+dashboards by team, machine, or person. (MQTT has a single shared password and is
+always tagged `source=mqtt`; mTLS certificates are labeled through `CERT_LABELS`
+and JWTs through `JWT_LABELS`.)
 
 ## MQTT configuration
 
@@ -151,11 +159,11 @@ Enable the embedded MQTT broker:
 MQTT_ENABLED=true
 ```
 
-The broker listens on WebSocket at `/mqtt`. Extension clients connect via `wss://your-server/mqtt`. The broker password (`MQTT_PASSWORD`) is separate from API keys; set both if you use both transports. It lives in `.env` like the rest of the credentials (and is seeded into OpenBao on first boot when you use that overlay).
+The broker listens on WebSocket at `/mqtt`. Extension clients connect via `wss://your-server/mqtt` (the extension also accepts `mqtts://`; plain `mqtt://` and `ws://` are refused). Authentication is the shared password only — the broker sits behind the TLS-terminating proxy and never sees a client certificate, so mTLS client certs apply to the HTTP webhook, not MQTT. The broker password (`MQTT_PASSWORD`) is separate from API keys; set both if you use both transports. It lives in `.env` like the rest of the credentials (and is seeded into OpenBao on first boot when you use that overlay).
 
 ## Kubernetes
 
-The K8s manifests in `server/k8s/` deploy the full stack to a `mallard` namespace. Prerequisites: a running Kubernetes cluster (1.28+) with an nginx ingress controller.
+The K8s manifests in `src/server/k8s/` deploy the full stack to a `mallard` namespace. Prerequisites: a running Kubernetes cluster (1.28+) with an nginx ingress controller.
 
 ### 1. Install cert-manager
 
@@ -170,35 +178,35 @@ helm install cert-manager jetstack/cert-manager \
 Then apply the ClusterIssuers (ACME + self-signed CA):
 
 ```bash
-kubectl apply -f server/k8s/cert-manager/
+kubectl apply -f src/server/k8s/cert-manager/
 ```
 
 ### 2. Create the namespace and secrets
 
 ```bash
-kubectl apply -f server/k8s/namespace.yaml
-cp server/k8s/secrets.yaml.example server/k8s/secrets.yaml
+kubectl apply -f src/server/k8s/namespace.yaml
+cp src/server/k8s/secrets.yaml.example src/server/k8s/secrets.yaml
 # Edit secrets.yaml: set INFLUX_TOKEN, GF_ADMIN_PASSWORD, and API_KEYS —
 # in the default static setup this Secret carries the real credentials.
-kubectl apply -f server/k8s/secrets.yaml
+kubectl apply -f src/server/k8s/secrets.yaml
 ```
 
 > Keep `secrets.yaml` out of version control. It is listed in `.gitignore`.
 
 ### 3. (Optional) Set up OpenBao
 
-Only if you want restart-free credential rotation: follow `server/k8s/openbao/install.md`. It ends with applying a `mallard-openbao-secrets` Secret holding the token the server uses to poll OpenBao; the overlay then supersedes the static `API_KEYS`.
+Only if you want restart-free credential rotation: follow `src/server/k8s/openbao/install.md`. It ends with applying a `mallard-openbao-secrets` Secret holding the token the server uses to poll OpenBao; the overlay then supersedes the static `API_KEYS`.
 
 ### 4. Apply manifests
 
 ```bash
-kubectl apply -f server/k8s/influxdb/
-kubectl apply -k server/k8s/server/     # or, with OpenBao: kubectl apply -k server/k8s/openbao/
-kubectl apply -f server/k8s/grafana/
-kubectl apply -f server/k8s/ingress.yaml
+kubectl apply -f src/server/k8s/influxdb/
+kubectl apply -k src/server/k8s/server/     # or, with OpenBao: kubectl apply -k src/server/k8s/openbao/
+kubectl apply -f src/server/k8s/grafana/
+kubectl apply -f src/server/k8s/ingress.yaml
 ```
 
-`kubectl apply -k server/k8s/server/` is the complete default deployment — the server starts on static credentials from `mallard-server-secrets`. The OpenBao overlay builds on the same base and patches in `SECRET_MANAGER_TYPE=openbao` plus the OpenBao connection details.
+`kubectl apply -k src/server/k8s/server/` is the complete default deployment — the server starts on static credentials from `mallard-server-secrets`. The OpenBao overlay builds on the same base and patches in `SECRET_MANAGER_TYPE=openbao` plus the OpenBao connection details.
 
 The ingress watches for a cert from the `letsencrypt-prod` ClusterIssuer and populates the TLS secret automatically once cert-manager issues it (usually within 60 seconds).
 
@@ -219,4 +227,4 @@ The server Deployment carries the `reloader.stakater.com/auto: "true"` annotatio
 Instead of API keys or passwords, the extension can authenticate with a TLS client
 certificate. The certificate's Common Name becomes the `source` tag in InfluxDB, no
 separate credential entry needed. Requires cert-manager with the `mallard-ca`
-ClusterIssuer and the nginx mTLS annotations already in `server/k8s/ingress.yaml`.
+ClusterIssuer and the nginx mTLS annotations already in `src/server/k8s/ingress.yaml`.

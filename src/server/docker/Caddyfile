@@ -50,8 +50,11 @@ log {
 		header_up Upgrade {http.request.header.Upgrade}
 	}
 
-	# Grafana dashboard
-	@grafana path /grafana*
+	# Grafana dashboard, served under /grafana. The prefix is passed through
+	# untouched: Grafana runs with GF_SERVER_SERVE_FROM_SUB_PATH=true and a
+	# root URL ending in /grafana (docker-compose.yml). Its port 3000 is not
+	# published; this is the only way in.
+	@grafana path /grafana /grafana/*
 	reverse_proxy @grafana grafana:3000
 
 	# API and health

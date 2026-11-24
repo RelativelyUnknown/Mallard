@@ -9,6 +9,8 @@ spec:
     kind: Deployment
     name: mallard-server
   minReplicas: 2
+  # k8s/resourcequota.yaml is sized for this maximum (plus rolling-update
+  # surge); change both together.
   maxReplicas: 10
   metrics:
     - type: Resource

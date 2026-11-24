@@ -23,7 +23,7 @@ WEBHOOK_HMAC_SECRETS=signing-secret-1
 ### Docker Compose
 
 ```bash
-cd server/docker
+cd src/server/docker
 cp .env.example .env
 # Fill in the credentials block, then:
 docker compose -f docker-compose.yml up -d
@@ -31,10 +31,10 @@ docker compose -f docker-compose.yml up -d
 
 ### Kubernetes
 
-Fill in `server/k8s/secrets.yaml.example` (the `mallard-server-secrets` Secret carries `API_KEYS` and friends), apply it, then:
+Fill in `src/server/k8s/secrets.yaml.example` (the `mallard-server-secrets` Secret carries `API_KEYS` and friends), apply it, then:
 
 ```bash
-kubectl apply -k server/k8s/server/
+kubectl apply -k src/server/k8s/server/
 ```
 
 ### Rotation
@@ -58,14 +58,15 @@ With `SECRET_MANAGER_TYPE=openbao`, the server instantiates `OpenBaoCredentialVe
 
 1. On the first inbound request after startup (or after the 30-second TTL expires), the verifier fetches the secret store from OpenBao.
 2. The fetched store is kept in memory for 30 seconds; requests within that window make no network round-trip.
-3. If a refresh fails (OpenBao unreachable or sealed), the old cache is retained and an error is logged; the server keeps serving until the cache goes cold.
+3. If a refresh fails (OpenBao unreachable or sealed), the old cache is retained and a warning is logged; the server keeps serving from it while retrying with exponential backoff (1 s, 2 s, 4 s … capped at 60 s) instead of re-trying on every request.
+4. The stale cache is only served for `CREDENTIAL_MAX_STALE_SECONDS` (default `86400`, 24 hours). Past that age ingest answers `503 Credential verification unavailable` and `/health` reports the secret manager as down — so a key you revoked in OpenBao cannot keep working indefinitely through an outage. Set it lower if you need revocation to bite sooner than a day.
 
 ### Docker Compose
 
 The `docker-compose.openbao.yml` overlay starts OpenBao in dev mode (in-memory, no persistence; for production use a real OpenBao/Vault cluster) and an `openbao-init` one-shot container that seeds secrets from your `.env`.
 
 ```bash
-cd server/docker
+cd src/server/docker
 cp .env.example .env
 # Fill in the credentials block and OPENBAO_DEV_ROOT_TOKEN, then:
 docker compose -f docker-compose.yml -f docker-compose.openbao.yml up -d
@@ -102,7 +103,7 @@ kubectl exec -n openbao openbao-0 -- bao operator unseal <unseal-key>
 
 export BAO_ADDR=http://openbao.openbao.svc.cluster.local:8200
 export BAO_TOKEN=<root-token>
-./server/k8s/openbao/approle-setup.sh
+./src/server/k8s/openbao/approle-setup.sh
 
 bao kv put secret/mallard/server \
   api_keys="alice:key-abc123,bob:key-def456" \
@@ -116,10 +117,10 @@ kubectl create secret generic mallard-openbao-secrets \
   --from-literal=SECRET_MANAGER_TOKEN=<client-token> \
   -n mallard
 
-kubectl apply -k server/k8s/openbao/
+kubectl apply -k src/server/k8s/openbao/
 ```
 
-The overlay sets `SECRET_MANAGER_TYPE=openbao` and `SECRET_MANAGER_URL` on the server Deployment and wires in the Secret above. See `server/k8s/openbao/install.md` for the full walkthrough, including client token expiry and renewal.
+The overlay sets `SECRET_MANAGER_TYPE=openbao` and `SECRET_MANAGER_URL` on the server Deployment and wires in the Secret above. See `src/server/k8s/openbao/install.md` for the full walkthrough, including client token expiry and renewal.
 
 Rotating OpenBao's own access token (`SECRET_MANAGER_TOKEN`) still needs a restart: it's a Secret value the server reads once at startup. Stakater Reloader handles that automatically when you update `mallard-openbao-secrets`.
 
