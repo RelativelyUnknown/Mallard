@@ -163,6 +163,31 @@ describe('evaluateAlerts() — budget', () => {
   });
 });
 
+describe('evaluateAlerts() — budget boundaries', () => {
+  const at = (percentOfBudget: number) =>
+    evaluateAlerts(
+      snap({ budget: { percentOfBudget } as UsageSnapshot['budget'] }),
+      NO_HISTORY,
+      cfg({ monthlyBudget: 20 }),
+      EMPTY_FIRED,
+      NOW,
+    );
+
+  it('the 80% alert fires at exactly 0.8 and not a hair below', () => {
+    const exact = at(0.8);
+    assert.equal(exact.length, 1, 'exactly 80% of the budget used is enough');
+    assert.ok(exact[0]!.key.startsWith('budget-80-'));
+    assert.equal(at(0.7999999).length, 0, 'just under 80% stays quiet');
+  });
+
+  it('just under 100% raises the 80% alert, and exactly 100% raises the 100% alert instead', () => {
+    const almost = at(0.9999999);
+    assert.deepEqual(almost.map((a) => a.key.split('-').slice(0, 2).join('-')), ['budget-80']);
+    const full = at(1.0);
+    assert.deepEqual(full.map((a) => a.key.split('-').slice(0, 2).join('-')), ['budget-100']);
+  });
+});
+
 describe('evaluateAlerts() — daily credit threshold', () => {
   it('fires when today.credits >= threshold', () => {
     const out = evaluateAlerts(
@@ -229,6 +254,23 @@ describe('evaluateAlerts() — velocity', () => {
     assert.equal(out.length, 1);
     assert.equal(out[0]!.key, 'velocity');
     assert.ok(out[0]!.message.includes('60'));
+  });
+
+  it('fires when the rate is exactly the threshold, and not for a hair less', () => {
+    const rateOf = (credits: number): SnapshotSample[] => [
+      { ts: NOW - 3_600_000, todayCredits: 0 },
+      { ts: NOW, todayCredits: credits },
+    ];
+    const run = (credits: number) =>
+      evaluateAlerts(
+        snap(),
+        rateOf(credits),
+        cfg({ alerts: { velocityEnabled: true, velocityCreditsPerHour: 50 } }),
+        EMPTY_FIRED,
+        NOW,
+      );
+    assert.equal(run(50).length, 1, 'exactly 50 credits/hour meets a threshold of 50');
+    assert.equal(run(49.99).length, 0);
   });
 
   it('does not fire when rate is below threshold', () => {

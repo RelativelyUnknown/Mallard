@@ -148,3 +148,49 @@ describe('budget — insufficient-data forecasts', () => {
     assert.equal(paceFor(insufficient(45)), 'over');
   });
 });
+
+describe('budget — pace thresholds are inclusive upper bounds', () => {
+  // A 100 budget makes ratio === projectedCost / 100 exactly representable at every boundary.
+  const paceAt = (projectedCost: number): string =>
+    computeBudget({
+      monthlyBudget: 100,
+      includedCredits: 300,
+      mtdCredits: 10,
+      mtdCost: 10,
+      forecast: forecastWithCost(projectedCost),
+    }).pace;
+
+  it('"under" ends at exactly 80% of budget (inclusive); anything above is "on-track"', () => {
+    assert.equal(paceAt(79.99), 'under');
+    assert.equal(paceAt(80), 'under', 'exactly 0.8 is still under');
+    assert.equal(paceAt(81), 'on-track');
+  });
+
+  it('"on-track" ends at exactly 100% of budget (inclusive); anything above is "warning"', () => {
+    assert.equal(paceAt(99), 'on-track');
+    assert.equal(paceAt(100), 'on-track', 'projecting to exactly the budget is on track, not a warning');
+    assert.equal(paceAt(100.01), 'warning');
+  });
+
+  it('"warning" ends at exactly 125% of budget (inclusive); anything above is "over"', () => {
+    assert.equal(paceAt(124.99), 'warning');
+    assert.equal(paceAt(125), 'warning', 'exactly 1.25 is still a warning');
+    assert.equal(paceAt(126), 'over');
+  });
+
+  it('the same boundaries hold for an insufficient-data lower bound (where only warning/over are reported)', () => {
+    const insufficient = (projectedCost: number): string =>
+      computeBudget({
+        monthlyBudget: 100,
+        includedCredits: 300,
+        mtdCredits: 10,
+        mtdCost: projectedCost,
+        forecast: { ...forecastWithCost(projectedCost), basis: 'insufficient-data' },
+      }).pace;
+    assert.equal(insufficient(80), 'no-budget');
+    assert.equal(insufficient(100), 'no-budget');
+    assert.equal(insufficient(101), 'warning');
+    assert.equal(insufficient(125), 'warning');
+    assert.equal(insufficient(125.01), 'over');
+  });
+});

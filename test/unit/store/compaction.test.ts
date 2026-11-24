@@ -2,7 +2,9 @@ import { strict as assert } from 'assert';
 import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { EventReader, type SnapshotCacheToken } from '../../../src/extension-backend/store/EventReader';
 import { EventStore } from '../../../src/extension-backend/store/EventStore';
+import { EventWriter } from '../../../src/extension-backend/store/EventWriter';
 import { readRows } from '../../../src/extension-backend/store/dbUtils';
 import { UsageEvent } from '../../../src/extension-backend/domain/types';
 import { dayStartOffset } from '../../../src/extension-backend/util/time';
@@ -122,6 +124,49 @@ describe('compaction rollup', () => {
       assert.equal(ids.filter((i) => i.startsWith('roll:')).length, 1);
     } finally { store.dispose(); }
   });
+
+  it('does nothing — and keeps the snapshot memo — when the only candidate sits exactly at the cutoff', async () => {
+    const store = await EventStore.open(await tmpDir());
+    try {
+      const cutoff = dayStartOffset(now, -90);
+      const token: SnapshotCacheToken = { version: 0 };
+      const writer = new EventWriter(store.conn, 90, token);
+      const reader = new EventReader(store.conn, token, () => now);
+      await writer.insert([makeEvent({ id: 'at', ts: cutoff }), makeEvent({ id: 'recent', ts: now - 1000 })]);
+      const memo = await reader.readSnapshotCache();
+      const versionBefore = token.version;
+
+      await writer.compact(now);
+
+      assert.equal(token.version, versionBefore, 'nothing is strictly older than the cutoff, so no mutation happened');
+      assert.strictEqual(await reader.readSnapshotCache(), memo, 'the memoised snapshot is still current');
+      assert.deepEqual((await reader.find()).map((e) => e.id), ['at', 'recent']);
+
+      // One millisecond earlier is old enough: that compaction does run and invalidates the memo.
+      await writer.insert([makeEvent({ id: 'just-before', ts: cutoff - 1 })]);
+      const versionAfterInsert = token.version;
+      await writer.compact(now);
+      assert.ok(token.version > versionAfterInsert, 'an event strictly before the cutoff triggers a rollup');
+      assert.deepEqual((await reader.find()).map((e) => e.id).filter((id) => !id.startsWith('roll:')), ['at', 'recent']);
+    } finally { store.dispose(); }
+  });
+
+  for (const [label, at] of [['just after midnight', new Date(2026, 5, 15, 0, 1)], ['a minute before midnight', new Date(2026, 5, 15, 23, 59)]] as const) {
+    it(`the cutoff is the same local midnight whatever the time of day compaction runs (${label})`, async () => {
+      const store = await EventStore.open(await tmpDir());
+      try {
+        const cutoffDay = new Date(2026, 2, 17); // 90 calendar days before 2026-06-15
+        await store.writer.insert([
+          makeEvent({ id: 'cutoff-day-early', ts: new Date(2026, 2, 17, 0, 30).getTime() }),
+          makeEvent({ id: 'cutoff-day-late', ts: new Date(2026, 2, 17, 23, 30).getTime() }),
+          makeEvent({ id: 'day-before', ts: cutoffDay.getTime() - 3_600_000 }),
+        ]);
+        await store.compact(at.getTime());
+        const raw = (await store.reader.find()).map((e) => e.id).filter((id) => !id.startsWith('roll:'));
+        assert.deepEqual(raw, ['cutoff-day-early', 'cutoff-day-late'], 'the whole cutoff day stays raw; only earlier days roll up');
+      } finally { store.dispose(); }
+    });
+  }
 
   it('computes the cutoff in calendar days across a DST shift', async () => {
     await withTimeZone('America/New_York', async () => {

@@ -39,13 +39,14 @@ const INSUF_FORECAST: Forecast = {
 };
 
 describe('buildWeekdayTotals', () => {
-  // Noon UTC keeps the local date on the same calendar day for every timezone
-  // (|offset| < 14h), so these assertions are tz-independent.
+  // Local noon (new Date(y, m, d, h) builds in the host zone), because the
+  // weekday is bucketed by the local calendar day. A UTC-noon instant lands on
+  // the NEXT local day in zones ahead of +12h (e.g. Pacific/Auckland).
   it('anchors index 0 on Sunday (epoch day 0 was a Thursday)', () => {
     // 2021-01-03 is a Sunday, 2021-01-04 a Monday, 2021-01-09 a Saturday.
-    const sun = Date.UTC(2021, 0, 3, 12);
-    const mon = Date.UTC(2021, 0, 4, 12);
-    const sat = Date.UTC(2021, 0, 9, 12);
+    const sun = new Date(2021, 0, 3, 12).getTime();
+    const mon = new Date(2021, 0, 4, 12).getTime();
+    const sat = new Date(2021, 0, 9, 12).getTime();
     const totals = buildWeekdayTotals([
       makeEvent({ ts: sun, credits: 1 }),
       makeEvent({ ts: mon, credits: 2 }),
@@ -55,6 +56,23 @@ describe('buildWeekdayTotals', () => {
     assert.equal(totals[1], 2, 'Monday → index 1');
     assert.equal(totals[6], 3, 'Saturday → index 6');
   });
+
+  for (const tz of ['Pacific/Auckland', 'America/Los_Angeles', 'UTC', 'Pacific/Kiritimati']) {
+    it(`buckets by the local calendar day whatever the host zone (TZ=${tz})`, () => {
+      withTimezone(tz, () => {
+        // Just after local midnight and just before the next one: same local weekday, 24h apart in UTC terms.
+        const earlySunday = new Date(2021, 0, 3, 0, 5).getTime();
+        const lateSunday = new Date(2021, 0, 3, 23, 55).getTime();
+        const earlyMonday = new Date(2021, 0, 4, 0, 5).getTime();
+        const totals = buildWeekdayTotals([
+          makeEvent({ ts: earlySunday, credits: 1 }),
+          makeEvent({ ts: lateSunday, credits: 2 }),
+          makeEvent({ ts: earlyMonday, credits: 4 }),
+        ]);
+        assert.deepEqual(totals, [3, 4, 0, 0, 0, 0, 0]);
+      });
+    });
+  }
 });
 
 describe('buildDailyBarsData', () => {

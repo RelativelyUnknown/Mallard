@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { DuckDBFileReader } from '../../../src/extension-backend/store/DuckDBFileReader';
 import { EventStore } from '../../../src/extension-backend/store/EventStore';
+import { parseTimestamp } from '../../../src/extension-backend/ingest/connectorUtils';
 import type { ParseContext } from '../../../src/extension-backend/ingest/otelParse';
 import { makeEvent } from '../helpers';
 
@@ -27,7 +28,7 @@ describe('DuckDBFileReader.ingestGlob — watermark', () => {
 
       const result = await store.fileReader.ingestGlob(
         file,
-        (row) => makeEvent({ id: String(row['id']), ts: Date.parse(String(row['timestamp'])) }),
+        (row) => makeEvent({ id: String(row['id']), ts: parseTimestamp(row)! }),
         ctx,
         watermark,
       );
@@ -42,7 +43,7 @@ describe('DuckDBFileReader.ingestGlob — watermark', () => {
       // Re-reading the same rows is idempotent (ids dedupe).
       const again = await store.fileReader.ingestGlob(
         file,
-        (row) => makeEvent({ id: String(row['id']), ts: Date.parse(String(row['timestamp'])) }),
+        (row) => makeEvent({ id: String(row['id']), ts: parseTimestamp(row)! }),
         ctx,
         watermark,
       );

@@ -48,6 +48,13 @@ jobs:
       - name: Unit tests
         run: bun run test:unit
 
+      - name: Unit tests (TZ=Pacific/Auckland)
+        # A second pass in a zone 12-13h ahead of UTC: catches tests (and code)
+        # that silently assume the host's timezone, which the UTC runner hides.
+        run: bun run test:unit
+        env:
+          TZ: Pacific/Auckland
+
       - name: Coverage
         run: bun run test:coverage
 
