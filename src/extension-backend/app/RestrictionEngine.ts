@@ -87,9 +87,16 @@ export class RestrictionEngine {
   ): Promise<RestrictionState> {
     const now = input.now ?? Date.now();
     const ctx = buildRuleContext(input);
-    const desired = evaluateRestrictionState(input.rules, ctx, now);
     this.expireOverride(now);
     const state = this.state;
+    // Passing the held rule lets the evaluator say whether IT can be lifted
+    // (canClearActive) even after its own trigger has stopped matching.
+    const desired = evaluateRestrictionState(
+      input.rules,
+      ctx,
+      now,
+      state.active ? state.ruleId : undefined,
+    );
 
     // Honour active user override
     if (state.userOverrideUntil && state.userOverrideUntil > now) {
@@ -104,22 +111,18 @@ export class RestrictionEngine {
 
     // A rule whose `reEnableWhen` holds is lifted: it neither starts nor
     // keeps restricting (so it cannot flap while `when` is still true).
-    const clearsNow = (rule: AlertRule): boolean => {
+    const lifted = (rule: AlertRule): boolean => {
       const reEnable = rule.restrict?.reEnableWhen;
-      if (reEnable === undefined) return false;
-      // The evaluator lists matching rules whose re-enable condition holds; a
-      // rule whose `when` has stopped matching is not in that list, so the
-      // condition is also evaluated directly.
-      return (desired.canClear ?? []).some((r) => r.id === rule.id) || evalCondition(reEnable, ctx);
+      return reEnable !== undefined && evalCondition(reEnable, ctx);
     };
-    let wanted = desired.matching.find((r) => !clearsNow(r));
+    let wanted = desired.matching.find((r) => !lifted(r));
     if (!wanted && state.active) {
-      // Hysteresis: a rule with a `reEnableWhen` keeps restricting after its
-      // `when` stops matching, until that re-enable condition becomes true.
-      // (A rule without one clears as soon as it stops matching; a rule that
-      // was removed or no longer restricts clears too.)
-      const held = input.rules.find((r) => r.id === state.ruleId);
-      if (held?.restrict?.reEnableWhen !== undefined && !clearsNow(held)) wanted = held;
+      // Hysteresis: the held rule keeps restricting after its `when` stops
+      // matching until the evaluator says it can be cleared — i.e. its
+      // `reEnableWhen` holds, or (with none configured) its trigger is gone.
+      // A rule that was removed, or no longer restricts, clears immediately.
+      const held = input.rules.find((r) => r.id === state.ruleId && r.restrict !== undefined);
+      if (held && !desired.canClearActive) wanted = held;
     }
 
     if (!wanted) {
@@ -158,7 +161,12 @@ export class RestrictionEngine {
     input: EvalBuildInput & { rules: AlertRule[] },
   ): Promise<RestrictionSimulateReport> {
     const ctx = buildRuleContext(input);
-    const desired = evaluateRestrictionState(input.rules, ctx, Date.now());
+    const desired = evaluateRestrictionState(
+      input.rules,
+      ctx,
+      Date.now(),
+      this.state.active ? this.state.ruleId : undefined,
+    );
     return {
       state: this.getState(),
       desired,
