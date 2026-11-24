@@ -3,6 +3,27 @@ import * as vscode from 'vscode';
 
 const EXT_ID = 'RelativelyUnknown.mallard';
 
+/** What activate() returns (see MallardExports in extension.ts). */
+interface MallardExports {
+  status: 'ready' | 'failed';
+  error?: string;
+}
+
+/**
+ * Activates the extension and fails the calling test if startup itself failed.
+ * A failed startup still registers recovery handlers for every command, so
+ * "activate() resolved" and "the commands exist" both hold even when Mallard
+ * is not actually running — the reported status is the only honest signal.
+ */
+async function activateOrFail(): Promise<vscode.Extension<MallardExports>> {
+  const ext = vscode.extensions.getExtension<MallardExports>(EXT_ID);
+  assert.ok(ext, `extension ${EXT_ID} should be installed`);
+  const exports = await ext.activate();
+  assert.strictEqual(ext.isActive, true);
+  assert.strictEqual(exports?.status, 'ready', `Mallard failed to start: ${exports?.error ?? 'unknown error'}`);
+  return ext;
+}
+
 const EXPECTED_COMMANDS = [
   'mallard.openDashboard',
   'mallard.refresh',
@@ -26,16 +47,12 @@ const EXPECTED_COMMANDS = [
 ];
 
 describe('Mallard extension (integration)', () => {
-  it('is present and activates without throwing', async () => {
-    const ext = vscode.extensions.getExtension(EXT_ID);
-    assert.ok(ext, `extension ${EXT_ID} should be installed`);
-    await ext!.activate();
-    assert.strictEqual(ext!.isActive, true);
+  it('is present and activates successfully (not just without throwing)', async () => {
+    await activateOrFail();
   });
 
   it('registers exactly the contributed mallard.* commands', async () => {
-    const ext = vscode.extensions.getExtension(EXT_ID);
-    await ext!.activate();
+    await activateOrFail();
     const all = await vscode.commands.getCommands(true);
     for (const cmd of EXPECTED_COMMANDS) {
       assert.ok(all.includes(cmd), `command ${cmd} should be registered`);
@@ -53,16 +70,20 @@ describe('Mallard extension (integration)', () => {
     );
   });
 
-  it('opens the dashboard without throwing', async () => {
-    const ext = vscode.extensions.getExtension(EXT_ID);
-    await ext!.activate();
+  it('opens the dashboard panel', async () => {
+    await activateOrFail();
     await vscode.commands.executeCommand('mallard.openDashboard');
-    assert.ok(true);
+    const dashboardTabs = vscode.window.tabGroups.all
+      .flatMap((g) => g.tabs)
+      .filter((t) => t.input instanceof vscode.TabInputWebview && t.label === 'Mallard');
+    assert.strictEqual(dashboardTabs.length, 1, 'exactly one Mallard dashboard tab should be open');
   });
 
-  it('runs refresh without throwing', async () => {
+  it('runs refresh and leaves the extension running', async () => {
+    const ext = await activateOrFail();
     await vscode.commands.executeCommand('mallard.refresh');
-    assert.ok(true);
+    assert.strictEqual(ext.isActive, true);
+    assert.strictEqual(ext.exports.status, 'ready');
   });
 
   it('exposes only the documented settings', () => {

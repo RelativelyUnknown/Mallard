@@ -39,6 +39,12 @@ function generateDailyTable(s: UsageSnapshot): string {
     </table>`;
 }
 
+/** The daily table's window is configurable (display.dailyBarsWindow), so name the days actually shown. */
+function dailyHeading(days: number): string {
+  if (days <= 0) return 'Daily Usage';
+  return `Daily Usage — Last ${days} ${days === 1 ? 'Day' : 'Days'}`;
+}
+
 function generateModelTable(s: UsageSnapshot): string {
   const { labels, credits, costs } = s.chartData.modelBreakdown;
   if (labels.length === 0) return '<p class="muted">No model data available.</p>';
@@ -159,7 +165,7 @@ export function generateReport(s: UsageSnapshot): string {
 </section>
 
 <section>
-  <h2>Daily Usage — Last 30 Days</h2>
+  <h2>${esc(dailyHeading(s.chartData.dailyBars.points.length))}</h2>
   ${generateDailyTable(s)}
 </section>
 

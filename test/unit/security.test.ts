@@ -10,16 +10,15 @@
 import * as fc from 'fast-check';
 import { strict as assert } from 'assert';
 import * as path from 'path';
-import { isHostBoundMsg } from '../../src/extension-backend/ui/messaging';
+import { HOST_BOUND_TYPES, isHostBoundMsg } from '../../src/extension-backend/ui/messaging';
 import { isPathSafe } from '../../src/extension-backend/ingest/locate';
 import { evalCondition } from '../../src/extension-backend/domain/expr/jsonCondition';
 import { formatMoney, formatNumber, formatTokens, formatCredits } from '../../src/extension-backend/domain/format';
 import type { JsonCondition } from '../../src/extension-backend/domain/types';
 
-const VALID_TYPES = [
-  'ready', 'refresh', 'setFilter', 'setConfig', 'setLayout',
-  'openConfig', 'command', 'restrictSnooze',
-];
+// Derived from the single list exported by messaging.ts — the hand-copied list
+// here had drifted (it lacked setCurrency and toggleModelFilter).
+const VALID_TYPES: readonly string[] = HOST_BOUND_TYPES;
 
 describe('security — isHostBoundMsg', () => {
   it('never throws for any input', () => {
@@ -35,6 +34,23 @@ describe('security — isHostBoundMsg', () => {
         assert.equal(isHostBoundMsg({ type }), false);
       },
     ), { numRuns: 500 });
+  });
+
+  it('knows every HostBoundMsg type (the list the fuzz tests exclude)', () => {
+    assert.deepEqual(
+      [...VALID_TYPES].sort(),
+      [
+        'command', 'openConfig', 'ready', 'refresh', 'restrictSnooze', 'setConfig',
+        'setCurrency', 'setFilter', 'setLayout', 'toggleModelFilter',
+      ],
+    );
+  });
+
+  it('never throws for arbitrary values under each message type', () => {
+    fc.assert(fc.property(fc.constantFrom(...VALID_TYPES), fc.anything(), (type, value) => {
+      assert.doesNotThrow(() => isHostBoundMsg({ type, value }));
+      assert.doesNotThrow(() => isHostBoundMsg({ type, id: value, minutes: value, model: value }));
+    }), { numRuns: 1000 });
   });
 
   it('returns false for objects with type set to a non-string', () => {

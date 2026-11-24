@@ -1,7 +1,7 @@
 {
   "name": "mallard",
   "displayName": "Mallard",
-  "description": "Get your Copilot spend all in a row. A live dashboard of cost, model usage, and where every credit goes — read from Copilot's local logs. No sign-in, no telemetry.",
+  "description": "Get your Copilot spend all in a row. A live dashboard of cost, model usage, and where every credit goes — read from Copilot's local logs. No sign-in required, no telemetry.",
   "version": "0.2.0",
   "publisher": "RelativelyUnknown",
   "license": "MIT",
@@ -17,6 +17,21 @@
   },
   "engines": {
     "vscode": "^1.95.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In an untrusted workspace Mallard ignores workspace-level overrides of the log locations and the GitHub billing organization, so a downloaded project cannot point it at other files. Metric export settings (server URL, transport, auth, certificates) are machine-scoped and never read from a workspace.",
+      "restrictedConfigurations": [
+        "mallard.copilotLogPath",
+        "mallard.copilotOtelPath",
+        "mallard.githubBilling.org"
+      ]
+    },
+    "virtualWorkspaces": {
+      "supported": "limited",
+      "description": "Mallard reads usage from log files on the local machine, so it works with virtual workspaces, but repository and branch attribution needs a real folder on disk and is unavailable for virtual folders."
+    }
   },
   "categories": [
     "Visualization",
@@ -201,7 +216,7 @@
         "mallard.pricingManifestUrl": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "Override URL for the pricing manifest JSON. Leave blank to use the auto-refreshed default."
         },
         "mallard.palette": {
@@ -234,7 +249,7 @@
         "mallard.server.url": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "Base URL of your self-hosted Mallard server (e.g. https://mallard.example.com). Used as the webhook endpoint and as the fallback MQTT WebSocket host."
         },
         "mallard.export.transport": {
@@ -250,7 +265,7 @@
             "Publish usage metrics over MQTT/WebSocket to the server."
           ],
           "default": "",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "Transport to use for metric export. Set mallard.server.url first. Leave blank to disable."
         },
         "mallard.webhook.auth": {
@@ -266,13 +281,13 @@
             "Authenticate with a client TLS certificate. Set mallard.shared.certificate.*."
           ],
           "default": "apiKey",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "Auth method for webhook transport. Credentials are stored in SecretStorage via the Mallard credential commands, never in settings."
         },
         "mallard.mqtt.url": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "MQTT broker WebSocket URL (e.g. wss://mallard.example.com/mqtt). Overrides mallard.server.url for MQTT. Only wss:// accepted."
         },
         "mallard.mqtt.auth": {
@@ -286,13 +301,13 @@
             "Authenticate with a client TLS certificate. Set mallard.shared.certificate.*."
           ],
           "default": "password",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "Auth method for MQTT transport."
         },
         "mallard.mqtt.username": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "MQTT username, sent in the CONNECT packet as broker metadata. The Mallard server identifies you by the shared broker password and tags all MQTT data source='mqtt' — the username is not used for identification."
         },
         "mallard.githubBilling.org": {
@@ -304,26 +319,29 @@
         "mallard.shared.certificate.file": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "Path to PEM client certificate file. Used by any transport where auth = certificate."
         },
         "mallard.shared.certificate.keyFile": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "Path to PEM private key file paired with mallard.shared.certificate.file."
         },
         "mallard.shared.certificate.caFile": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "Path to CA bundle PEM file to verify the server's TLS certificate."
         }
       }
     },
     "jsonValidation": [
       {
-        "fileMatch": "**/mallard/config.json",
+        "fileMatch": [
+          "**/RelativelyUnknown.mallard/config.json",
+          "**/relativelyunknown.mallard/config.json"
+        ],
         "url": "./schemas/mallard-config.schema.json"
       }
     ]

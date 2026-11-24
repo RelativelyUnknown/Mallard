@@ -21,8 +21,10 @@ the dashboard's header selector instead.
 ## Metric export settings
 
 Mallard can stream a usage feature vector to a self-hosted server after every snapshot.
-All export settings are machine-scoped (`"scope": "machine-overridable"`)
-so credentials are not synced across machines by VS Code Settings Sync.
+All export settings (and `mallard.pricingManifestUrl`) are machine-scoped (`"scope": "machine"`):
+they are not synced across machines by VS Code Settings Sync, and — unlike
+`machine-overridable` — a workspace's `.vscode/settings.json` can never set them, so an
+opened project cannot redirect your usage data or credentials to another server.
 
 ### Server and transport
 

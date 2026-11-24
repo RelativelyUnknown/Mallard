@@ -8,9 +8,9 @@ import { UsageService } from '../app/UsageService';
 import { UserConfigStore } from '../app/UserConfigStore';
 import { LayoutStore } from '../app/LayoutStore';
 import { RestrictionEngine } from '../app/RestrictionEngine';
-import { Filter } from '../domain/types';
 import { readConfig } from '../config';
-import { isHostBoundMsg, ThemeKind, WebviewBoundMsg } from './messaging';
+import { defaultLogger } from '../util/logger';
+import { isHostBoundMsg, parseFilter, ThemeKind, WebviewBoundMsg } from './messaging';
 
 export interface DashboardDeps {
   usage: UsageService;
@@ -57,9 +57,12 @@ export function bindDashboard(webview: vscode.Webview, deps: DashboardDeps): vsc
       case 'refresh':
         await usage.refresh();
         break;
-      case 'setFilter':
-        await usage.setFilter(raw.value as Filter);
+      case 'setFilter': {
+        // Rebuilt from the validated shape instead of trusting a cast.
+        const filter = parseFilter(raw.value);
+        if (filter) await usage.setFilter(filter);
         break;
+      }
       case 'setConfig':
         await userConfig.set(raw.value);
         break;
@@ -94,7 +97,11 @@ export function bindDashboard(webview: vscode.Webview, deps: DashboardDeps): vsc
   };
 
   return [
-    webview.onDidReceiveMessage((m) => void onMessage(m)),
+    // A handler that throws (a failing store write, a refresh error…) must be
+    // logged, not left as an unhandled rejection that vanishes silently.
+    webview.onDidReceiveMessage((m) => {
+      onMessage(m).catch((err: unknown) => defaultLogger.error('dashboard', 'message handler failed', err));
+    }),
     // The event carries host-side SnapshotData; the wire payload is the
     // composed (and cached) full snapshot with chart data.
     usage.onDidChangeSnapshot(() => {

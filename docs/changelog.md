@@ -68,6 +68,29 @@
 - **"Don't show again" actually persists**: one-shot dismissals (the remote-SSH
   warning, onboarding, setup nudges) were erased by the shutdown wipe fixed
   above; they now stick.
+- **A bad `config.json` no longer costs you your settings**: a malformed or partly
+  invalid file used to reset the whole config to defaults, and the next change from
+  the dashboard overwrote your file. Now the last good configuration stays in force,
+  invalid blocks are ignored individually (with a warning in the **Mallard** Output
+  panel), the file is left untouched until you change something, and the unreadable
+  original is first saved as `config.json.bad-<timestamp>`. Writes are atomic, and
+  the editor-save watcher survives replace-by-rename saves.
+- **Restriction popup**: snoozing a restriction no longer re-opens the popup
+  immediately; it appears once per restriction and again when a snooze ends. A rule's
+  `reEnableWhen` now works as hysteresis (the restriction holds until it is true),
+  and the status bar shows the snooze state. Filtered dashboard views no longer feed
+  alerts or restriction rules.
+- **Export reliability**: rotating a webhook key/token/secret or MQTT password now
+  rebuilds the exporter (no window reload). Webhook `401`/`403`/`408`/`429` are
+  retried, other `4xx` and redirects are fatal, and redirects are never followed.
+  MQTT applies the CA file with password auth too, treats unreadable certificate
+  files as a permanent error, and publishes event batches **without** `retain`
+  (a retained delta kept only the latest batch for late subscribers). Per-target
+  queue files can no longer collide, and "Prepare for Uninstall" now also removes
+  per-target credentials and queued batches.
+- Export, server URL and certificate settings are `machine`-scoped (a workspace can
+  no longer set them); the extension declares limited untrusted/virtual-workspace
+  support; the `config.json` schema association now matches the real file location.
 
 
 ## 0.2.0 (2026-06-25)
