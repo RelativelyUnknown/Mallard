@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { EventEmitter } from 'events';
 import { createRequire } from 'module';
 import { fetchJson } from '../../src/extension-backend/pricing/httpJson';
 
@@ -107,5 +108,104 @@ describe('fetchJson', () => {
       await assert.rejects(fetchJson('https://example.com/x', { maxBytes: 10 }), /exceeds 10 bytes/);
       assert.equal(s.seen.destroyed, 1);
     } finally { s.restore(); }
+  });
+
+  it('rejects a redirect whose Location cannot be parsed, without requesting anything further', async () => {
+    const s = stub(() => ({ statusCode: 302, headers: { location: 'https://' } }));
+    try {
+      await assert.rejects(fetchJson('https://example.com/x'), /Invalid redirect/);
+      assert.equal(s.seen.urls.length, 1);
+      assert.equal(s.seen.resumed, 1, 'the redirect response is still drained');
+      assert.equal(s.seen.destroyed, 1, 'the request is torn down');
+    } finally { s.restore(); }
+  });
+
+  it('treats a 3xx without a Location header as a plain HTTP failure (nothing to follow)', async () => {
+    const s = stub(() => ({ statusCode: 304 }));
+    try {
+      await assert.rejects(fetchJson('https://example.com/x'), /HTTP 304/);
+      assert.equal(s.seen.urls.length, 1);
+      assert.equal(s.seen.resumed, 1);
+    } finally { s.restore(); }
+  });
+
+  it('treats a response with no status code as a failure rather than a success', async () => {
+    const s = stub(() => ({ statusCode: undefined as unknown as number, body: '{"a":1}' }));
+    try {
+      await assert.rejects(fetchJson('https://example.com/x'), /HTTP 0/);
+    } finally { s.restore(); }
+  });
+
+  it('rejects a 200 whose body is not JSON', async () => {
+    const s = stub(() => ({ statusCode: 200, body: '<html>not json</html>' }));
+    try {
+      await assert.rejects(fetchJson('https://example.com/x'), SyntaxError);
+    } finally { s.restore(); }
+  });
+});
+
+/** https.get stub handing the test the live request/response emitters. */
+function emitterStub() {
+  const orig = https.get;
+  const live: { req: EventEmitter & { destroy(err?: Error): void }; destroyedWith: Error[]; respond(res: EventEmitter & { statusCode?: number; headers?: Record<string, string> }): void } = {
+    req: undefined as never,
+    destroyedWith: [],
+    respond: () => {},
+  };
+  https.get = ((_url: string, _opts: unknown, cb: (res: unknown) => void) => {
+    const req = Object.assign(new EventEmitter(), {
+      destroy(err?: Error) { if (err) live.destroyedWith.push(err); },
+    });
+    live.req = req;
+    live.respond = (res) => cb(res);
+    return req;
+  }) as unknown as typeof https.get;
+  return { live, restore: () => { https.get = orig; } };
+}
+
+describe('fetchJson — transport failures', () => {
+  it('rejects with the socket error and settles only once', async () => {
+    const e = emitterStub();
+    try {
+      const p = fetchJson('https://example.com/x');
+      e.live.req.emit('error', new Error('ECONNRESET'));
+      e.live.req.emit('error', new Error('a second error is ignored'));
+      await assert.rejects(p, /ECONNRESET/);
+      assert.equal(e.live.destroyedWith.length, 1, 'destroyed exactly once');
+    } finally { e.restore(); }
+  });
+
+  it('turns an idle-socket timeout into a "Timeout" rejection and destroys the request', async () => {
+    const e = emitterStub();
+    try {
+      const p = fetchJson('https://example.com/x');
+      e.live.req.emit('timeout');
+      await assert.rejects(p, /Timeout/);
+      assert.match(e.live.destroyedWith[0]!.message, /Timeout/);
+    } finally { e.restore(); }
+  });
+
+  it('rejects when the response stream errors mid-body', async () => {
+    const e = emitterStub();
+    try {
+      const p = fetchJson('https://example.com/x');
+      const res = Object.assign(new EventEmitter(), { statusCode: 200, headers: {} });
+      e.live.respond(res);
+      res.emit('data', Buffer.from('{"a":'));
+      res.emit('error', new Error('aborted'));
+      await assert.rejects(p, /aborted/);
+    } finally { e.restore(); }
+  });
+
+  it('a late "end" after a failure does not resolve the promise', async () => {
+    const e = emitterStub();
+    try {
+      const p = fetchJson('https://example.com/x', { maxBytes: 4 });
+      const res = Object.assign(new EventEmitter(), { statusCode: 200, headers: {} });
+      e.live.respond(res);
+      res.emit('data', Buffer.from('{"a":1}')); // over the cap -> fail()
+      res.emit('end');
+      await assert.rejects(p, /exceeds 4 bytes/);
+    } finally { e.restore(); }
   });
 });

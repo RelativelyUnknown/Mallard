@@ -206,6 +206,54 @@ describe('components — remaining branch coverage', () => {
     el.remove();
   });
 
+  it('RestrictionBanner: a dismissed alert stays dismissed after a snooze ends, but a new firing shows again', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const h = mountRestrictionBanner(el);
+    const active: RestrictionState = { version: 1, active: true, ruleId: 'r', reasonMessage: 'Over budget', firedAt: 111, userOverrideUntil: null };
+    h.update(active);
+    el.querySelector<HTMLButtonElement>('#restrict-dismiss')!.click();
+    assert.equal(el.style.display, 'none');
+
+    // Snoozing replaces the (hidden) alert with the snoozed notice...
+    h.update({ ...active, userOverrideUntil: Date.now() + 5 * 60_000 });
+    assert.ok(el.querySelector('.wv-restrict-override'), 'the snoozed notice is shown');
+    assert.notEqual(el.style.display, 'none');
+
+    // ...and when the snooze runs out the SAME firing must not come back after the user dismissed it.
+    h.update(active);
+    assert.equal(el.style.display, 'none', 'hidden again, not re-alerted');
+    assert.equal(el.innerHTML, '');
+
+    h.update({ ...active, firedAt: 222 });
+    assert.equal(el.querySelector('[role="alert"] strong')!.textContent, 'Over budget', 'a fresh firing is announced');
+    el.remove();
+  });
+
+  it('RestrictionBanner: an unchanged state is not re-rendered (no repeated screen-reader announcement, focus kept)', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const h = mountRestrictionBanner(el);
+    const active: RestrictionState = { version: 1, active: true, ruleId: 'r', reasonMessage: 'Over budget', firedAt: 111, userOverrideUntil: null };
+    h.update(active);
+    const alert = el.querySelector('[role="alert"]');
+    h.update({ ...active });
+    assert.equal(el.querySelector('[role="alert"]'), alert, 'same DOM node: not rebuilt');
+
+    const snoozed = { ...active, userOverrideUntil: Date.now() + 10 * 60_000 };
+    h.update(snoozed);
+    const notice = el.querySelector('.wv-restrict-override');
+    h.update({ ...snoozed });
+    assert.equal(el.querySelector('.wv-restrict-override'), notice, 'the snoozed notice is not rebuilt either');
+
+    h.update(null);
+    assert.equal(el.style.display, 'none');
+    el.style.display = '';
+    h.update({ ...active, active: false });
+    assert.equal(el.style.display, '', 'already hidden state is not hidden twice');
+    el.remove();
+  });
+
   it('RestrictionBanner hides when state is null', () => {
     const el = document.createElement('div');
     document.body.appendChild(el);

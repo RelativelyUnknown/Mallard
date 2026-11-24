@@ -4,12 +4,13 @@ import * as os from 'os';
 import * as path from 'path';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { EventStore } from '../../../src/extension-backend/store/EventStore';
+import { bigintTokens } from '../../../src/extension-backend/store/migrations/0006-bigint-tokens';
 import { readRows } from '../../../src/extension-backend/store/dbUtils';
 import { DB_META_SCHEMA_VERSION_KEY } from '../../../src/extension-backend/store/schema/constants';
 import { makeEvent } from '../helpers';
 
 /** A database as shipped before migration 0006: INTEGER token columns, schema_version 5. */
-async function createLegacyDb(dir: string): Promise<void> {
+async function createLegacyDb(dir: string, extraSql = ''): Promise<void> {
   const instance = await DuckDBInstance.create(path.join(dir, 'events.duckdb'));
   const conn = await instance.connect();
   await conn.run(`
@@ -29,6 +30,7 @@ async function createLegacyDb(dir: string): Promise<void> {
     INSERT INTO meta VALUES ('${DB_META_SCHEMA_VERSION_KEY}', '5');
     INSERT INTO events (id, ts, modelId, surface, source, credits, cost, promptTokens, completionTokens, estimated)
       VALUES ('old', ${new Date(2026, 0, 10, 12).getTime()}, 'gpt-4o', 'chat', 'local', 1, 0.04, 2000000000, 7, false);
+    ${extraSql}
   `);
   conn.closeSync();
   instance.closeSync();
@@ -69,5 +71,61 @@ describe('migration 0006 — BIGINT token columns', () => {
     try {
       assert.equal((await reopened.reader.find()).length, 1);
     } finally { reopened.dispose(); }
+  });
+});
+
+describe('migration 0006 — failure handling', () => {
+  it('is atomic: when widening fails, the dropped indexes and the old column types come back and the error surfaces', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-mig6-fail-'));
+    // An index the migration does not know about keeps a dependency on promptTokens,
+    // so ALTER ... TYPE fails after the known indexes have already been dropped.
+    await createLegacyDb(dir, 'CREATE INDEX idx_user_prompt ON events(promptTokens);');
+    const instance = await DuckDBInstance.create(path.join(dir, 'events.duckdb'));
+    const conn = await instance.connect();
+    try {
+      await assert.rejects(bigintTokens.up(conn));
+
+      const types = await readRows(
+        conn,
+        `SELECT column_name, data_type FROM duckdb_columns()
+         WHERE table_name = 'events' AND column_name IN ('promptTokens', 'completionTokens')`,
+        (r) => `${String(r['column_name'])}:${String(r['data_type'])}`,
+      );
+      assert.deepEqual(types.sort(), ['completionTokens:INTEGER', 'promptTokens:INTEGER'], 'nothing was half-widened');
+      const indexes = await readRows(conn, `SELECT index_name FROM duckdb_indexes() WHERE table_name = 'events'`,
+        (r) => String(r['index_name']));
+      for (const name of ['idx_ts', 'idx_model', 'idx_repo', 'idx_branch', 'idx_user_prompt']) {
+        assert.ok(indexes.includes(name), `${name} was restored by the rollback`);
+      }
+      const counts = await readRows(conn, 'SELECT count(*) AS n FROM events', (r) => Number(r['n']));
+      assert.deepEqual(counts, [1], 'the row is intact');
+    } finally {
+      conn.closeSync();
+      instance.closeSync();
+    }
+  });
+
+  it('reports the original error even when the rollback itself fails', async () => {
+    const runs: string[] = [];
+    const narrowColumns = {
+      columnNames: () => ['column_name'],
+      chunkCount: 1,
+      getChunk: () => ({ getRows: () => [['promptTokens']] }),
+    };
+    const conn = {
+      run: async (sql: string) => {
+        runs.push(sql.trim().split(/\s+/).slice(0, 2).join(' '));
+        if (sql.includes('duckdb_columns')) return narrowColumns;
+        if (sql.includes('ALTER TABLE')) throw new Error('alter failed');
+        if (sql === 'ROLLBACK') throw new Error('no transaction is active');
+        return undefined;
+      },
+    };
+    await assert.rejects(bigintTokens.up(conn as never), /alter failed/);
+    assert.deepEqual(
+      runs.filter((r) => r === 'BEGIN TRANSACTION' || r === 'ROLLBACK' || r === 'COMMIT'),
+      ['BEGIN TRANSACTION', 'ROLLBACK'],
+      'a rollback was attempted and nothing was committed',
+    );
   });
 });

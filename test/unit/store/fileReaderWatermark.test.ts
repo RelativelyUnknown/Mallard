@@ -52,6 +52,51 @@ describe('DuckDBFileReader.ingestGlob — watermark', () => {
   });
 });
 
+describe('DuckDBFileReader.ingestGlob — files without a timestamp column', () => {
+  it('cannot filter by the watermark in SQL, so it reads the files whole instead of failing', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-notimestamp-'));
+    const store = await EventStore.open(dir);
+    try {
+      // OTel-style rows: a nanosecond epoch under another name, no `timestamp` column at all.
+      const nanos = (iso: string): string => `${Date.parse(iso)}000000`;
+      const rows = [
+        { id: 'old', startTimeUnixNano: nanos('2026-06-10T11:00:00.000Z') },
+        { id: 'new', startTimeUnixNano: nanos('2026-06-10T13:00:00.000Z') },
+      ];
+      const file = path.join(dir, 'spans.ndjson');
+      await fs.writeFile(file, rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+      const result = await store.fileReader.ingestGlob(
+        file,
+        (row) => makeEvent({ id: String(row['id']), ts: Number(BigInt(String(row['startTimeUnixNano'])) / 1_000_000n) }),
+        ctx,
+        Date.parse('2026-06-10T12:00:00.000Z'), // a watermark between the two rows
+      );
+
+      assert.equal(result.inserted, 2, 'both rows are read (an unfiltered retry, not a failed ingest): without a timestamp the watermark cannot exclude the old one');
+      assert.equal(result.maxEventTs, Date.parse('2026-06-10T13:00:00.000Z'));
+      assert.deepEqual((await store.reader.find()).map((e) => e.id).sort(), ['new', 'old']);
+    } finally { store.dispose(); }
+  });
+
+  it('still surfaces a genuine SQL failure under a watermark: warns and ingests nothing', async () => {
+    const warns: string[] = [];
+    const logger = { warn: (_t: string, m: string) => { warns.push(m); }, debug: () => undefined, info: () => undefined, error: () => undefined };
+    let attempts = 0;
+    const conn = {
+      stream: async () => {
+        attempts++;
+        throw new Error('IO Error: disk exploded');
+      },
+    };
+    const reader = new DuckDBFileReader(conn as never, { insert: async () => 0 } as never, logger);
+    const result = await reader.ingestGlob('/x/*.ndjson', () => null, ctx, 1_000);
+    assert.deepEqual(result, { inserted: 0, maxEventTs: null });
+    assert.equal(attempts, 1, 'only a missing-column error triggers the unfiltered retry');
+    assert.equal(warns.length, 1);
+    assert.match(warns[0]!, /disk exploded/);
+  });
+});
+
 describe('DuckDBFileReader.ingestSqlite — extension failures', () => {
   it('does not retry a failed INSTALL on every tick', async () => {
     const calls: string[] = [];

@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { contributedCommandIds, deleteDatabaseFiles, failedSidebarHtml, registerStartupFailure } from '../../../src/extension-backend/app/startupFailure';
+import { defaultLogger } from '../../../src/extension-backend/util/logger';
 
 type Handler = (...args: unknown[]) => unknown;
 const manifest = JSON.parse(readFileSync(path.join(__dirname, '../../../package.json'), 'utf8')) as {
@@ -147,5 +148,26 @@ describe('startup failure recovery', () => {
     await fs.writeFile(path.join(dir, 'events.duckdb'), 'db');
     assert.deepEqual(await deleteDatabaseFiles(dir), ['events.duckdb']);
     assert.deepEqual(await deleteDatabaseFiles(dir), []);
+  });
+
+  it('deleteDatabaseFiles logs and carries on when a database file cannot be deleted (not just absent)', async () => {
+    const dir = await tmpDir();
+    // A directory where the file should be: unlink() fails with EISDIR/EPERM, not ENOENT.
+    await fs.mkdir(path.join(dir, 'events.duckdb'));
+    await fs.writeFile(path.join(dir, 'events.duckdb.wal'), 'wal');
+    const lines: string[] = [];
+    const detach = defaultLogger.attachSink({ appendLine: (l) => void lines.push(l) });
+    const warn = console.warn;
+    console.warn = () => {};
+    let removed: string[];
+    try {
+      removed = await deleteDatabaseFiles(dir);
+    } finally {
+      console.warn = warn;
+      detach();
+    }
+    assert.deepEqual(removed, ['events.duckdb.wal'], 'the undeletable entry is not reported as removed');
+    assert.equal(lines.filter((l) => l.includes('[warn]') && l.includes('could not delete events.duckdb')).length, 1);
+    assert.ok((await fs.stat(path.join(dir, 'events.duckdb'))).isDirectory());
   });
 });

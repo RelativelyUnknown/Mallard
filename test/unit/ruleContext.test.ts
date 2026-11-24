@@ -275,6 +275,20 @@ describe('buildRuleContext — window7d and month.tokens', () => {
     assert.equal(w['tokens'], 14);
   });
 
+  it('omits window7d.tokens (rather than guessing) when the composed token series is missing or misaligned with the day bars', () => {
+    const points = Array.from({ length: 10 }, () => ({ date: '', credits: 2, cost: 0.5, colorIndex: 0 }));
+    const noTokens = minimalSnapshot({ chartData: { dailyBars: { points } } } as unknown as Partial<UsageSnapshot>);
+    const w1 = buildRuleContext({ snapshot: noTokens, now })['window7d'] as Record<string, number>;
+    assert.deepEqual(w1, { credits: 14, cost: 3.5 });
+    assert.equal(resolveVar('window7d.tokens', buildRuleContext({ snapshot: noTokens, now })), undefined);
+
+    const misaligned = minimalSnapshot({
+      chartData: { dailyBars: { points }, tokensDaily: { tokens: [1, 2, 3] } },
+    } as unknown as Partial<UsageSnapshot>);
+    const w2 = buildRuleContext({ snapshot: misaligned, now })['window7d'] as Record<string, number>;
+    assert.deepEqual(w2, { credits: 14, cost: 3.5 });
+  });
+
   it('is absent (not a fake zero) when the snapshot has no day-level data; zeros only for no snapshot', () => {
     assert.equal(buildRuleContext({ snapshot: minimalSnapshot(), now })['window7d'], null);
     assert.deepEqual(buildRuleContext({ snapshot: null, now })['window7d'], { credits: 0, cost: 0, tokens: 0 });

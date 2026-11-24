@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { mkdtemp, rm, writeFile } from 'fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'fs/promises';
 import { IntervalManager } from '../../../src/extension-backend/util/IntervalManager';
 import { JsonFileStore } from '../../../src/extension-backend/util/JsonFileStore';
 import { opt } from '../../../src/extension-backend/util/lang';
@@ -53,6 +53,81 @@ describe('util/JsonFileStore', () => {
       await writeFile(join(dir, 'bad.json'), 'not json{{{');
       const bad = new JsonFileStore<unknown>(dir, 'bad.json');
       assert.equal(bad.read(), undefined); // malformed
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('util/JsonFileStore — failures are logged, not thrown', () => {
+  function recorder() {
+    const calls: Array<{ level: string; msg: string }> = [];
+    const at = (level: string) => (_tag: string, msg: string): void => void calls.push({ level, msg });
+    return { calls, logger: { debug: at('debug'), info: at('info'), warn: at('warn'), error: at('error') } };
+  }
+
+  it('readText() logs (debug) an unreadable file that is not simply missing, and stays quiet for ENOENT', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mallard-jsonstore-'));
+    try {
+      const { calls, logger } = recorder();
+      assert.equal(new JsonFileStore<unknown>(dir, 'missing.json', logger).readText(), undefined);
+      assert.equal(calls.length, 0, 'a missing file is the normal first-run case: no log line');
+
+      await mkdir(join(dir, 'a-directory.json')); // reading a directory fails with EISDIR, not ENOENT
+      const unreadable = new JsonFileStore<unknown>(dir, 'a-directory.json', logger);
+      assert.equal(unreadable.readText(), undefined);
+      assert.equal(unreadable.read(), undefined);
+      assert.equal(calls.length, 2);
+      assert.ok(calls.every((c) => c.level === 'debug' && c.msg.includes('unreadable file')));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('write() returns the exact text written, leaves no temp file, and read() parses it back', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mallard-jsonstore-'));
+    try {
+      const store = new JsonFileStore<{ a: number }>(dir, 'state.json');
+      const text = store.write({ a: 1 });
+      assert.equal(text, '{\n  "a": 1\n}\n');
+      assert.deepEqual(store.read(), { a: 1 });
+      assert.deepEqual(await readdir(dir), ['state.json']);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a failed write() returns undefined, warns once and cleans up its temp file', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mallard-jsonstore-'));
+    try {
+      const { calls, logger } = recorder();
+      const store = new JsonFileStore<{ a: number }>(dir, 'state.json', logger);
+      assert.ok(store.write({ a: 1 }));
+      // The target is replaced by a directory: rename(temp -> file) fails after the temp file was written.
+      await rm(join(dir, 'state.json'));
+      await mkdir(join(dir, 'state.json', 'inner'), { recursive: true });
+      assert.equal(store.write({ a: 2 }), undefined);
+      assert.deepEqual(calls.map((c) => c.level), ['warn']);
+      assert.match(calls[0]!.msg, /failed to persist/);
+      assert.deepEqual(await readdir(dir), ['state.json'], 'the temp file was cleaned up');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('backup() copies the file to <file>.<suffix>, and reports (not throws) when there is nothing to copy', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mallard-jsonstore-'));
+    try {
+      const { calls, logger } = recorder();
+      const store = new JsonFileStore<{ a: number }>(dir, 'state.json', logger);
+      assert.equal(store.backup('bak'), undefined, 'no source file yet');
+      assert.deepEqual(calls.map((c) => c.level), ['warn']);
+      assert.match(calls[0]!.msg, /failed to back up/);
+
+      const text = store.write({ a: 3 })!;
+      const dest = store.backup('bak');
+      assert.equal(dest, join(dir, 'state.json.bak'));
+      assert.equal(await readFile(dest!, 'utf8'), text);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

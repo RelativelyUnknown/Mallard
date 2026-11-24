@@ -8,12 +8,12 @@
 import { UsageSnapshot } from '../extension-backend/domain/types';
 import { formatCredits, formatMoney, formatTokens } from '../extension-backend/domain/format';
 
-function peakIndex(values: readonly number[]): number {
-  let best = -1;
-  let bestValue = 0;
-  values.forEach((v, i) => {
-    if (v > bestValue) { best = i; bestValue = v; }
-  });
+/** The largest strictly positive value and where it sits, or null when nothing is above zero. */
+function peakOf(values: readonly number[]): { index: number; value: number } | null {
+  let best: { index: number; value: number } | null = null;
+  for (const [index, value] of values.entries()) {
+    if (value > (best?.value ?? 0)) best = { index, value };
+  }
   return best;
 }
 
@@ -24,9 +24,9 @@ export function describeCharts(snapshot: UsageSnapshot): Record<string, string> 
   const { dailyBars, heatmap, modelBreakdown, categoryBreakdown, hourlyTimeline } = chartData;
   const out: Record<string, string> = {};
 
-  const peakDay = dailyBars.points.reduce(
-    (best, p) => (p.credits > (best?.credits ?? -1) ? p : best),
-    dailyBars.points[0] ?? null,
+  const peakDay = dailyBars.points.reduce<(typeof dailyBars.points)[number] | null>(
+    (best, p) => (best === null || p.credits > best.credits ? p : best),
+    null,
   );
   out['chart-daily'] = peakDay
     ? `30-day bar chart. Peak: ${formatCredits(peakDay.credits)} cr on ${peakDay.date}. Today: ${formatCredits(snapshot.today.credits)} cr.`
@@ -55,14 +55,15 @@ export function describeCharts(snapshot: UsageSnapshot): Record<string, string> 
     : 'Cost category breakdown unavailable.';
 
   const cumulative = dailyBars.cumulativeCosts;
+  const lastCumulative = cumulative[cumulative.length - 1];
   const lastDay = dailyBars.points[dailyBars.points.length - 1];
-  out['chart-cumulative'] = cumulative.length > 0 && lastDay
-    ? `Cumulative spend over ${cumulative.length} days, reaching ${formatMoney(cumulative[cumulative.length - 1] ?? 0, currency)} on ${lastDay.date}.`
+  out['chart-cumulative'] = lastCumulative !== undefined && lastDay
+    ? `Cumulative spend over ${cumulative.length} days, reaching ${formatMoney(lastCumulative, currency)} on ${lastDay.date}.`
     : 'Cumulative spend. No data.';
 
-  const weekdayPeak = peakIndex(chartData.weekdayBreakdown.totals);
-  out['chart-weekday'] = weekdayPeak >= 0
-    ? `Usage by weekday. Busiest day: ${WEEKDAY_NAMES[weekdayPeak]} with ${formatCredits(chartData.weekdayBreakdown.totals[weekdayPeak] ?? 0)} cr.`
+  const weekdayPeak = peakOf(chartData.weekdayBreakdown.totals);
+  out['chart-weekday'] = weekdayPeak
+    ? `Usage by weekday. Busiest day: ${WEEKDAY_NAMES[weekdayPeak.index]} with ${formatCredits(weekdayPeak.value)} cr.`
     : 'Usage by weekday. No data.';
 
   out['chart-hourly'] = hourlyTimeline.hours.some((h) => h > 0)
@@ -80,9 +81,9 @@ export function describeCharts(snapshot: UsageSnapshot): Record<string, string> 
     : 'Cost categories over time. No data.';
 
   const tokens = chartData.tokensDaily;
-  const tokenPeak = peakIndex(tokens.tokens);
-  out['chart-tokens'] = tokenPeak >= 0
-    ? `Token volume over time. Peak: ${formatTokens(tokens.tokens[tokenPeak] ?? 0)} tokens on ${tokens.dates[tokenPeak] ?? 'an unknown day'}.`
+  const tokenPeak = peakOf(tokens.tokens);
+  out['chart-tokens'] = tokenPeak
+    ? `Token volume over time. Peak: ${formatTokens(tokenPeak.value)} tokens on ${tokens.dates[tokenPeak.index] ?? 'an unknown day'}.`
     : 'Token volume over time. No data.';
 
   const topLanguage = snapshot.byLanguage.find((l) => l.key !== 'unknown');

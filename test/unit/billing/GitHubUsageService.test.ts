@@ -360,6 +360,28 @@ describe('GitHubUsageService — failures are errors, never cached', () => {
     svc.dispose();
   });
 
+  it('classifies a non-JSON body as "invalid-response" and does not retry it', async () => {
+    const requests: string[] = [];
+    globalThis.fetch = (async (url: unknown) => {
+      requests.push(String(url));
+      const body = '<html>502 from a captive portal</html>';
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-length': String(body.length) }),
+        text: async () => body,
+      } as Response;
+    }) as typeof fetch;
+    const svc = new GitHubUsageService(makeSession());
+    const result = await svc.fetch();
+    assert.ok(result.isErr());
+    const e = result._unsafeUnwrapErr();
+    assert.equal(billingErrorKind(e), 'invalid-response');
+    assert.match(e.message, /invalid JSON/);
+    assert.equal(requests.length, 2, 'one attempt per endpoint: a garbage body is deterministic, so not retried');
+    svc.dispose();
+  });
+
   it('does not cache a malformed billing payload', async () => {
     const requests = stubFetch({ copilot_internal: QUOTA_RESPONSE, '/users/octocat/': 'not-an-object' });
     const svc = new GitHubUsageService(makeSession());

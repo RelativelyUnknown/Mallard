@@ -3,6 +3,7 @@ import { buildSnapshot } from '../snapshotFixture';
 import { makeEvent } from '../helpers';
 import type { UsageSnapshot } from '../../../src/extension-backend/domain/types';
 import { describeCharts } from '../../../src/extension-frontend/srDescriptions';
+import { formatMoney } from '../../../src/extension-backend/domain/format';
 import { lazyChart } from '../../../src/extension-frontend/lazyMount';
 import { CHART_REGISTRY } from '../../../src/extension-frontend/charts/registry';
 
@@ -72,6 +73,66 @@ describe('screen-reader chart descriptions', () => {
     for (const id of ['chart-sankey', 'chart-repos', 'chart-languages', 'chart-billing', 'chart-category-trend', 'chart-tokens', 'chart-weekday', 'chart-cumulative', 'chart-daily']) {
       assert.match(d[id]!, /No data/, id);
     }
+  });
+});
+
+describe('screen-reader chart descriptions — empty and ragged inputs', () => {
+  it('say so plainly for the remaining empty states (heatmap, models, categories, hours)', () => {
+    const empty = richSnapshot();
+    empty.chartData.heatmap = { ...empty.chartData.heatmap, max: 0 };
+    empty.chartData.modelBreakdown = { ...empty.chartData.modelBreakdown, labels: [], credits: [], costs: [], tokens: [], cheapestEquivalentCosts: [] };
+    empty.chartData.categoryBreakdown = { ...empty.chartData.categoryBreakdown, available: false };
+    empty.chartData.hourlyTimeline = { hours: new Array(24).fill(0) as number[], peakHour: null };
+    const d = describeCharts(empty);
+    assert.equal(d['chart-heatmap'], 'Activity heatmap. No usage data.');
+    assert.equal(d['chart-models'], 'Model breakdown. No data.');
+    assert.equal(d['chart-category'], 'Cost category breakdown unavailable.');
+    assert.equal(d['chart-hourly'], 'Usage by hour. No data.');
+  });
+
+  it('names the busiest hour when there is hourly activity', () => {
+    const snap = richSnapshot();
+    const hours = new Array(24).fill(0) as number[];
+    hours[14] = 5;
+    snap.chartData.hourlyTimeline = { hours, peakHour: 14 };
+    assert.equal(describeCharts(snap)['chart-hourly'], 'Usage by hour. Peak hour: 14:00.');
+  });
+
+  it('still produces a sentence when a parallel series is shorter than its labels (a missing value reads as 0 / unknown day)', () => {
+    const snap = richSnapshot();
+    snap.chartData.modelBreakdown = { ...snap.chartData.modelBreakdown, labels: ['gpt-4o'], credits: [] };
+    snap.chartData.categoryBreakdown = { categories: ['input', 'output'], costs: [0.5], available: true };
+    snap.chartData.tokensDaily = { dates: [], tokens: [0, 7], events: [] };
+    const d = describeCharts(snap);
+    assert.match(d['chart-models']!, /Top model: gpt-4o with 0 cr\./);
+    assert.equal(d['chart-category'], `Cost by category: input ${formatMoney(0.5, 'USD')}, output ${formatMoney(0, 'USD')}.`);
+    assert.match(d['chart-tokens']!, /Peak: 7 tokens on an unknown day\./);
+  });
+
+  it('treats a zero-valued top repository, language and billing item as "No data", and names a billing item by its fallbacks', () => {
+    const snap = richSnapshot();
+    snap.byRepo = [{ key: 'acme/zero', credits: 0, cost: 0, tokens: 0 }];
+    snap.byLanguage = [{ key: 'rust', credits: 0, cost: 0, tokens: 0 }];
+    snap.githubBilling = {
+      quota: null, fetchedAt: 1, totalNetAmount: 0,
+      items: [{ model: '', sku: 'copilot', grossAmount: 0, netAmount: 0, grossQuantity: 1 }],
+    };
+    const zero = describeCharts(snap);
+    assert.equal(zero['chart-repos'], 'Spend by repository. No data.');
+    assert.equal(zero['chart-languages'], 'Spend by detected language. No data.');
+    assert.equal(zero['chart-billing'], 'GitHub billing line items. No data.');
+
+    // Cost-only repo/language and gross-only billing still count as data.
+    snap.byRepo = [{ key: 'acme/costly', credits: 0, cost: 3, tokens: 0 }];
+    snap.byLanguage = [{ key: 'rust', credits: 0, cost: 2, tokens: 0 }];
+    snap.githubBilling = {
+      quota: null, fetchedAt: 1, totalNetAmount: 0,
+      items: [{ model: '', sku: '', grossAmount: 2, netAmount: 0, grossQuantity: 1 }],
+    };
+    const d = describeCharts(snap);
+    assert.match(d['chart-repos']!, /Top repository: acme\/costly/);
+    assert.match(d['chart-languages']!, /Top language: rust/);
+    assert.match(d['chart-billing']!, /Largest: unknown at /);
   });
 });
 
@@ -162,5 +223,45 @@ describe('lazyChart', () => {
     lazy.rerenderForTheme();
     assert.equal(reinits, 1);
     assert.equal(rendered, 2);
+  });
+
+  it('resize is a no-op while off screen and reaches the mounted chart afterwards', () => {
+    let resizes = 0;
+    const lazy = lazyChart<Handle>(document.createElement('div'), () => ({
+      resize() { resizes++; }, reinit() {}, renders: 0,
+    }));
+    lazy.resize();
+    assert.equal(resizes, 0, 'nothing to resize before the chart exists');
+
+    observers[0]!.callback(visible);
+    lazy.resize();
+    assert.equal(resizes, 1);
+  });
+
+  it('render() on an already-mounted chart applies immediately, and the latest closure is what a theme change replays', () => {
+    const lazy = lazyChart<Handle>(document.createElement('div'), () => ({
+      resize() {}, reinit() {}, renders: 0,
+    }));
+    observers[0]!.callback(visible);
+    const calls: string[] = [];
+    lazy.render(() => { calls.push('first'); });
+    lazy.render(() => { calls.push('second'); });
+    assert.deepEqual(calls, ['first', 'second'], 'each render applies right away');
+
+    lazy.rerenderForTheme();
+    assert.deepEqual(calls, ['first', 'second', 'second'], 'only the most recent closure is replayed');
+  });
+
+  it('mounts and reinitialises cleanly when no render closure was ever supplied', () => {
+    let mounted = 0;
+    let reinits = 0;
+    const lazy = lazyChart<Handle>(document.createElement('div'), () => {
+      mounted++;
+      return { resize() {}, reinit() { reinits++; }, renders: 0 };
+    });
+    observers[0]!.callback(visible);
+    assert.equal(mounted, 1);
+    assert.doesNotThrow(() => lazy.rerenderForTheme());
+    assert.equal(reinits, 1, 'the chart is still recreated for the new theme');
   });
 });

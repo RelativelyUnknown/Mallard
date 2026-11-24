@@ -163,4 +163,15 @@ describe('deleteQueueFiles', () => {
   it('tolerates a missing directory', () => {
     assert.deepEqual(deleteQueueFiles(path.join(os.tmpdir(), 'mallard-no-such-dir-xyz')), []);
   });
+
+  it('is best-effort per file: an entry it cannot unlink is skipped, not reported, and does not stop the rest', async () => {
+    const dir = await tmpDir();
+    // A directory with a queue-file name: unlink() fails (EISDIR/EPERM) for it.
+    await fs.mkdir(path.join(dir, 'export-queue-locked.json'));
+    await fs.writeFile(path.join(dir, 'export-queue.json'), '[]', 'utf8');
+    await fs.writeFile(path.join(dir, 'export-queue-zzz.json'), '[]', 'utf8');
+    const removed = deleteQueueFiles(dir);
+    assert.deepEqual(removed.sort(), ['export-queue-zzz.json', 'export-queue.json']);
+    assert.deepEqual(await fs.readdir(dir), ['export-queue-locked.json']);
+  });
 });

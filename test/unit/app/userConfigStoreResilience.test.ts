@@ -160,6 +160,18 @@ describe('UserConfigStore — a bad config.json never costs the user their data'
     store.dispose();
   });
 
+  it('a config.json that exists but cannot be read is never seeded over: defaults apply and a warning is logged', async () => {
+    const dir = await tmpDir();
+    // A directory in the file's place: existsSync() is true, readFileSync() throws EISDIR.
+    await fs.mkdir(path.join(dir, 'config.json'));
+    const { logger, warnings } = recordingLogger();
+    const store = new UserConfigStore(dir, logger);
+    assert.equal(store.get().monthlyBudget, 0, 'defaults in force');
+    assert.equal(warnings.filter((w) => w.includes('cannot read')).length, 1);
+    assert.ok((await fs.stat(path.join(dir, 'config.json'))).isDirectory(), 'the unreadable path was not replaced by a seed file');
+    store.dispose();
+  });
+
   it('reset() is an explicit wipe: it does not leave a backup behind', async () => {
     const dir = await tmpDir();
     await fs.writeFile(path.join(dir, 'config.json'), '{oops', 'utf8');

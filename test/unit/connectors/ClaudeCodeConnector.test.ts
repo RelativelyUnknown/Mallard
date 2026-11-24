@@ -633,5 +633,20 @@ describe('ClaudeCodeConnector.mapRow() — streamed messages, surface, branch, c
       assert.equal(merge(big, small).completionTokens, 90);
       assert.equal(merge(small, big).completionTokens, 90);
     });
+
+    it('drops a stale costByCategory when the merged message cannot be priced (unknown model: cost 0, no breakdown)', () => {
+      const connector = makeConnector();
+      const mystery = (outputTokens: number) =>
+        connector.mapRow(
+          { type: 'assistant', requestId: 'r', message: { id: 'm', model: 'mystery-model', usage: { input_tokens: 10, output_tokens: outputTokens } }, timestamp: '2026-01-15T10:00:00.000Z' },
+          makeCtx(),
+        );
+      const first = mystery(5)!;
+      const kept = { ...first, costByCategory: { input: 123 } };
+      const merged = merge(kept, mystery(50));
+      assert.equal(merged.completionTokens, 50);
+      assert.equal(merged.cost, 0);
+      assert.equal('costByCategory' in merged, false, 'the breakdown of the earlier pricing must not survive the re-pricing');
+    });
   });
 });

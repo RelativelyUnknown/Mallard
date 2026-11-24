@@ -169,6 +169,27 @@ describe('hydrating local filter state from a snapshot', () => {
     assert.ok(filterPatchFromSnapshot({ models: ['host'] }, 20_000), 'host version adopted after the TTL');
   });
 
+  it('choosing a repository posts a one-repo filter, and "All repos" clears it again', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const bar = mountFilterBar(el);
+    bar.update(multiSnapshot(), 'cost');
+    const select = el.querySelector<HTMLSelectElement>('#repo-select')!;
+    assert.equal(select.hidden, false, 'two repos: the selector is offered');
+
+    select.value = 'acme/lib';
+    select.dispatchEvent(new window.Event('change'));
+    assert.deepEqual(posted().at(-1)!.value.repos, ['acme/lib']);
+    assert.deepEqual(state().filter.repos, ['acme/lib'], 'local state follows without waiting for the host');
+
+    select.value = '__all__';
+    select.dispatchEvent(new window.Event('change'));
+    assert.equal(posted().length, 2);
+    assert.equal(posted().at(-1)!.value.repos, undefined, 'no repo restriction after choosing All repos');
+    assert.equal(state().filter.repos, undefined);
+    el.remove();
+  });
+
   it('FilterBar.update shows the hydrated preset, surface, repo and source selections', () => {
     const el = document.createElement('div');
     document.body.appendChild(el);

@@ -332,6 +332,30 @@ describe('PricingService — lifecycle and clearCache', () => {
     }
   });
 
+  it('a manifest cache write that fails is swallowed: the fetched manifest still applies in memory', async () => {
+    const dir = await tmpDir();
+    // A directory where the cache file belongs makes writeFile() fail (EISDIR), whoever runs the tests.
+    await fs.mkdir(path.join(dir, 'pricing-manifest.json'));
+    const fresh: PricingManifest = {
+      version: 1,
+      pricePerCredit: 0.09,
+      updatedAt: new Date().toISOString(),
+      models: { 'gpt-4o': 3 },
+    };
+    const restore = stubHttpsGet({ 'raw.githubusercontent': fresh });
+    try {
+      const svc = new PricingService(dir, BUNDLED);
+      await svc.load();
+      await new Promise((r) => setTimeout(r, 100));
+      assert.equal(svc.pricePerCredit, 0.09, 'the refreshed manifest is in force even though it could not be cached');
+      assert.ok((await fs.stat(path.join(dir, 'pricing-manifest.json'))).isDirectory(), 'nothing replaced the blocker');
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('loadCached returns null for an invalid manifest shape', async () => {
     const dir = await tmpDir();
     writeFileSync(path.join(dir, 'pricing-manifest.json'), JSON.stringify({ version: 'not-a-number' }));

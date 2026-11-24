@@ -87,7 +87,8 @@ export function fetchJson(url: string, opts: FetchJsonOptions = {}): Promise<unk
           try {
             body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
           } catch (e) {
-            fail(e instanceof Error ? e : new Error(String(e)));
+            // JSON.parse / Buffer.toString only ever throw Error subclasses.
+            fail(e as Error);
             return;
           }
           if (settle()) resolve(body);
