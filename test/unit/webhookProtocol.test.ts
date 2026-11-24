@@ -84,12 +84,15 @@ describe('WebhookProtocol — send() outcome matrix', () => {
     p.dispose();
   });
 
-  it('returns non-retryable on 4xx (AbortError, no retry)', async () => {
-    captureFetch(401);
+  // Was 401: 401/403 are now retryable (credentials can be corrected later),
+  // so the "payload itself is wrong" case is pinned with a 400.
+  it('returns non-retryable on a payload-level 4xx (AbortError, no retry)', async () => {
+    const calls = captureFetch(400);
     const p = new WebhookProtocol({ url: 'https://x/ingest', retries: 3 }, quietLogger);
     const r = await p.send('t', { schema_version: 3 });
     assert.equal(r.ok, false);
     assert.equal((r as { retryable: boolean }).retryable, false);
+    assert.equal(calls.length, 1, 'fatal: not retried');
     p.dispose();
   });
 

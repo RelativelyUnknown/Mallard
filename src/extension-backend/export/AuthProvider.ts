@@ -7,13 +7,14 @@ import {
   createWebhookProtocol,
 } from './ExporterFactory';
 import {
+  type Exporter,
   FanoutMetricExporter,
   MetricExporter,
   NullMetricExporter,
   type MetricProtocol,
 } from './MetricExporter';
 import { StreamBatchSerializer } from './payload';
-import { ExportQueue } from './ExportQueue';
+import { ExportQueue, queueFileFor } from './ExportQueue';
 import { opt } from '../util/lang';
 
 /**
@@ -32,7 +33,7 @@ export class AuthProvider {
     private readonly exportCfg: ExportConfig = {},
   ) {}
 
-  async createExporter(): Promise<MetricExporter> {
+  async createExporter(): Promise<Exporter> {
     const { cfg, context } = this;
     const transport = cfg.export.transport;
 
@@ -42,10 +43,6 @@ export class AuthProvider {
     // (protocol, queueFile) pairs — each target gets its OWN persisted queue so a
     // partial outage re-delivers only to the target that failed (no double-send).
     const built: Array<{ protocol: MetricProtocol; queueFile: string }> = [];
-    const queueFileFor = (name: string | undefined): string =>
-      name === undefined
-        ? 'export-queue.json'
-        : `export-queue-${name.replace(/[^a-z0-9._-]/gi, '_')}.json`;
 
     if (transport === 'webhook') {
       const primary = await this.buildWebhookProtocol(cfg.server.url, undefined);
