@@ -1,19 +1,20 @@
 /**
  * Fetches USD-based FX rates from the Frankfurter open API and caches them
- * for 24 hours. Falls back to USD-only (all rates = 1.0) when offline.
+ * for 24 hours. When offline it keeps serving the last cached rates (up to 30
+ * days old) and only falls back to USD-only (all rates = 1.0) without one.
  *
  * Endpoint: https://api.frankfurter.app/latest?from=USD
  */
 import { promises as fs } from 'fs';
-import * as https from 'https';
 import * as path from 'path';
 import { defaultLogger, Logger } from '../util/logger';
+import { fetchJson } from './httpJson';
 
 const CACHE_FILE = 'fx-rates.json';
 const API_URL = 'https://api.frankfurter.app/latest?from=USD';
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 5_000;
-const MAX_REDIRECTS = 3;
+/** Stale rates are approximate but beat showing every amount in USD. */
+const MAX_STALE_MS = 30 * 24 * 60 * 60 * 1000;
 /** A full Frankfurter rates payload is well under 4 KB. */
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 
@@ -24,56 +25,25 @@ interface CachePayload {
   rates: FxRates;
 }
 
-function fetchRates(url: string = API_URL, redirectsLeft: number = MAX_REDIRECTS): Promise<FxRates> {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout: FETCH_TIMEOUT_MS }, (res) => {
-      const status = res.statusCode ?? 0;
-      // Follow redirects — Frankfurter has moved hosts (.app ↔ .dev) before, and
-      // https.get does not follow 30x on its own, so a redirect would otherwise
-      // silently strand rates at USD-only.
-      if (status >= 300 && status < 400 && res.headers.location) {
-        res.resume();
-        if (redirectsLeft <= 0) {
-          reject(new Error('Too many redirects'));
-          return;
-        }
-        resolve(fetchRates(new URL(res.headers.location, url).toString(), redirectsLeft - 1));
-        return;
-      }
-      if (status !== 200) {
-        res.resume();
-        reject(new Error(`HTTP ${res.statusCode}`));
-        return;
-      }
-      const chunks: Buffer[] = [];
-      let received = 0;
-      res.on('data', (c: Buffer) => {
-        received += c.length;
-        if (received > MAX_RESPONSE_BYTES) {
-          req.destroy(new Error(`Response exceeds ${MAX_RESPONSE_BYTES} bytes`));
-          return;
-        }
-        chunks.push(c);
-      });
-      res.on('end', () => {
-        try {
-          const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as {
-            rates?: Record<string, number>;
-          };
-          if (!body.rates || typeof body.rates !== 'object') {
-            reject(new Error('Unexpected Frankfurter response shape'));
-            return;
-          }
-          // Include USD itself at 1.0 so callers never need a special case.
-          resolve({ USD: 1, ...body.rates });
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-    req.on('timeout', () => req.destroy(new Error('Timeout')));
-    req.on('error', reject);
-  });
+/**
+ * Keep only usable rates: a finite number above zero (a 0, negative or NaN rate
+ * would zero out or invert every converted amount). Undefined when none survive.
+ */
+function sanitizeRates(raw: unknown): FxRates | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: FxRates = {};
+  for (const [code, rate] of Object.entries(raw)) {
+    if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) out[code] = rate;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+async function fetchRates(): Promise<FxRates> {
+  const body = (await fetchJson(API_URL, { maxBytes: MAX_RESPONSE_BYTES })) as { rates?: unknown } | null;
+  const rates = sanitizeRates(body?.rates);
+  if (!rates) throw new Error('Unexpected Frankfurter response shape');
+  // Include USD itself at 1.0 so callers never need a special case.
+  return { ...rates, USD: 1 };
 }
 
 export class CurrencyService {
@@ -126,9 +96,12 @@ export class CurrencyService {
     try {
       const raw = await fs.readFile(file, 'utf8');
       const payload = JSON.parse(raw) as CachePayload;
-      if (!payload.rates || typeof payload.rates !== 'object') return null;
+      const rates = sanitizeRates(payload.rates);
+      if (!rates) return null;
+      // Stale rates are still served (the background refresh replaces them
+      // when the network is up); only a cache too old to be meaningful is dropped.
       const age = Date.now() - Date.parse(payload.fetchedAt);
-      if (Number.isFinite(age) && age < REFRESH_INTERVAL_MS) return payload.rates;
+      if (Number.isFinite(age) && age < MAX_STALE_MS) return { ...rates, USD: 1 };
       return null;
     } catch {
       return null;

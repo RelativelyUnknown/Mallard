@@ -119,7 +119,7 @@ describe('CurrencyService', () => {
     }
   });
 
-  it('ignores a stale cache (>24h) and falls back to USD-only on fetch failure', async () => {
+  it('ignores a cache older than 30 days and falls back to USD-only on fetch failure', async () => {
     const dir = await tmpDir();
     writeFileSync(
       path.join(dir, 'fx-rates.json'),
@@ -315,6 +315,101 @@ describe('CurrencyService — response size cap', () => {
       svc.dispose();
     } finally {
       https.get = origGet;
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('CurrencyService — stale cache and rate validation', () => {
+  it('keeps serving a stale (<= 30 day) cache when the refresh fails offline, instead of USD-only', async () => {
+    const dir = await tmpDir();
+    writeFileSync(
+      path.join(dir, 'fx-rates.json'),
+      JSON.stringify({ fetchedAt: new Date(Date.now() - 3 * 24 * 3600_000).toISOString(), rates: { USD: 1, EUR: 0.9 } }),
+    );
+    const restore = stubHttps(() => ({ statusCode: 500 }));
+    try {
+      const svc = new CurrencyService(dir);
+      await svc.load();
+      await new Promise((r) => setTimeout(r, 100)); // failed background refresh
+      assert.deepEqual(svc.currentRates(), { USD: 1, EUR: 0.9 });
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('replaces the stale cache once the background refresh succeeds', async () => {
+    const dir = await tmpDir();
+    writeFileSync(
+      path.join(dir, 'fx-rates.json'),
+      JSON.stringify({ fetchedAt: new Date(Date.now() - 3 * 24 * 3600_000).toISOString(), rates: { USD: 1, EUR: 0.9 } }),
+    );
+    const restore = stubHttps(() => ({ statusCode: 200, body: JSON.stringify({ rates: { EUR: 0.95 } }) }));
+    try {
+      const svc = new CurrencyService(dir);
+      let updated = 0;
+      svc.onRatesUpdated = () => { updated++; };
+      await svc.load();
+      assert.equal(svc.currentRates()['EUR'], 0.9, 'stale rates available immediately');
+      await new Promise((r) => setTimeout(r, 100));
+      assert.equal(svc.currentRates()['EUR'], 0.95);
+      assert.equal(updated, 1);
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('drops invalid fetched rates (zero, negative, NaN-like, non-numeric) and always pins USD to 1', async () => {
+    const dir = await tmpDir();
+    const restore = stubHttps(() => ({
+      statusCode: 200,
+      body: '{"rates":{"EUR":0.9,"JPY":0,"GBP":-1,"CHF":"1.1","XXX":null,"CAD":1e999,"USD":5}}',
+    }));
+    try {
+      const svc = new CurrencyService(dir);
+      await svc.load();
+      await new Promise((r) => setTimeout(r, 100));
+      assert.deepEqual(svc.currentRates(), { EUR: 0.9, USD: 1 });
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a payload with no usable rate at all', async () => {
+    const dir = await tmpDir();
+    const restore = stubHttps(() => ({ statusCode: 200, body: JSON.stringify({ rates: { EUR: 0, GBP: -2 } }) }));
+    try {
+      const svc = new CurrencyService(dir);
+      await svc.load();
+      await new Promise((r) => setTimeout(r, 100));
+      assert.deepEqual(svc.currentRates(), { USD: 1 });
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('sanitizes a cached file with bad rates', async () => {
+    const dir = await tmpDir();
+    writeFileSync(
+      path.join(dir, 'fx-rates.json'),
+      JSON.stringify({ fetchedAt: new Date().toISOString(), rates: { USD: 1, EUR: 0.9, JPY: 0, GBP: 'x' } }),
+    );
+    const restore = stubHttps(() => ({ statusCode: 500 }));
+    try {
+      const svc = new CurrencyService(dir);
+      await svc.load();
+      assert.deepEqual(svc.currentRates(), { EUR: 0.9, USD: 1 });
+      svc.dispose();
+    } finally {
+      restore();
       await fs.rm(dir, { recursive: true, force: true });
     }
   });

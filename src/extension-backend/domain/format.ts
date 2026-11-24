@@ -7,7 +7,12 @@ import { Metric } from './types';
 
 export function formatMoney(amount: number, currency = 'USD'): string {
   try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
+    const fmt = new Intl.NumberFormat(undefined, { style: 'currency', currency });
+    // A positive amount below the currency's smallest displayed unit would
+    // render as a misleading zero ("$0.00"); show the floor instead.
+    const smallest = 10 ** -(fmt.resolvedOptions().maximumFractionDigits ?? 2);
+    if (amount > 0 && amount < smallest) return `<${fmt.format(smallest)}`;
+    return fmt.format(amount);
   } catch {
     return `${currency} ${amount.toFixed(2)}`;
   }
@@ -18,8 +23,10 @@ export function formatNumber(n: number): string {
 }
 
 export function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  // Thresholds sit half a display step below each unit so a value that rounds
+  // up to the next unit (999_950 → "1000.0k") is promoted instead of overflowing.
+  if (n >= 999_950) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 999.5) return `${(n / 1_000).toFixed(1)}k`;
   return String(Math.round(n));
 }
 

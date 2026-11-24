@@ -30,6 +30,34 @@ export interface ModelTokenPrice {
 /** Model-id substring → per-token USD prices. */
 export type TokenPrices = Record<string, ModelTokenPrice>;
 
+/** Anthropic list price (USD per million tokens) → per-token rates; the
+ *  published cache multipliers are 1.25× input to write, 0.1× input to read. */
+function listPrice(inputPerMtok: number, outputPerMtok: number): ModelTokenPrice {
+  return {
+    input: inputPerMtok / 1e6,
+    output: outputPerMtok / 1e6,
+    cacheWrite: (inputPerMtok * 1.25) / 1e6,
+    cacheRead: (inputPerMtok * 0.1) / 1e6,
+  };
+}
+
+/**
+ * Offline last resort for Claude-family models, used only when the live price
+ * feed (OpenRouter/LiteLLM, or its cache) has no entry. Costs derived from it
+ * are estimates. This exists so Claude Code rows are never priced with the
+ * Copilot credit multiplier, which has no relation to what Anthropic bills.
+ */
+export const CLAUDE_FALLBACK_TOKEN_PRICES: TokenPrices = {
+  'claude-opus-4.5': listPrice(5, 25),
+  'claude-opus-4.6': listPrice(5, 25),
+  'claude-opus-4.7': listPrice(5, 25),
+  'claude-opus-4.8': listPrice(5, 25),
+  'claude-opus': listPrice(15, 75),
+  'claude-sonnet': listPrice(3, 15),
+  'claude-haiku-3.5': listPrice(0.8, 4),
+  'claude-haiku': listPrice(1, 5),
+};
+
 export interface PricingConfig {
   pricePerCredit: number;
   currency: string;
@@ -98,6 +126,73 @@ export function modelFamily(modelId: string): string {
   return 'other';
 }
 
+const normalizeMemo = new Map<string, string>();
+
+/**
+ * Canonical, spelling-independent form of a model id, used on BOTH sides of
+ * every lookup (credit multipliers and token prices). Copilot sends dotted ids
+ * (`claude-opus-4.5`), Claude Code sends dashed dated ids
+ * (`claude-opus-4-5-20251101`), and the manifest/LiteLLM/OpenRouter mix both,
+ * so each id is reduced to: lowercase, no provider prefix, no `:variant` or
+ * date suffix, minor-version dashes as dots, and Claude family-first order
+ * (`claude-3-5-sonnet` → `claude-sonnet-3.5`).
+ */
+export function normalizeModelId(modelId: string): string {
+  const raw = modelId || '';
+  const memo = normalizeMemo.get(raw);
+  if (memo !== undefined) return memo;
+
+  let id = raw.trim().toLowerCase();
+  const slash = id.lastIndexOf('/');
+  if (slash >= 0) id = id.slice(slash + 1);
+  // Bedrock-style prefixes ("us.anthropic.claude-…").
+  const claudeAt = id.indexOf('.claude');
+  if (claudeAt >= 0) id = id.slice(claudeAt + 1);
+  const colon = id.indexOf(':');
+  if (colon >= 0) id = id.slice(0, colon).replace(/-v\d+$/, '');
+  id = id.replace(/[-@](?:\d{8}|\d{4}-\d{2}-\d{2})(?=-|$)/, '');
+  id = id.replace(/-(\d)-(\d)(?!\d)/, '-$1.$2');
+  id = id.replace(/^claude-(\d+\.?\d*)-(opus|sonnet|haiku)(?=-|$)/, 'claude-$2-$1');
+
+  if (normalizeMemo.size >= 1024) normalizeMemo.clear();
+  normalizeMemo.set(raw, id);
+  return id;
+}
+
+interface KeyEntry {
+  /** Normalized key, matched as a substring of the normalized model id. */
+  norm: string;
+  /** Original key, to read the (possibly mutated) value from the record. */
+  key: string;
+}
+
+const keyIndex = new WeakMap<object, { count: number; entries: KeyEntry[] }>();
+
+/** Record keys normalized and ordered longest-first, so the most specific wins. */
+function sortedKeys(rec: Record<string, unknown>): KeyEntry[] {
+  const keys = Object.keys(rec);
+  const hit = keyIndex.get(rec);
+  if (hit && hit.count === keys.length) return hit.entries;
+  const entries = keys
+    .map((key) => ({ key, norm: normalizeModelId(key) }))
+    .sort((a, b) => b.norm.length - a.norm.length);
+  keyIndex.set(rec, { count: keys.length, entries });
+  return entries;
+}
+
+/** Value of the longest record key contained in the (normalized) model id. */
+function lookupLongest<T>(
+  id: string,
+  rec: Record<string, T>,
+  skipKey?: string,
+): T | undefined {
+  for (const { key, norm } of sortedKeys(rec)) {
+    if (norm === skipKey) continue;
+    if (id.includes(norm)) return rec[key];
+  }
+  return undefined;
+}
+
 /**
  * Resolve the credit multiplier for a model id.
  * Priority: overrides → manifest → defaults → 1 (unknown).
@@ -107,22 +202,16 @@ export function resolveMultiplier(
   overrides?: Record<string, number>,
   manifest?: PricingManifest,
 ): number {
-  const id = (modelId || '').toLowerCase();
+  const id = normalizeModelId(modelId);
 
   if (overrides) {
-    const keys = Object.keys(overrides).sort((a, b) => b.length - a.length);
-    for (const key of keys) {
-      if (id.includes(key.toLowerCase())) return overrides[key]!;
-    }
+    const hit = lookupLongest(id, overrides);
+    if (hit !== undefined) return hit;
   }
 
   const source = manifest?.models ?? DEFAULT_MULTIPLIERS;
-  const keys = Object.keys(source)
-    .filter((k) => k !== 'unknown')
-    .sort((a, b) => b.length - a.length);
-  for (const key of keys) {
-    if (id.includes(key)) return source[key]!;
-  }
+  const hit = lookupLongest(id, source, 'unknown');
+  if (hit !== undefined) return hit;
   /* c8 ignore next */
   return source['unknown'] ?? DEFAULT_MULTIPLIERS['unknown']!;
 }
@@ -131,17 +220,12 @@ export function costForCredits(credits: number, pricePerCredit: number): number 
   return credits * pricePerCredit;
 }
 
-/** Longest matching key in `prices` whose id-substring appears in `modelId`. */
+/** Longest matching key in `prices` whose (normalized) key appears in `modelId`. */
 function resolveTokenPrice(
   modelId: string,
   prices: TokenPrices,
 ): ModelTokenPrice | undefined {
-  const id = (modelId || '').toLowerCase();
-  const keys = Object.keys(prices).sort((a, b) => b.length - a.length);
-  for (const key of keys) {
-    if (id.includes(key.toLowerCase())) return prices[key];
-  }
-  return undefined;
+  return lookupLongest(normalizeModelId(modelId), prices);
 }
 
 export interface TokenUsage {
