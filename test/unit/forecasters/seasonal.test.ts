@@ -152,6 +152,20 @@ describe('seasonalForecaster — gap-free series and the partial day', () => {
     assert.equal(f.projectedCredits, 50);
   });
 
+  it('ignores history beyond the fitted window (a stray epoch-0 event costs nothing)', () => {
+    const recent = Array.from({ length: 19 }, (_, i) => makeEvent({ id: `d${i}`, ts: june(i + 1), credits: 10 }));
+    const stray = makeEvent({ id: 'epoch', ts: 1000, credits: 10 });
+    const input = { now: june(20, 12), pricePerCredit: 0.04 };
+
+    const started = Date.now();
+    const withStray = seasonalForecaster.forecast({ dayAggregates: aggregateBy([stray, ...recent], 'day'), ...input });
+    const elapsed = Date.now() - started;
+    const without = seasonalForecaster.forecast({ dayAggregates: aggregateBy(recent, 'day'), ...input });
+
+    assert.ok(Math.abs(withStray.projectedCredits - without.projectedCredits) < 1e-9);
+    assert.ok(elapsed < 2000, `fit took ${elapsed}ms — the series must not span decades`);
+  });
+
   it('is deterministic — the fit stamp comes from the injected clock', () => {
     assert.equal(fitHoltWinters([1, 2, 3, 4, 5, 6, 7, 8, 9], 1234).fittedAt, 1234);
   });

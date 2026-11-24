@@ -13,7 +13,7 @@
  */
 import type { Forecast, UsageAggregate } from '../types';
 import { monthPosition, type Forecaster, type ForecastInput } from './linear';
-import { startOf, nextBucketStart } from '../../util/time';
+import { dayStartOffset, startOf, nextBucketStart } from '../../util/time';
 
 export interface HoltWintersParams {
   alpha: number;
@@ -27,6 +27,13 @@ export interface HoltWintersParams {
 }
 
 const PERIOD = 7; // weekly seasonality
+
+/**
+ * Longest history fitted. Older days barely move a weekly smoother, and the
+ * zero-filled series would otherwise stretch back to a stray epoch-0 event
+ * (decades of days × the 729-point parameter grid) on every snapshot.
+ */
+const MAX_HISTORY_DAYS = 180;
 
 /**
  * Mean squared one-step-ahead forecast error for given Holt-Winters params.
@@ -144,14 +151,16 @@ export function fitHoltWinters(series: number[], fittedAt: number = Date.now()):
  * with data up to (not including) `endExclusive`, zero for idle days. The
  * aggregates only contain days that had events, but Holt-Winters indexes its
  * weekly seasonality by position — dropping idle days shifts every later
- * weekday. Days at or after `endExclusive` (today's partial day) are left out.
+ * weekday. Days at or after `endExclusive` (today's partial day) are left out,
+ * and so is anything older than MAX_HISTORY_DAYS.
  */
 function dailySeries(dayAggregates: UsageAggregate[], endExclusive: number): number[] {
   const byDay = new Map<number, number>();
+  const oldest = dayStartOffset(endExclusive, -MAX_HISTORY_DAYS);
   let first = Number.POSITIVE_INFINITY;
   for (const a of dayAggregates) {
     const day = startOf(a.start, 'day');
-    if (day >= endExclusive) continue;
+    if (day >= endExclusive || day < oldest) continue;
     byDay.set(day, (byDay.get(day) ?? 0) + a.credits);
     if (day < first) first = day;
   }
