@@ -1,3 +1,58 @@
+import { COST_CATEGORIES, CostCategory } from '../../domain/types';
+
+/**
+ * costByCategory key -> v_events column carrying that category's cost. The
+ * view's `cache_write` column holds the `cache_creation` category.
+ */
+const CATEGORY_VIEW_COLUMN: Record<CostCategory, string> = {
+  input: 'cost_input',
+  output: 'cost_output',
+  tool: 'cost_tool',
+  thinking: 'cost_thinking',
+  cache_creation: 'cost_cache_write',
+  cache_read: 'cost_cache_read',
+  unknown: 'cost_unknown',
+};
+
+/**
+ * A compact costByCategory JSON object (zero categories omitted, NULL when
+ * nothing is left) from per-category numeric SQL expressions. Rolled-up rows
+ * must keep their category split — the category-trend chart reads it.
+ */
+export function categoriesJsonSql(valueOf: (category: CostCategory) => string): string {
+  const pairs = COST_CATEGORIES.map((c) => `'${c}', NULLIF(${valueOf(c)}, 0)`).join(', ');
+  // json_merge_patch('{}', …) drops the NULL-valued (zero) keys (RFC 7396).
+  return `NULLIF(json_merge_patch('{}', json_object(${pairs}))::VARCHAR, '{}')`;
+}
+
+/** Per-category sum over a rollup group (v_daily_rollup). */
+const ROLLUP_CATEGORIES_SQL = categoriesJsonSql((c) => `SUM(e.${CATEGORY_VIEW_COLUMN[c]})`);
+
+/** Per-category sum of two stored costByCategory JSON strings (rollup upsert). */
+export function mergeCategoriesSql(a: string, b: string): string {
+  const num = (col: string, c: CostCategory) =>
+    `COALESCE(TRY_CAST(json_extract_string(${col}, '$.${c}') AS DOUBLE), 0)`;
+  return categoriesJsonSql((c) => `${num(a, c)} + ${num(b, c)}`);
+}
+
+export const CREATE_EVENT_INDEXES_SQL = `
+  CREATE INDEX IF NOT EXISTS idx_ts ON events(ts);
+  CREATE INDEX IF NOT EXISTS idx_model ON events(modelId);
+  CREATE INDEX IF NOT EXISTS idx_ts_model_surface_source
+    ON events(ts, modelId, surface, source);
+  CREATE INDEX IF NOT EXISTS idx_repo   ON events(repo);
+  CREATE INDEX IF NOT EXISTS idx_branch ON events(branch);
+`;
+
+/** DuckDB refuses to ALTER a column type while these indexes exist. */
+export const DROP_EVENT_INDEXES_SQL = `
+  DROP INDEX IF EXISTS idx_ts;
+  DROP INDEX IF EXISTS idx_model;
+  DROP INDEX IF EXISTS idx_ts_model_surface_source;
+  DROP INDEX IF EXISTS idx_repo;
+  DROP INDEX IF EXISTS idx_branch;
+`;
+
 export const CREATE_SQL = `
   CREATE TABLE IF NOT EXISTS events (
     id VARCHAR PRIMARY KEY,
@@ -7,8 +62,9 @@ export const CREATE_SQL = `
     source VARCHAR NOT NULL,
     credits DOUBLE NOT NULL,
     cost DOUBLE NOT NULL,
-    promptTokens INTEGER,
-    completionTokens INTEGER,
+    -- BIGINT: a rolled-up day sums many requests (migration 0006 widens older DBs).
+    promptTokens BIGINT,
+    completionTokens BIGINT,
     estimated BOOLEAN NOT NULL DEFAULT TRUE,
     repo VARCHAR,
     costByCategory VARCHAR,
@@ -21,12 +77,7 @@ export const CREATE_SQL = `
     -- only) unless the source log names one. NULL when undetectable.
     language VARCHAR
   );
-  CREATE INDEX IF NOT EXISTS idx_ts ON events(ts);
-  CREATE INDEX IF NOT EXISTS idx_model ON events(modelId);
-  CREATE INDEX IF NOT EXISTS idx_ts_model_surface_source
-    ON events(ts, modelId, surface, source);
-  CREATE INDEX IF NOT EXISTS idx_repo   ON events(repo);
-  CREATE INDEX IF NOT EXISTS idx_branch ON events(branch);
+  ${CREATE_EVENT_INDEXES_SQL}
 
   CREATE TABLE IF NOT EXISTS meta (key VARCHAR PRIMARY KEY, value VARCHAR);
   ALTER TABLE events ADD COLUMN IF NOT EXISTS branch VARCHAR;
@@ -68,7 +119,8 @@ export const CREATE_SQL = `
       COALESCE(TRY_CAST(json_extract_string(costByCategory, '$.cache_read')     AS DOUBLE), 0) AS cost_cache_read,
       COALESCE(TRY_CAST(json_extract_string(costByCategory, '$.cache_creation') AS DOUBLE), 0) AS cost_cache_write,
       COALESCE(TRY_CAST(json_extract_string(costByCategory, '$.thinking')       AS DOUBLE), 0) AS cost_thinking,
-      COALESCE(TRY_CAST(json_extract_string(costByCategory, '$.tool')           AS DOUBLE), 0) AS cost_tool
+      COALESCE(TRY_CAST(json_extract_string(costByCategory, '$.tool')           AS DOUBLE), 0) AS cost_tool,
+      COALESCE(TRY_CAST(json_extract_string(costByCategory, '$.unknown')        AS DOUBLE), 0) AS cost_unknown
     FROM events;
 
   -- Local-calendar-day grouping (DST-correct via session TimeZone).
@@ -159,22 +211,27 @@ export const CREATE_SQL = `
     FROM v_events
     GROUP BY repo_label;
 
-  -- Daily rollup view — groups raw events by local calendar day.
+  -- Daily rollup view — groups raw events by local calendar day. The group key
+  -- is exactly the roll id's components (repo_label, not the raw repo), so two
+  -- groups can never produce the same id. A repo literally named 'unattributed'
+  -- is the same sentinel as NULL everywhere else (repo_label, filters, facts) and
+  -- rolls up as NULL.
   CREATE OR REPLACE VIEW v_daily_rollup AS
     SELECT
       'roll:' || strftime(to_timestamp(MIN(e.ts) / 1000.0)::TIMESTAMPTZ, '%Y-%m-%d')
         || ':' || e.modelId
-        || ':' || COALESCE(e.repo, 'unattributed')
+        || ':' || e.repo_label
         || ':' || e.surface
         || ':' || e.source                                                  AS id,
       CAST(extract(epoch from date_trunc('day', to_timestamp(MIN(e.ts) / 1000.0)::TIMESTAMPTZ)) * 1000 AS BIGINT) AS ts,
-      e.modelId, e.surface, e.source, e.repo,
+      e.modelId, e.surface, e.source,
+      NULLIF(e.repo_label, 'unattributed')                                   AS repo,
       SUM(e.credits)                                                         AS credits,
       SUM(e.cost)                                                            AS cost,
-      CAST(SUM(e.prompt_tokens) AS INTEGER)                                  AS promptTokens,
-      CAST(SUM(e.completion_tokens) AS INTEGER)                              AS completionTokens,
+      CAST(SUM(e.prompt_tokens) AS BIGINT)                                   AS promptTokens,
+      CAST(SUM(e.completion_tokens) AS BIGINT)                               AS completionTokens,
       true                                                                   AS estimated,
-      NULL::VARCHAR                                                          AS costByCategory,
+      ${ROLLUP_CATEGORIES_SQL}                                               AS costByCategory,
       NULL::VARCHAR                                                          AS branch,
       -- 'heuristic' wins lexically over 'authoritative': a rolled-up day is
       -- flagged heuristic when any contributing row was.
@@ -184,7 +241,7 @@ export const CREATE_SQL = `
     FROM v_events e
     WHERE NOT e.is_rolled
     GROUP BY strftime(to_timestamp(e.ts / 1000.0)::TIMESTAMPTZ, '%Y-%m-%d'),
-             e.modelId, e.surface, e.source, e.repo;
+             e.modelId, e.surface, e.source, e.repo_label;
 
   -- ── Star schema ──────────────────────────────────────────────────────────────
   CREATE TABLE IF NOT EXISTS dim_surface (id TINYINT PRIMARY KEY, name VARCHAR UNIQUE NOT NULL);

@@ -30,8 +30,13 @@ export function computeBudget(input: BudgetInput): BudgetState {
 
     if (Number.isFinite(projectedCost)) {
       const projectedRatio = projectedCost / monthlyBudget;
-      if (projectedRatio <= 0.8) pace = 'under';
-      else if (projectedRatio <= 1.0) pace = 'on-track';
+      // Without enough data the "projection" is just the month-to-date total,
+      // a lower bound: it can prove the budget is already exceeded but says
+      // nothing reassuring, so 'under'/'on-track' stay at 'no-budget' (the
+      // neutral value) rather than claiming a pace that was never forecast.
+      const forecasted = forecast.basis !== 'insufficient-data';
+      if (projectedRatio <= 0.8) pace = forecasted ? 'under' : 'no-budget';
+      else if (projectedRatio <= 1.0) pace = forecasted ? 'on-track' : 'no-budget';
       else if (projectedRatio <= 1.25) pace = 'warning';
       else pace = 'over';
     }

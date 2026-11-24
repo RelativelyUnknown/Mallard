@@ -126,3 +126,25 @@ describe('budget', () => {
     assert.equal(severityFor(b), 'warning');
   });
 });
+
+describe('budget — insufficient-data forecasts', () => {
+  const insufficient = (projectedCost: number): Forecast => ({
+    ...forecastWithCost(projectedCost),
+    basis: 'insufficient-data',
+  });
+  const paceFor = (forecast: Forecast): string =>
+    computeBudget({ monthlyBudget: 30, includedCredits: 300, mtdCredits: 10, mtdCost: forecast.projectedCost, forecast }).pace;
+
+  it('does not claim "under" or "on-track" when nothing was forecast', () => {
+    assert.equal(paceFor(insufficient(3)), 'no-budget');   // 0.1 of budget
+    assert.equal(paceFor(insufficient(27)), 'no-budget');  // 0.9 of budget
+    // Same numbers with a real forecast keep their pace.
+    assert.equal(paceFor(forecastWithCost(3)), 'under');
+    assert.equal(paceFor(forecastWithCost(27)), 'on-track');
+  });
+
+  it('still reports warning/over when the month-to-date total alone already exceeds the budget', () => {
+    assert.equal(paceFor(insufficient(36)), 'warning');
+    assert.equal(paceFor(insufficient(45)), 'over');
+  });
+});

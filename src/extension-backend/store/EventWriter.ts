@@ -2,13 +2,15 @@
 import { DuckDBConnection } from '@duckdb/node-api';
 import { UsageEvent } from '../domain/types';
 import { UNATTRIBUTED_REPO } from '../domain/aggregate';
-import { DAY_MS, startOf } from '../util/time';
+import { dayStartOffset, nextBucketStart, startOf } from '../util/time';
 import {
   CLEAR_ALL_SQL,
   CLEAR_STAGING,
+  COMPACT_CHECK_SQL,
   COMPACT_DELETE_SQL,
   COMPACT_ROLLUP_SQL,
   COUNT_EVENTS_SQL,
+  DELETE_FACTS_WINDOW_SQL,
   INSERT_STAGING_MERGE,
   MAX_RAW_EVENTS,
   RAW_WINDOW_DAYS,
@@ -18,7 +20,11 @@ import {
 } from './schema';
 import type { RecordFilter } from './EventRepository';
 import type { SnapshotCacheToken } from './EventReader';
-import { readPrepared, readRows, runPrepared } from './dbUtils';
+import { FilterClauseBuilder } from './FilterClauseBuilder';
+import { dateToId, readPrepared, readRows, runPrepared } from './dbUtils';
+
+/** Latest epoch-ms a JS Date can represent — "no upper bound" for a fact window. */
+const MAX_DATE_MS = 8_640_000_000_000_000;
 
 // ── Interface ─────────────────────────────────────────────────────────────────
 
@@ -32,13 +38,31 @@ export interface IEventWriter {
 
 // ── Implementation ────────────────────────────────────────────────────────────
 
+/**
+ * All mutations run one at a time (`exclusive`) on a connection nothing else
+ * uses, and each multi-statement mutation is a single transaction. Without
+ * that, two concurrent writers shared the `events_staging` table and each
+ * other's half-finished statements (an insert racing a compact could roll up
+ * rows it then deleted before they were merged).
+ *
+ * `conn` must be dedicated to this writer: a transaction is per-connection, so
+ * anything else running on it would join the open transaction. Readers use a
+ * separate connection and only ever see committed state.
+ */
 export class EventWriter implements IEventWriter {
   private readonly retentionDays: number;
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(
     private readonly conn: DuckDBConnection,
     retentionDays = RAW_WINDOW_DAYS,
     private readonly cacheToken: SnapshotCacheToken = { version: 0 },
+    /**
+     * False for a private in-memory store (see EventStore.open): that store
+     * re-ingests the whole history, which must not be streamed to the exporter
+     * a second time.
+     */
+    private readonly emitInserted = true,
   ) {
     this.retentionDays = retentionDays;
   }
@@ -48,111 +72,125 @@ export class EventWriter implements IEventWriter {
     this.cacheToken.version++;
   }
 
-  async insert(records: UsageEvent[]): Promise<number> {
-    if (records.length === 0) return 0;
-    const inserted = await this.insertAll(records);
-    const total = await readRows(this.conn, COUNT_EVENTS_SQL, (r) => Number(r['c']));
-    /* c8 ignore next */
-    if ((total[0] ?? 0) > MAX_RAW_EVENTS) await this.compact();
-    // Refresh facts over the actual day-span of the inserted records, not just
-    // today. Ingesting historical logs (a backfill of older sessions) writes
-    // rows dated in the past; refreshing only today's window left those days'
-    // fact_daily_usage empty until compact() eventually ran a full rebuild.
-    let minTs = records[0]!.ts;
-    let maxTs = records[0]!.ts;
-    for (const r of records) {
-      if (r.ts < minTs) minTs = r.ts;
-      if (r.ts > maxTs) maxTs = r.ts;
-    }
-    await this.refreshFacts(startOf(minTs, 'day'), startOf(maxTs, 'day') + DAY_MS);
-    // No snap_* materialization to rebuild — the no-filter snapshot is computed
-    // on demand and memoized; just invalidate that memo. (Previously this ran a
-    // full DELETE+INSERT over all events on every debounced ingest tick.)
-    this.bumpCache();
-    return inserted;
+  /** Run `task` after every earlier mutation has settled (success or failure). */
+  private exclusive<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(task);
+    this.queue = run.then(() => undefined, () => undefined);
+    return run;
   }
 
-  async remove(filter: RecordFilter): Promise<number> {
-    const clauses: string[] = [];
-    const params: unknown[] = [];
+  /** BEGIN/COMMIT around `fn`; ROLLBACK (and rethrow) on error. Call inside `exclusive`. */
+  private async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    await this.conn.run('BEGIN TRANSACTION');
+    try {
+      const result = await fn();
+      await this.conn.run('COMMIT');
+      return result;
+    } catch (err) {
+      await this.conn.run('ROLLBACK').catch(() => undefined);
+      throw err;
+    }
+  }
 
-    if (filter.range) {
-      clauses.push('ts >= ? AND ts < ?');
-      params.push(filter.range.start, filter.range.end);
-    }
-    if (filter.models?.length) {
-      clauses.push(`modelId IN (${filter.models.map(() => '?').join(',')})`);
-      params.push(...filter.models);
-    }
-    if (filter.surfaces?.length) {
-      clauses.push(`surface IN (${filter.surfaces.map(() => '?').join(',')})`);
-      params.push(...filter.surfaces);
-    }
-    if (filter.sources?.length) {
-      clauses.push(`source IN (${filter.sources.map(() => '?').join(',')})`);
-      params.push(...filter.sources);
-    }
-    if (filter.branches?.length) {
-      clauses.push(`branch IN (${filter.branches.map(() => '?').join(',')})`);
-      params.push(...filter.branches);
-    }
-    if (filter.repos?.length) {
-      const named = filter.repos.filter((r) => r !== UNATTRIBUTED_REPO);
-      const hasUnattr = filter.repos.includes(UNATTRIBUTED_REPO);
-      const repoParts: string[] = [];
-      if (named.length) {
-        repoParts.push(`repo IN (${named.map(() => '?').join(',')})`);
-        params.push(...named);
+  insert(records: UsageEvent[]): Promise<number> {
+    if (records.length === 0) return Promise.resolve(0);
+    return this.exclusive(async () => {
+      // Refresh facts over the actual day-span of the inserted records, not just
+      // today. Ingesting historical logs (a backfill of older sessions) writes
+      // rows dated in the past; refreshing only today's window left those days'
+      // fact_daily_usage empty until compact() eventually ran a full rebuild.
+      let minTs = records[0]!.ts;
+      let maxTs = records[0]!.ts;
+      for (const r of records) {
+        if (r.ts < minTs) minTs = r.ts;
+        if (r.ts > maxTs) maxTs = r.ts;
       }
-      if (hasUnattr) repoParts.push('repo IS NULL');
-      if (repoParts.length) clauses.push(`(${repoParts.join(' OR ')})`);
-    }
-    if (!clauses.length) return 0;
-
-    const before = await this.countAll();
-    await runPrepared(this.conn, `DELETE FROM events WHERE ${clauses.join(' AND ')}`, params);
-    const after  = await this.countAll();
-    this.bumpCache();
-    return before - after;
+      // Events and their facts commit together. The window end is the next local
+      // midnight — `+ DAY_MS` falls an hour short on a 25h (DST fall-back) day
+      // and dropped that day's last hour from the facts.
+      const { inserted, fresh } = await this.transaction(async () => {
+        const result = await this.insertAll(records);
+        if (result.inserted > 0) {
+          await this.rebuildFacts(startOf(minTs, 'day'), nextBucketStart(maxTs, 'day'));
+        }
+        return result;
+      });
+      // Every row already stored (a re-read at the ingest watermark): nothing
+      // changed, so keep the facts and the snapshot memo as they are.
+      if (inserted === 0) return 0;
+      // After the commit, so a reader that sees the new version also sees the data.
+      this.bumpCache();
+      if (fresh.length > 0 && this.emitInserted) this.onInserted?.(fresh);
+      if ((await this.countAll()) > MAX_RAW_EVENTS) await this.compactLocked();
+      return inserted;
+    });
   }
 
-  async compact(now = Date.now()): Promise<void> {
-    const cutoff = startOf(now - this.retentionDays * DAY_MS, 'day');
-    const cutoffBig = BigInt(cutoff);
+  /**
+   * Deletes every event matching `filter`'s range/models/surfaces/sources/
+   * branches/repos. `limit`/`offset` are read-pagination controls and are
+   * ignored: a filter carrying nothing else matches no rows and removes
+   * nothing (returns 0) rather than wiping the table.
+   */
+  remove(filter: RecordFilter): Promise<number> {
+    const fb = new FilterClauseBuilder()
+      .addRange(filter.range, 'ts')
+      .addIn(filter.models, 'modelId')
+      .addIn(filter.surfaces, 'surface')
+      .addIn(filter.sources, 'source')
+      .addIn(filter.branches, 'branch')
+      .addRepos(filter.repos, 'repo', 'repo IS NULL');
+    const clause = fb.build();
+    if (!clause) return Promise.resolve(0);
 
-    const countRows = await readRows(
-      this.conn,
-      `SELECT COUNT(*) AS c FROM events WHERE ts < ${cutoffBig} AND id NOT LIKE 'roll:%'`,
-      (r) => Number(r['c']),
-    );
-    /* c8 ignore next */
-    const count = countRows[0] ?? 0;
-    /* c8 ignore next */
-    if (count === 0) return;
+    return this.exclusive(async () => {
+      const removed = await this.transaction(async () => {
+        const [span] = await readPrepared(
+          this.conn,
+          `SELECT MIN(ts) AS lo, MAX(ts) AS hi FROM events ${clause}`,
+          fb.params,
+          (r) => (r['lo'] == null ? null : { lo: Number(r['lo']), hi: Number(r['hi']) }),
+        );
+        const count = await runPrepared(this.conn, `DELETE FROM events ${clause}`, fb.params);
+        // Facts of the affected days no longer match the events — rebuild them.
+        if (count > 0 && span) {
+          await this.rebuildFacts(startOf(span.lo, 'day'), nextBucketStart(span.hi, 'day'));
+        }
+        return count;
+      });
+      this.bumpCache();
+      return removed;
+    });
+  }
 
-    await runPrepared(this.conn, COMPACT_ROLLUP_SQL, [cutoffBig]);
-    await runPrepared(this.conn, COMPACT_DELETE_SQL, [cutoffBig]);
-    await this.refreshFacts();
-    this.bumpCache();
+  compact(now = Date.now()): Promise<void> {
+    return this.exclusive(() => this.compactLocked(now));
   }
 
   async clear(): Promise<void> {
-    await this.conn.run(CLEAR_ALL_SQL);
-    this.bumpCache();
+    await this.exclusive(async () => {
+      await this.transaction(() => this.conn.run(CLEAR_ALL_SQL));
+      this.bumpCache();
+    });
   }
 
   async setPrices(entries: ReadonlyArray<{ modelId: string; multiplier: number }>): Promise<void> {
-    await this.conn.run('DELETE FROM prices');
-    if (entries.length === 0) return;
-    const stmt = await this.conn.prepare(
-      `INSERT INTO prices (modelId, multiplier) VALUES (?, ?)`,
-    );
-    for (const e of entries) {
-      stmt.bindVarchar(1, e.modelId);
-      stmt.bindDouble(2, e.multiplier);
-      await stmt.run();
-    }
-    this.bumpCache();
+    await this.exclusive(async () => {
+      // DELETE + INSERT are one unit: a failing entry must not leave the table empty.
+      await this.transaction(async () => {
+        await this.conn.run('DELETE FROM prices');
+        if (entries.length === 0) return;
+        const stmt = await this.conn.prepare(
+          `INSERT INTO prices (modelId, multiplier) VALUES (?, ?)`,
+        );
+        for (const e of entries) {
+          stmt.bindVarchar(1, e.modelId);
+          stmt.bindDouble(2, e.multiplier);
+          await stmt.run();
+        }
+      });
+      this.bumpCache();
+    });
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────────
@@ -164,6 +202,33 @@ export class EventWriter implements IEventWriter {
   }
 
   /**
+   * Roll raw events older than the retention window up into per-day rows.
+   * The cutoff is a local midnight (calendar-day arithmetic, DST-correct) and
+   * events strictly before it are rolled — an event exactly at the cutoff stays
+   * raw. Day alignment matters: the rollup groups whole local days, so a
+   * mid-day cutoff would fold a day's later events into the roll row while
+   * leaving them raw too (double count).
+   *
+   * Rollup (an upsert that adds into existing roll rows) + delete + fact
+   * rebuild are one transaction. Known limit: raw events deleted by an earlier
+   * compaction cannot be recognised if a log is re-ingested from scratch, so
+   * such re-reads are counted again.
+   */
+  private async compactLocked(now = Date.now()): Promise<void> {
+    const cutoff = BigInt(dayStartOffset(now, -this.retentionDays));
+    const [count] = await readPrepared(this.conn, COMPACT_CHECK_SQL, [cutoff], (r) => Number(r['c']));
+    /* c8 ignore next */
+    if (!count) return;
+
+    await this.transaction(async () => {
+      await runPrepared(this.conn, COMPACT_ROLLUP_SQL, [cutoff]);
+      await runPrepared(this.conn, COMPACT_DELETE_SQL, [cutoff]);
+      await this.rebuildFacts();
+    });
+    this.bumpCache();
+  }
+
+  /**
    * Called with the events that actually survived the INSERT OR IGNORE merge
    * (new ids only, in-batch duplicates collapsed) — the hook the streaming
    * exporter hangs off. Deliberately a plain callback, not a vscode
@@ -171,10 +236,8 @@ export class EventWriter implements IEventWriter {
    */
   onInserted?: (events: UsageEvent[]) => void;
 
-  private async insertAll(events: UsageEvent[]): Promise<number> {
-    /* c8 ignore next */
-    if (events.length === 0) return 0;
-
+  /** Merges `events` into the table (inside the caller's transaction). */
+  private async insertAll(events: UsageEvent[]): Promise<{ inserted: number; fresh: UsageEvent[] }> {
     // Collapse in-batch duplicates (first occurrence wins, matching INSERT OR
     // IGNORE) and find which ids already exist so the merge delta is exact.
     const seen = new Set<string>();
@@ -222,18 +285,22 @@ export class EventWriter implements IEventWriter {
     const after  = await this.countAll();
     await this.conn.run(CLEAR_STAGING);
 
-    const inserted = unique.filter((e) => !existing.has(e.id));
-    if (inserted.length > 0) this.onInserted?.(inserted);
-    return after - before;
+    return { inserted: after - before, fresh: unique.filter((e) => !existing.has(e.id)) };
   }
 
-  async refreshFacts(windowStart?: number, windowEnd?: number): Promise<void> {
-    const start = windowStart ?? 0;
-    /* c8 ignore next */
-    const end   = windowEnd   ?? (Date.now() + DAY_MS);
+  /**
+   * Rebuilds `fact_daily_usage` for the day window [windowStart, windowEnd) —
+   * everything when no window is given. Must run inside a transaction. The
+   * window is cleared first: INSERT OR REPLACE alone never deletes a group
+   * whose events were removed or rolled away, leaving stale facts. Window
+   * bounds are local midnights, so the date_id range and the ts range select
+   * the same rows.
+   */
+  private async rebuildFacts(windowStart = 0, windowEnd = MAX_DATE_MS): Promise<void> {
     await this.conn.run(REFRESH_FACTS_INSERT_MODELS_SQL);
     await this.conn.run(REFRESH_FACTS_INSERT_REPOS_SQL);
-    await runPrepared(this.conn, REFRESH_FACTS_SQL, [BigInt(start), BigInt(end)]);
+    await runPrepared(this.conn, DELETE_FACTS_WINDOW_SQL, [dateToId(windowStart), dateToId(windowEnd)]);
+    await runPrepared(this.conn, REFRESH_FACTS_SQL, [BigInt(windowStart), BigInt(windowEnd)]);
   }
 /* c8 ignore next */
 }

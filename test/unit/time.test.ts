@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { bucketKey, DAY_MS, daysInMonth, isoWeek, nextBucketStart, startOf } from '../../src/extension-backend/util/time';
+import { bucketKey, DAY_MS, dayStartOffset, daysInMonth, isoWeek, nextBucketStart, startOf } from '../../src/extension-backend/util/time';
 
 describe('time bucketing', () => {
   const ts = new Date(2026, 5, 12, 14, 30).getTime(); // June 12 2026, 14:30 local
@@ -63,5 +63,32 @@ describe('isoWeek', () => {
     assert.equal(year, 2026);
     const key = bucketKey(ts2, 'week');
     assert.ok(key.startsWith('2026-W'));
+  });
+});
+
+describe('dayStartOffset', () => {
+  it('returns local midnight a number of calendar days away, whatever the time of day', () => {
+    const ts = new Date(2026, 5, 12, 14, 30).getTime();
+    assert.equal(dayStartOffset(ts, 0), new Date(2026, 5, 12).getTime());
+    assert.equal(dayStartOffset(ts, 1), new Date(2026, 5, 13).getTime());
+    assert.equal(dayStartOffset(ts, -12), new Date(2026, 5, 0).getTime(), 'May 31');
+    assert.equal(dayStartOffset(ts, -90), new Date(2026, 2, 14).getTime());
+  });
+
+  it('is calendar-correct across DST changes, unlike ts + n * DAY_MS', () => {
+    const originalTz = process.env.TZ;
+    process.env.TZ = 'America/New_York';
+    try {
+      // 00:30 EDT on Mar 30; 90×24h earlier is 23:30 EST on Dec 29.
+      const ts = new Date(2026, 2, 30, 0, 30).getTime();
+      assert.equal(dayStartOffset(ts, -90), new Date(2025, 11, 30).getTime());
+      assert.notEqual(startOf(ts - 90 * DAY_MS, 'day'), dayStartOffset(ts, -90), 'the DAY_MS shortcut lands a day early');
+      // Into the 23h spring-forward day and out of the 25h fall-back day.
+      assert.equal(dayStartOffset(new Date(2026, 2, 7, 12).getTime(), 1), new Date(2026, 2, 8).getTime());
+      assert.equal(dayStartOffset(new Date(2026, 10, 1, 12).getTime(), 1), new Date(2026, 10, 2).getTime());
+    } finally {
+      if (originalTz === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTz;
+    }
   });
 });

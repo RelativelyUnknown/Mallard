@@ -1,4 +1,4 @@
-export const STORE_SCHEMA_VERSION = 5;
+export const STORE_SCHEMA_VERSION = 6;
 export const DB_META_SCHEMA_VERSION_KEY = 'schema_version';
 
 /** Keep this many days of raw, per-request events before rolling up. */

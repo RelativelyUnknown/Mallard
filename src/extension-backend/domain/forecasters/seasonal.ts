@@ -11,9 +11,9 @@
  * `fitHoltWinters` from `UsageService.buildSnapshot()` when params are stale and
  * persist the JSON.  This file remains a pure domain module with no I/O.
  */
-import type { Forecast } from '../types';
-import type { Forecaster, ForecastInput } from './linear';
-import { DAY_MS, startOf, nextBucketStart } from '../../util/time';
+import type { Forecast, UsageAggregate } from '../types';
+import { monthPosition, type Forecaster, type ForecastInput } from './linear';
+import { startOf, nextBucketStart } from '../../util/time';
 
 export interface HoltWintersParams {
   alpha: number;
@@ -97,8 +97,10 @@ function hwState(
 /**
  * Fit Holt-Winters parameters by coarse grid-search over [0.1, 0.9] in steps
  * of 0.1 for alpha, beta, and gamma.  Returns the best-fitting params.
+ * `fittedAt` is a stamp for the caller's cache; it defaults to the wall clock
+ * only so ad-hoc callers need not pass one (the forecaster passes its `now`).
  */
-export function fitHoltWinters(series: number[]): HoltWintersParams {
+export function fitHoltWinters(series: number[], fittedAt: number = Date.now()): HoltWintersParams {
   const m = PERIOD;
   const STEPS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 
@@ -133,34 +135,71 @@ export function fitHoltWinters(series: number[]): HoltWintersParams {
     gamma: bestGamma,
     seasonalIndices: S,
     aic,
-    fittedAt: Date.now(),
+    fittedAt,
   };
+}
+
+/**
+ * Gap-free daily credit series: every local calendar day from the first day
+ * with data up to (not including) `endExclusive`, zero for idle days. The
+ * aggregates only contain days that had events, but Holt-Winters indexes its
+ * weekly seasonality by position — dropping idle days shifts every later
+ * weekday. Days at or after `endExclusive` (today's partial day) are left out.
+ */
+function dailySeries(dayAggregates: UsageAggregate[], endExclusive: number): number[] {
+  const byDay = new Map<number, number>();
+  let first = Number.POSITIVE_INFINITY;
+  for (const a of dayAggregates) {
+    const day = startOf(a.start, 'day');
+    if (day >= endExclusive) continue;
+    byDay.set(day, (byDay.get(day) ?? 0) + a.credits);
+    if (day < first) first = day;
+  }
+  const series: number[] = [];
+  for (let day = first; day < endExclusive; day = nextBucketStart(day, 'day')) {
+    series.push(byDay.get(day) ?? 0);
+  }
+  return series;
 }
 
 export const seasonalForecaster: Forecaster = {
   forecast({ dayAggregates, now, pricePerCredit }: ForecastInput): Forecast {
-    const monthStart = startOf(now, 'month');
-    const monthEnd = nextBucketStart(now, 'month');
-    const totalDays = Math.round((monthEnd - monthStart) / DAY_MS);
-    const elapsedDays = Math.min(totalDays, Math.floor((now - monthStart) / DAY_MS) + 1);
-    const remainingDays = Math.max(0, totalDays - elapsedDays);
+    const { monthStart, monthEnd, todayStart, remainingDays } = monthPosition(now);
 
     const monthDays = dayAggregates.filter((a) => a.start >= monthStart && a.start < monthEnd);
     const mtdCredits = monthDays.reduce((s, a) => s + a.credits, 0);
+    const todayCredits = monthDays
+      .filter((a) => startOf(a.start, 'day') === todayStart)
+      .reduce((s, a) => s + a.credits, 0);
     const asOf = now;
 
-    // Build the full daily credit series (all available history, sorted)
-    const sorted = [...dayAggregates].sort((a, b) => a.start - b.start);
-    const series = sorted.map((a) => a.credits);
-
-    const params = fitHoltWinters(series);
-    const { L, B, S, residualStd } = hwState(series, params.alpha, params.beta, params.gamma);
-
-    // Project remaining days of the month
-    let forecastedRemaining = 0;
-    for (let h = 1; h <= remainingDays; h++) {
-      forecastedRemaining += Math.max(0, L + h * B + S[(series.length + h - 1) % PERIOD]!);
+    // Fit on complete days only: today is still partial, and feeding its
+    // half-day total to the smoother would drag the level and today's weekday
+    // index down. The series ends yesterday, so the first forecast step (h = 1)
+    // is today.
+    const series = dailySeries(dayAggregates, todayStart);
+    if (series.length <= PERIOD) {
+      return {
+        granularity: 'month',
+        projectedCredits: mtdCredits,
+        projectedCost: mtdCredits * pricePerCredit,
+        low: mtdCredits,
+        high: mtdCredits,
+        basis: 'insufficient-data',
+        asOf,
+      };
     }
+
+    const params = fitHoltWinters(series, now);
+    const { L, B, S, residualStd } = hwState(series, params.alpha, params.beta, params.gamma);
+    const expected = (h: number): number =>
+      Math.max(0, L + h * B + S[(series.length + h - 1) % PERIOD]!);
+
+    // Today's credits are already in mtdCredits; add what is still expected of
+    // it (it should finish at least at the model's value for its weekday),
+    // then every remaining day of the month.
+    let forecastedRemaining = Math.max(0, expected(1) - todayCredits);
+    for (let h = 2; h <= remainingDays + 1; h++) forecastedRemaining += expected(h);
 
     const projectedCredits = mtdCredits + forecastedRemaining;
     const band = residualStd * Math.sqrt(Math.max(1, remainingDays));

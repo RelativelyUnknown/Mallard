@@ -45,8 +45,18 @@ export async function runPrepared(
   return (await stmt.run()).rowsChanged;
 }
 
+/**
+ * `fact_daily_usage.date_id` (YYYYMMDD) of the local day containing `ms`.
+ * Local date parts, not UTC: date_id is written via DuckDB strftime on a
+ * TIMESTAMPTZ, which renders in the session (= system) timezone.
+ */
+export function dateToId(ms: number): number {
+  const d = new Date(ms);
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
 /* c8 ignore next */
-export const bindParam = (stmt: DuckDBPreparedStatement, i: number, v: unknown): void => {
+export const bindParam =(stmt: DuckDBPreparedStatement, i: number, v: unknown): void => {
   if (v === null || v === undefined) stmt.bindNull(i);
   else if (typeof v === 'bigint') stmt.bindBigInt(i, v);
   else if (typeof v === 'boolean') stmt.bindBoolean(i, v);
