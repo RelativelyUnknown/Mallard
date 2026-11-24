@@ -26,6 +26,7 @@ import {
 } from '../domain/types';
 import { DAY_MS, bucketKey, nextBucketStart, startOf } from '../util/time';
 import { opt } from '../util/lang';
+import { billingErrorKind } from '../billing/GitHubUsageService';
 import type { IBillingProvider } from '../billing/IBillingProvider';
 import { IngestService } from '../ingest/IngestService';
 import { PricingService } from '../pricing/PricingService';
@@ -42,10 +43,12 @@ const HISTORY_WINDOW_MS = 60 * 60 * 1000;
 
 /**
  * True when a billing failure means "the user simply isn't signed in" rather
- * than a real error. Prefers the typed `kind` the billing layer attaches to
- * its errors; the message check keeps older/third-party providers working.
+ * than a real error. Prefers the typed kind the billing layer attaches to its
+ * errors; the message check keeps older/third-party providers working.
  */
 function isNotSignedIn(error: Error): boolean {
+  if (billingErrorKind(error) === 'not-signed-in') return true;
+  // Other providers may tag their errors the same way without sharing the class.
   if ('kind' in error && error.kind === 'not-signed-in') return true;
   return error.message.includes('Not signed in');
 }

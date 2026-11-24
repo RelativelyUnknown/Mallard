@@ -1,6 +1,7 @@
 import { strict as assert } from 'assert';
 import { errAsync, okAsync } from 'neverthrow';
 import { UsageService } from '../../../src/extension-backend/app/UsageService';
+import { BillingError } from '../../../src/extension-backend/billing/GitHubUsageService';
 import type { IBillingProvider } from '../../../src/extension-backend/billing/IBillingProvider';
 import type { CurrencyService } from '../../../src/extension-backend/pricing/CurrencyService';
 import type { IngestService } from '../../../src/extension-backend/ingest/IngestService';
@@ -259,6 +260,23 @@ describe('UsageService — billing state', () => {
     assert.equal(svc.current?.authStatus, 'signed-out');
     assert.equal(svc.current?.authError, undefined);
     svc.dispose();
+  });
+
+  it('maps BillingError kinds: not-signed-in is signed-out, auth is an error', async () => {
+    const signedOut = providerWith([errAsync(new BillingError('not-signed-in', 'please sign in'))]);
+    const a = harness({ github: signedOut.provider });
+    await a.svc.start();
+    await tick(60);
+    assert.equal(a.svc.current?.authStatus, 'signed-out');
+    a.svc.dispose();
+
+    const rejected = providerWith([errAsync(new BillingError('auth', 'token rejected', 401))]);
+    const b = harness({ github: rejected.provider });
+    await b.svc.start();
+    await tick(60);
+    assert.equal(b.svc.current?.authStatus, 'error');
+    assert.match(b.svc.current?.authError ?? '', /token rejected/);
+    b.svc.dispose();
   });
 
   it('still recognises the legacy "Not signed in" message', async () => {

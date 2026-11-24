@@ -105,6 +105,16 @@ export interface LenientConfigParse {
   config: Partial<UserConfig>;
   /** Top-level keys whose value failed validation (and are left out of `config`). */
   dropped: string[];
+  /** Individual list entries (rules/groups) that failed validation; their valid siblings are kept. */
+  droppedItems: string[];
+}
+
+/** Blocks that are lists of independently valid entries: one bad entry must not discard the rest. */
+const PER_ITEM_BLOCKS: Record<string, z.ZodType> = { rules: RuleSchema, groups: GroupSchema };
+
+function describeItem(key: string, index: number, item: unknown): string {
+  const id = typeof item === 'object' && item !== null ? (item as { id?: unknown }).id : undefined;
+  return typeof id === 'string' ? `${key}[${index}] ("${id}")` : `${key}[${index}]`;
 }
 
 /**
@@ -117,13 +127,26 @@ export function parseConfigLeniently(raw: unknown): LenientConfigParse | undefin
   const doc = raw as Record<string, unknown>;
   const config: Record<string, unknown> = {};
   const dropped: string[] = [];
+  const droppedItems: string[] = [];
   for (const [key, schema] of Object.entries(ConfigSchema.shape) as Array<[string, z.ZodType]>) {
     if (!(key in doc)) continue;
-    const parsed = schema.safeParse(doc[key]);
+    const itemSchema = PER_ITEM_BLOCKS[key];
+    const value = doc[key];
+    if (itemSchema && Array.isArray(value)) {
+      const kept: unknown[] = [];
+      value.forEach((item, i) => {
+        const r = itemSchema.safeParse(item);
+        if (r.success) kept.push(r.data);
+        else droppedItems.push(describeItem(key, i, item));
+      });
+      config[key] = kept;
+      continue;
+    }
+    const parsed = schema.safeParse(value);
     if (!parsed.success) dropped.push(key);
     else if (parsed.data !== undefined) config[key] = parsed.data;
   }
-  return { config: config as Partial<UserConfig>, dropped };
+  return { config: config as Partial<UserConfig>, dropped, droppedItems };
 }
 
 export class UserConfigStore implements vscode.Disposable {
@@ -232,15 +255,24 @@ export class UserConfigStore implements vscode.Disposable {
       this.unusableText = text;
       return this.current;
     }
-    if (parsed.dropped.length === 0) {
+    if (parsed.dropped.length === 0 && parsed.droppedItems.length === 0) {
       this.unusableText = undefined;
       return mergeConfig(parsed.config);
     }
-    this.logger.warn(
-      'config',
-      `ignoring invalid block(s) in ${this.store.file}: ${parsed.dropped.join(', ')}; ` +
-        'keeping the last good value for each and leaving the file untouched',
-    );
+    if (parsed.droppedItems.length > 0) {
+      this.logger.warn(
+        'config',
+        `ignoring invalid entr${parsed.droppedItems.length === 1 ? 'y' : 'ies'} in ${this.store.file}: ` +
+          `${parsed.droppedItems.join(', ')}; the other entries still apply`,
+      );
+    }
+    if (parsed.dropped.length > 0) {
+      this.logger.warn(
+        'config',
+        `ignoring invalid block(s) in ${this.store.file}: ${parsed.dropped.join(', ')}; ` +
+          'keeping the last good value for each and leaving the file untouched',
+      );
+    }
     this.unusableText = text;
     const lastGood = this.current as unknown as Record<string, unknown>;
     const merged: Record<string, unknown> = { ...parsed.config };

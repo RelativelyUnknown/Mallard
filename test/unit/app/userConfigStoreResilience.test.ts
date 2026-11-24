@@ -110,6 +110,32 @@ describe('UserConfigStore — a bad config.json never costs the user their data'
     store.dispose();
   });
 
+  it('drops only the invalid rule, keeping its valid siblings and every other block', async () => {
+    const dir = await tmpDir();
+    const original = JSON.stringify({
+      monthlyBudget: 42,
+      rules: [
+        { id: 'good-1', severity: 'warning', message: 'a', when: true },
+        { id: 'bad', severity: 'not-a-severity', message: 'b', when: true },
+        { id: 'good-2', severity: 'critical', message: 'c', when: true },
+      ],
+    });
+    await fs.writeFile(path.join(dir, 'config.json'), original, 'utf8');
+    const { logger, warnings } = recordingLogger();
+    const store = new UserConfigStore(dir, logger);
+
+    assert.equal(store.get().monthlyBudget, 42);
+    assert.deepEqual(store.get().rules?.map((r) => r.id), ['good-1', 'good-2']);
+    assert.ok(warnings.some((w) => w.includes('rules[1] ("bad")')), warnings.join('|'));
+    assert.equal(await fs.readFile(path.join(dir, 'config.json'), 'utf8'), original, 'file untouched');
+
+    await store.set({ monthlyBudget: 43 });
+    const backups = await listBackups(dir);
+    assert.equal(backups.length, 1, 'the dropped rule survives in the backup');
+    assert.equal(await fs.readFile(path.join(dir, backups[0]!), 'utf8'), original);
+    store.dispose();
+  });
+
   it('keeps the last good value of a block that an external edit invalidates', async () => {
     const dir = await tmpDir();
     const store = new UserConfigStore(dir, recordingLogger().logger);
