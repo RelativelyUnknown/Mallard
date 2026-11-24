@@ -7,6 +7,7 @@ import type { TooltipComponentOption } from './echarts';
 import { Metric, UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatCredits, formatMoney, formatTokens } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 import { readTheme } from '../theme';
 
 export interface ModelBreakdownHandle {
@@ -18,6 +19,9 @@ export interface ModelBreakdownHandle {
 
 class ModelBreakdownChart extends ChartComponent {
   protected notMerge = false;
+  // The ghost series only exists in cost mode; replace series on update so
+  // switching metric drops it instead of leaving it merged in by index.
+  protected override replaceMerge = ['series'];
   private metric: Metric = 'credits';
   private focusedModels: ReadonlySet<string> = new Set();
 
@@ -35,9 +39,11 @@ class ModelBreakdownChart extends ChartComponent {
   }
 
   onMount(onModelClick: (label: string) => void): void {
-    this.chart.on('click', (params: unknown) => {
-      const p = params as { name?: string };
-      if (p.name) onModelClick(p.name);
+    this.bind((chart) => {
+      chart.on('click', (params: unknown) => {
+        const p = params as { name?: string };
+        if (p.name) onModelClick(p.name);
+      });
     });
   }
 
@@ -56,7 +62,8 @@ class ModelBreakdownChart extends ChartComponent {
     }
 
     const showGhost = metric === 'cost';
-    const dimmedFg = readTheme().muted;
+    const t = readTheme();
+    const dimmedFg = t.muted;
     const reversedLabels = [...labels].reverse();
     const reversedValues = [...values].reverse();
     const reversedCheapest = [...cheapestEquivalentCosts].reverse();
@@ -83,7 +90,8 @@ class ModelBreakdownChart extends ChartComponent {
           type: 'bar' as const,
           data: reversedCheapest,
           barGap: '-100%',
-          itemStyle: { opacity: 0.18, color: 'currentColor', borderType: 'dashed' as const, borderWidth: 1 },
+          // A concrete colour: canvas-rendered ECharts can't resolve CSS keywords like currentColor.
+          itemStyle: { opacity: 0.18, color: t.fg, borderColor: t.fg, borderType: 'dashed' as const, borderWidth: 1 },
           label: { show: false },
           tooltip: { show: false },
           z: 1,
@@ -99,13 +107,14 @@ class ModelBreakdownChart extends ChartComponent {
           const items = params as unknown as Array<{ name: string; value: number; seriesIndex: number }>;
           const main = items.find((p) => p.seriesIndex === 0);
           if (!main) return '';
-          if (!showGhost) return `${main.name}: ${fmt(main.value)}`;
+          const name = escapeHtml(main.name);
+          if (!showGhost) return `${name}: ${escapeHtml(fmt(main.value))}`;
           const cheapIdx = reversedLabels.indexOf(main.name);
           const cheapCost = cheapIdx >= 0 ? (reversedCheapest[cheapIdx] ?? 0) : 0;
           const saving = main.value - cheapCost;
-          const cheapLine = `Cheapest equivalent: ${formatMoney(cheapCost, currency)}`;
-          const saveLine = saving > 0.0001 ? `<br/>Save ${formatMoney(saving, currency)}` : '';
-          return `${main.name}: ${fmt(main.value)}<br/>${cheapLine}${saveLine}`;
+          const cheapLine = `Cheapest equivalent: ${escapeHtml(formatMoney(cheapCost, currency))}`;
+          const saveLine = saving > 0.0001 ? `<br/>Save ${escapeHtml(formatMoney(saving, currency))}` : '';
+          return `${name}: ${escapeHtml(fmt(main.value))}<br/>${cheapLine}${saveLine}`;
         },
       },
       grid: { left: 120, right: 48, top: 8, bottom: 8, containLabel: false },

@@ -20,6 +20,9 @@ export interface LayoutManager {
 
 const SIZE_CYCLE: PanelSize[] = ['compact', 'normal', 'tall'];
 
+/** Pointer travel (px) beyond which a press counts as a drag, not a tap. */
+const CLICK_SLOP_PX = 4;
+
 /** FLIP animation for a set of elements after DOM reorder. */
 function flip(elements: HTMLElement[]): void {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -40,15 +43,19 @@ function flip(elements: HTMLElement[]): void {
   });
 }
 
-function cssPx(name: string, fallback: number): number {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function cssPx(name: string, fallback: number, el: HTMLElement = document.documentElement): number {
+  const raw = getComputedStyle(el).getPropertyValue(name).trim();
   const n = parseFloat(raw);
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** Current dashboard column count (from --wv-cols), clamped to [1, MAX_PANEL_SPAN]. */
-function columnCount(): number {
-  return Math.min(MAX_PANEL_SPAN, Math.max(1, Math.round(cssPx('--wv-cols', 2))));
+/**
+ * Current dashboard column count (from --wv-cols), clamped to [1, MAX_PANEL_SPAN].
+ * main.ts sets the property on the grid element itself, so read it there — the
+ * document root never sees it and would always report the 2-column default.
+ */
+function columnCount(grid: HTMLElement): number {
+  return Math.min(MAX_PANEL_SPAN, Math.max(1, Math.round(cssPx('--wv-cols', 2, grid))));
 }
 
 function clampSpan(span: number, cols: number): number {
@@ -63,6 +70,9 @@ export function mountLayout(
   let current: DashboardLayout = [];
   let mode: LayoutMode = 'none';
   let dragId: string | null = null;
+  /** Per-panel controls whose ARIA state tracks the panel's span/size/hidden. */
+  const controls: Record<string, { right: HTMLElement; bottom: HTMLElement; corner: HTMLElement; hide: HTMLElement }> = {};
+  const headers: HTMLElement[] = [];
 
   const byId = (id: string) => current.find((p) => p.id === id);
   const emit = () => onChange(current.map((p) => ({ ...p })));
@@ -79,13 +89,42 @@ export function mountLayout(
     el.dataset.span = String(p.span);
     el.dataset.size = p.size ?? 'normal';
     el.classList.toggle('wv-hidden-panel', p.hidden);
+    syncAria(id);
+  }
+
+  /** Mirror the panel's span/size/hidden state onto its slider handles and hide button. */
+  function syncAria(id: string): void {
+    const p = byId(id);
+    const c = controls[id];
+    if (!p || !c) return;
+    const cols = columnCount(grid);
+    const sizeIdx = Math.max(0, SIZE_CYCLE.indexOf(p.size ?? 'normal'));
+    const sizeName = SIZE_CYCLE[sizeIdx]!;
+    const widthText = `${p.span} of ${cols} column${cols === 1 ? '' : 's'}`;
+
+    const setRange = (h: HTMLElement, min: number, max: number, now: number, text: string) => {
+      h.setAttribute('aria-valuemin', String(min));
+      h.setAttribute('aria-valuemax', String(max));
+      h.setAttribute('aria-valuenow', String(now));
+      h.setAttribute('aria-valuetext', text);
+    };
+    setRange(c.right, 1, cols, p.span, widthText);
+    setRange(c.bottom, 0, SIZE_CYCLE.length - 1, sizeIdx, `${sizeName} height`);
+    // The corner drives both dimensions; a slider carries a single value, so
+    // it reports the width and spells out both in the text.
+    setRange(c.corner, 1, cols, p.span, `${widthText}, ${sizeName} height`);
+
+    const name = panels[id]?.getAttribute('aria-label') ?? 'chart';
+    const label = `${p.hidden ? 'Show' : 'Hide'} ${name}`;
+    c.hide.setAttribute('aria-label', label);
+    c.hide.title = label;
   }
 
   function setWidth(id: string, span: number): void {
     const p = byId(id);
     const el = panels[id];
     if (!p || !el) return;
-    const clamped = clampSpan(span, columnCount());
+    const clamped = clampSpan(span, columnCount(grid));
     if (p.span === clamped) return;
     p.span = clamped;
     applyOne(id);
@@ -107,7 +146,7 @@ export function mountLayout(
     const p = byId(id);
     if (!p) return;
     // Cycle 1 → 2 → … → columns → 1.
-    setWidth(id, p.span >= columnCount() ? 1 : p.span + 1);
+    setWidth(id, p.span >= columnCount(grid) ? 1 : p.span + 1);
   }
 
   function cycleSize(id: string, dir: 1 | -1): void {
@@ -138,12 +177,29 @@ export function mountLayout(
     emit();
   }
 
+  /** Move a panel one slot up/down, hopping over hidden ones (keyboard reorder). */
+  function moveBy(id: string, dir: -1 | 1): void {
+    let j = current.findIndex((p) => p.id === id) + dir;
+    while (j >= 0 && j < current.length && (current[j]!.hidden || !panels[current[j]!.id])) j += dir;
+    const target = current[j];
+    if (target) reorder(id, target.id);
+  }
+
   /**
    * Wires a drag handle so pointer-dragging it resizes the panel, snapping
    * to the nearest existing preset as the pointer moves. `axis` selects
    * which dimension(s) the handle controls.
    */
-  function attachResizeHandle(handle: HTMLElement, id: string, axis: 'x' | 'y' | 'both'): void {
+  function attachResizeHandle(
+    handle: HTMLElement,
+    id: string,
+    axis: 'x' | 'y' | 'both',
+    onTap?: () => void,
+  ): void {
+    // The click the browser fires after a drag's pointerup must not also
+    // count as a tap, or every drag would end by cycling the size/width again.
+    let suppressClick = false;
+
     handle.addEventListener('pointerdown', (e: PointerEvent) => {
       if (mode !== 'resize') return;
       e.preventDefault();
@@ -158,8 +214,10 @@ export function mountLayout(
       const compactPx = cssPx('--wv-h-compact', 120);
       const normalPx = cssPx('--w-chart-main', 260);
       const tallPx = cssPx('--wv-h-tall', 455);
+      let dragged = false;
 
       const onMove = (ev: PointerEvent) => {
+        if (!dragged && Math.hypot(ev.clientX - startX, ev.clientY - startY) > CLICK_SLOP_PX) dragged = true;
         if (axis === 'x' || axis === 'both') {
           const desiredWidth = startRect.width + (ev.clientX - startX);
           // Snap to the nearest whole column count, clamped to the grid width.
@@ -180,10 +238,27 @@ export function mountLayout(
         handle.removeEventListener('pointermove', onMove);
         handle.removeEventListener('pointerup', onUp);
         handle.removeEventListener('pointercancel', onUp);
+        if (dragged) {
+          suppressClick = true;
+          // A drag that ends off the handle gets no click; don't let the flag
+          // linger and swallow the next genuine tap.
+          setTimeout(() => { suppressClick = false; }, 100);
+        }
       };
       handle.addEventListener('pointermove', onMove);
       handle.addEventListener('pointerup', onUp);
       handle.addEventListener('pointercancel', onUp);
+    });
+
+    // Click-to-cycle doubles as a quick alternative to dragging (a tap
+    // without meaningful pointer movement just cycles).
+    handle.addEventListener('click', () => {
+      if (mode !== 'resize') return;
+      if (suppressClick) {
+        suppressClick = false;
+        return;
+      }
+      onTap?.();
     });
 
     // Keyboard equivalent, since dragging alone isn't accessible.
@@ -208,9 +283,10 @@ export function mountLayout(
     tools.className = 'wv-panel-tools';
     tools.innerHTML = `
       <span class="wv-panel-handle" title="Drag to reorder" aria-hidden="true"><i class="codicon codicon-gripper"></i></span>
-      <button class="wv-panel-btn" data-act="hide" title="Hide or show"><i class="codicon codicon-eye"></i></button>`;
+      <button class="wv-panel-btn" data-act="hide" title="Hide or show" aria-label="Hide or show chart"><i class="codicon codicon-eye" aria-hidden="true"></i></button>`;
     el.prepend(tools);
-    tools.querySelector('[data-act="hide"]')!.addEventListener('click', () => toggleHidden(id));
+    const hideBtn = tools.querySelector<HTMLElement>('[data-act="hide"]')!;
+    hideBtn.addEventListener('click', () => toggleHidden(id));
 
     const handleRight = document.createElement('div');
     handleRight.className = 'wv-resize-handle wv-resize-handle--right';
@@ -218,7 +294,7 @@ export function mountLayout(
     handleRight.setAttribute('role', 'slider');
     handleRight.setAttribute('aria-label', 'Resize panel width');
     handleRight.title = 'Drag to resize width (or use ← →)';
-    attachResizeHandle(handleRight, id, 'x');
+    attachResizeHandle(handleRight, id, 'x', () => cycleWidth(id));
 
     const handleBottom = document.createElement('div');
     handleBottom.className = 'wv-resize-handle wv-resize-handle--bottom';
@@ -226,7 +302,7 @@ export function mountLayout(
     handleBottom.setAttribute('role', 'slider');
     handleBottom.setAttribute('aria-label', 'Resize panel height');
     handleBottom.title = 'Drag to resize height (or use ↑ ↓)';
-    attachResizeHandle(handleBottom, id, 'y');
+    attachResizeHandle(handleBottom, id, 'y', () => cycleSize(id, 1));
 
     const handleCorner = document.createElement('div');
     handleCorner.className = 'wv-resize-handle wv-resize-handle--corner';
@@ -237,6 +313,23 @@ export function mountLayout(
     attachResizeHandle(handleCorner, id, 'both');
 
     el.append(handleRight, handleBottom, handleCorner);
+    controls[id] = { right: handleRight, bottom: handleBottom, corner: handleCorner, hide: hideBtn };
+
+    // Keyboard reorder: with the header focused (Move mode), Alt+ArrowUp/Down
+    // moves the panel one visible slot — the keyboard equivalent of dragging.
+    const header = el.querySelector<HTMLElement>('.wv-chart-header');
+    if (header) {
+      headers.push(header);
+      header.setAttribute('aria-keyshortcuts', 'Alt+ArrowUp Alt+ArrowDown');
+      header.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (mode !== 'move' || !e.altKey) return;
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        moveBy(id, e.key === 'ArrowUp' ? -1 : 1);
+        // Reordering re-appends the panel, which drops focus; put it back.
+        header.focus();
+      });
+    }
 
     el.addEventListener('dragstart', (e) => {
       if (mode !== 'move') return;
@@ -264,21 +357,19 @@ export function mountLayout(
       e.preventDefault();
       reorder(dragId, id);
     });
-
-    // Click-to-cycle on the handles doubles as a quick alternative to
-    // dragging (a tap without meaningful pointer movement just cycles).
-    handleRight.addEventListener('click', () => { if (mode === 'resize') cycleWidth(id); });
-    handleBottom.addEventListener('click', () => { if (mode === 'resize') cycleSize(id, 1); });
   }
 
   function apply(layout: DashboardLayout): void {
     current = layout.map((p) => ({ ...p }));
-    for (const p of current) {
-      const el = panels[p.id];
-      if (!el) continue;
-      grid.appendChild(el);
-      applyOne(p.id);
-    }
+    const ordered = current.flatMap((p) => (panels[p.id] ? [panels[p.id]!] : []));
+    // Every host layout echo lands here. Re-appending panels that are already
+    // in order still detaches and reinserts them, which blurs whichever
+    // control the user is focused on (e.g. a resize handle mid-keyboard-resize)
+    // — so only touch the DOM when the order actually differs.
+    const inGrid = [...grid.children].filter((c) => ordered.includes(c as HTMLElement));
+    const inOrder = inGrid.length === ordered.length && inGrid.every((c, i) => c === ordered[i]);
+    if (!inOrder) for (const el of ordered) grid.appendChild(el);
+    for (const p of current) applyOne(p.id);
   }
 
   function setMode(next: LayoutMode): void {
@@ -286,6 +377,11 @@ export function mountLayout(
     grid.classList.toggle('wv-editing', mode !== 'none');
     grid.dataset.layoutMode = mode;
     for (const el of Object.values(panels)) el.draggable = mode === 'move';
+    // Headers take focus only while moving, so they add no tab stops otherwise.
+    for (const h of headers) {
+      if (mode === 'move') h.tabIndex = 0;
+      else h.removeAttribute('tabindex');
+    }
   }
 
   return { apply, setMode };

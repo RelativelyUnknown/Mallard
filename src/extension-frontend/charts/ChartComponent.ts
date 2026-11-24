@@ -16,9 +16,36 @@ export abstract class ChartComponent {
   /** Override to false in subclasses that accumulate series across updates. */
   protected notMerge = true;
 
+  /**
+   * With notMerge=false, component types listed here are replaced wholesale
+   * rather than merged by index — so a series that disappears between two
+   * updates (a ghost series dropped on a metric switch) is removed instead of
+   * lingering from the previous option.
+   */
+  protected replaceMerge: string[] | null = null;
+
+  /**
+   * True until a full option has been applied to the *current* ECharts
+   * instance (it starts true, and flips back after reinit() or clear()).
+   * A partial/incremental update is only valid on top of a full one.
+   */
+  protected fresh = true;
+
+  private readonly binders: Array<(chart: EChartsInstance) => void> = [];
+
   constructor(el: HTMLElement) {
     this.el = el;
     this.chart = initChart(el);
+  }
+
+  /**
+   * Attach event handlers to the ECharts instance. They are replayed on every
+   * reinit() — which disposes the instance and creates a new one — so handlers
+   * registered once at mount time survive a theme change.
+   */
+  protected bind(attach: (chart: EChartsInstance) => void): void {
+    this.binders.push(attach);
+    attach(this.chart);
   }
 
   /** Return true when snapshot has renderable data for this chart. */
@@ -36,11 +63,17 @@ export abstract class ChartComponent {
   update(s: UsageSnapshot): void {
     if (!this.hasData(s)) {
       this.chart.clear();
+      this.fresh = true;
       this.onHide();
       return;
     }
     this.onShow();
-    this.chart.setOption(this.buildOption(s) as EChartsOption, { notMerge: this.notMerge, lazyUpdate: true });
+    this.chart.setOption(this.buildOption(s) as EChartsOption, {
+      notMerge: this.notMerge,
+      lazyUpdate: true,
+      ...(this.replaceMerge ? { replaceMerge: this.replaceMerge } : {}),
+    });
+    this.fresh = false;
   }
 
   resize(): void {
@@ -59,5 +92,7 @@ export abstract class ChartComponent {
   reinit(): void {
     this.chart.dispose();
     this.chart = initChart(this.el);
+    this.fresh = true;
+    for (const attach of this.binders) attach(this.chart);
   }
 }

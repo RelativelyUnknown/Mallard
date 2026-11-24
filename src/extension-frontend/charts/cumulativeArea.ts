@@ -8,6 +8,7 @@ import { readTheme } from '../theme';
 import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatMoney } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 export interface CumulativeAreaHandle {
   update(snapshot: UsageSnapshot): void;
@@ -34,7 +35,7 @@ class CumulativeAreaChart extends ChartComponent {
           const p = (params as unknown as Array<{ dataIndex: number }>)[0];
           if (!p) return '';
           const date = points[p.dataIndex]?.date ?? '';
-          return `<strong>${date}</strong><br/>${formatMoney(cumulativeCosts[p.dataIndex] ?? 0, currency)} cumulative`;
+          return `<strong>${escapeHtml(date)}</strong><br/>${escapeHtml(formatMoney(cumulativeCosts[p.dataIndex] ?? 0, currency))} cumulative`;
         },
       },
       grid: { left: 44, right: 16, top: 14, bottom: 28, containLabel: false },

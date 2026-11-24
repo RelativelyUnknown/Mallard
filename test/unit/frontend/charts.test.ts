@@ -17,6 +17,7 @@ import { mountTokensTimeline } from '../../../src/extension-frontend/charts/toke
 import { mountBillingItems } from '../../../src/extension-frontend/charts/billingItems';
 import { mountLanguageBreakdown } from '../../../src/extension-frontend/charts/languageBreakdown';
 import { CHART_REGISTRY } from '../../../src/extension-frontend/charts/registry';
+import { lastOption, seriesValues } from './stubChart';
 import { DASHBOARD_PANELS, DEFAULT_DASHBOARD_LAYOUT } from '../../../src/extension-backend/domain/types';
 
 function makeSnapshot(credits = 100): UsageSnapshot {
@@ -102,19 +103,26 @@ describe('charts — dailyBars option shape', () => {
     const snap = makeSnapshot(50);
     handle.update(snap);
     // The echarts stub captures the last option on the chart instance.
-    // We can't assert the exact option shape (it's on the stub), but we
-    // can verify update() didn't throw and the element exists.
-    assert.ok(el);
+    const opt = lastOption(handle);
+    const { points } = snap.chartData.dailyBars;
+    assert.deepEqual(opt.xAxis!.data, points.map((p) => p.date));
+    assert.equal(opt.series![0]!.type, 'bar');
+    assert.deepEqual(seriesValues(opt.series![0]!), points.map((p) => p.credits));
     el.remove();
   });
 });
 
 describe('charts — modelBreakdown with metric parameter', () => {
-  it('accepts a metric argument', () => {
+  it('accepts a metric argument and plots that metric', () => {
     const el = document.createElement('div');
     document.body.appendChild(el);
     const handle = mountModelBreakdown(el);
-    handle.update(makeSnapshot(50), 'credits' as Metric);
+    const snap = makeSnapshot(50);
+    handle.update(snap, 'credits' as Metric);
+    assert.deepEqual(
+      seriesValues(lastOption(handle).series![0]!),
+      [...snap.chartData.modelBreakdown.credits].reverse(),
+    );
     el.remove();
   });
 });

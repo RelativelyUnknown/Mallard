@@ -8,6 +8,7 @@ import { readTheme } from '../theme';
 import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatMoney } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 const CATEGORY_LABELS: Record<string, string> = {
   input: 'Input',
@@ -46,8 +47,8 @@ class CategoryTrendChart extends ChartComponent {
           if (!rows.length) return '';
           const lines = rows
             .filter((r) => r.value > 0)
-            .map((r) => `${r.seriesName}: ${formatMoney(r.value, currency)}`);
-          return `${rows[0]!.axisValue}<br/>${lines.join('<br/>')}`;
+            .map((r) => `${escapeHtml(r.seriesName)}: ${escapeHtml(formatMoney(r.value, currency))}`);
+          return `${escapeHtml(rows[0]!.axisValue)}<br/>${lines.join('<br/>')}`;
         },
       },
       legend: {
