@@ -217,9 +217,15 @@ def test_normalize_and_write_never_raise_on_valid_shape(payload: dict) -> None:
     from unittest.mock import AsyncMock
 
     from server.influx import write_payload
-    from server.normalize import normalize_payload
+    from server.normalize import PayloadOutOfRange, normalize_payload
 
-    batch = normalize_payload(payload)
+    try:
+        batch = normalize_payload(payload)
+    except PayloadOutOfRange:
+        # Values InfluxDB can't store are rejected up front (a 422 on the route,
+        # covered by test_out_of_range_values_get_422_and_the_rest_202 below), so
+        # they never reach the writer this test is about.
+        return
     write_api = MagicMock()
     write_api.write = AsyncMock(return_value=True)
     asyncio.run(
@@ -345,3 +351,150 @@ def test_mqtt_handle_message_never_raises(topic: str, data: bytes | None, client
         limiter=SlidingWindowLimiter(1_000_000, 60),
     )
     asyncio.run(_handle_message(msg, client_id, ctx))
+
+
+# ── Range, integer-literal, signature and tag fuzz ────────────────────────────
+# These reach the paths the strategies above miss: numbers outside what InfluxDB
+# can store, integer literals past CPython's 4300-digit parse limit, hostile
+# signature headers (the fuzz client above has no HMAC secrets configured, so
+# _verify_signature was never exercised) and instance_id / schema_version tags.
+
+_MAX_TS_MS = (2**63 - 1) // 1_000_000
+_MAX_INT = 2**63 - 1
+_BOUNDARIES = [-1, 0, 1, _MAX_TS_MS, _MAX_TS_MS + 1, _MAX_INT, _MAX_INT + 1]
+_wide_ints = st.one_of(
+    st.integers(min_value=-(2**70), max_value=2**70),
+    st.sampled_from(_BOUNDARIES),
+)
+
+
+def _ok_ts(ts: int) -> bool:
+    return 0 <= ts <= _MAX_TS_MS
+
+
+def _ok_tokens(n: int) -> bool:
+    return 0 <= n <= _MAX_INT
+
+
+@given(ts=_wide_ints, tokens=_wide_ints)
+@settings(max_examples=300, suppress_health_check=[HealthCheck.too_slow], deadline=None)
+def test_out_of_range_values_get_422_and_the_rest_202(ts: int, tokens: int) -> None:
+    """Exactly the values InfluxDB can store are accepted; everything else is a 422."""
+    response = _fuzz_client.post(
+        "/api/v1/ingest",
+        json={"schema_version": 1, "events": [{"ts": ts, "prompt_tokens": tokens}]},
+        headers={"X-API-Key": "test-key-valid"},
+    )
+    expected = 202 if _ok_ts(ts) and _ok_tokens(tokens) else 422
+    assert response.status_code == expected, f"ts={ts} tokens={tokens}"
+
+
+@given(
+    field=st.sampled_from(["ts", "credits", "cost_usd", "prompt_tokens", "sent_at", "schema_version"]),
+    digits=st.integers(min_value=4280, max_value=4330),
+)
+@settings(max_examples=120, suppress_health_check=[HealthCheck.too_slow], deadline=None)
+def test_huge_integer_literals_never_cause_5xx(field: str, digits: int) -> None:
+    """Integer literals around CPython's 4300-digit limit: the parser raises
+    ValueError past it, and float() overflows well before it."""
+    literal = "9" * digits
+    if field in ("sent_at", "schema_version"):
+        body = '{"schema_version": %s, "sent_at": %s, "events": []}' % (
+            literal if field == "schema_version" else "1",
+            literal if field == "sent_at" else "1",
+        )
+    else:
+        body = '{"schema_version": 1, "events": [{"%s": %s}]}' % (field, literal)
+    response = _fuzz_client.post(
+        "/api/v1/ingest",
+        content=body.encode(),
+        headers={"X-API-Key": "test-key-valid", "Content-Type": "application/json"},
+    )
+    assert response.status_code in (202, 400, 422), f"{field} x{digits}: {response.status_code}"
+    if digits > 4300:
+        assert response.status_code == 400  # unparseable, never a 500
+
+
+def _make_hmac_client() -> TestClient:
+    """Like _make_test_client, but the verifier enforces X-Mallard-Signature-256."""
+    from types import SimpleNamespace
+
+    from server.credential_verifier import StaticCredentialVerifier
+
+    base = _make_test_client()
+    real = base.app.state.settings
+    base.app.state.verifier = StaticCredentialVerifier(
+        SimpleNamespace(
+            hashed_api_keys=real.hashed_api_keys,
+            mqtt_password="",
+            parsed_jwt=real.parsed_jwt,
+            parsed_cert_labels={},
+            parsed_webhook_hmac_secrets=["fuzz-secret"],
+        )
+    )
+    return base
+
+
+_hmac_fuzz_client = _make_hmac_client()
+
+
+@given(raw=st.binary(max_size=200).filter(lambda b: not any(c in b for c in (b"\r", b"\n", b"\x00"))))
+@settings(max_examples=300, suppress_health_check=[HealthCheck.too_slow], deadline=None)
+def test_arbitrary_signature_header_bytes_are_401_never_5xx(raw: bytes) -> None:
+    """Any header value — including non-ASCII, which made compare_digest raise
+    TypeError (a 500) — is just an invalid signature."""
+    response = _hmac_fuzz_client.post(
+        "/api/v1/ingest",
+        content=b'{"schema_version": 1, "events": []}',
+        headers={
+            "X-API-Key": "test-key-valid",
+            "Content-Type": "application/json",
+            "X-Mallard-Signature-256": raw,
+        },
+    )
+    assert response.status_code == 401, raw
+
+
+@given(header=st.text(max_size=120), body=st.binary(max_size=64))
+@settings(max_examples=300, deadline=None)
+def test_verify_signature_total_over_unicode(header: str, body: bytes) -> None:
+    """_verify_signature returns a bool for any str (non-ASCII included), never
+    accepts a header that isn't a real MAC, and still accepts the real one."""
+    import hashlib
+    import hmac as hmac_mod
+
+    from server.routers.ingest import _verify_signature
+
+    good = "sha256=" + hmac_mod.new(b"s3cret", body, hashlib.sha256).hexdigest()
+    result = _verify_signature(body, header, ["s3cret"])
+    assert isinstance(result, bool)
+    if header != good:
+        assert result is False or header.removeprefix("sha256=").strip().lower() == good.removeprefix("sha256=")
+    assert _verify_signature(body, good, ["s3cret"]) is True
+
+
+@given(instance_id=st.one_of(st.none(), st.text(max_size=300)), schema_version=_wide_ints)
+@settings(max_examples=200, deadline=None)
+def test_instance_id_and_schema_version_tags_are_sanitised(instance_id, schema_version: int) -> None:
+    """Both come off the wire; they must be capped and charset-limited like every other tag."""
+    import asyncio
+    import re
+    from unittest.mock import AsyncMock
+
+    from server.influx import write_payload
+    from server.normalize import NormalizedBatch, NormalizedEvent
+
+    batch = NormalizedBatch(
+        schema_version=schema_version,
+        instance_id=instance_id,
+        sent_at_ms=1,
+        tz_offset_minutes=None,
+        events=[NormalizedEvent(ts_ms=1, connector="c", model="m", surface="s", credits=0.0, cost_usd=0.0, estimated=True)],
+    )
+    write_api = MagicMock()
+    write_api.write = AsyncMock(return_value=True)
+    asyncio.run(write_payload(write_api=write_api, bucket="b", org="o", batch=batch))
+    (point,) = write_api.write.call_args.kwargs["record"]
+    for tag in ("instance_id", "schema_version"):
+        value = point._tags[tag]
+        assert re.fullmatch(r"[A-Za-z0-9._@ /_-]{1,64}", value), (tag, value)

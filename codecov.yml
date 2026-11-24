@@ -5,5 +5,6 @@ coverage:
         target: auto
         threshold: 1%
 
-fixes:
-  - "src/::server/src/"
+# No `fixes:` path mapping: both reports already use repo-relative paths
+# (pytest-cov's coverage.xml lists src/server/*.py, c8's lcov src/extension-*/**),
+# so rewriting a prefix could only break the match between a report and the repo.

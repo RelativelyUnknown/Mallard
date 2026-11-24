@@ -107,6 +107,17 @@ in VS Code's SecretStorage. Secrets are never written to settings files and are
 not synced across machines by Settings Sync. Leave the input blank to clear a
 previously saved password.
 
+## Mallard: Configure Export Fanout Targets
+
+ID `mallard.configureExportTargets`. Manages the extra webhook and MQTT
+destinations that mirror every export (`export.webhookTargets` /
+`export.mqttTargets` in `config.json`) without hand-editing the file. A picker
+lists the configured targets and offers to add a webhook or MQTT target, and for
+an existing one to jump to its credential slots (each target has its own API
+key / bearer token / signing secret, or broker password, namespaced by the
+target name) or remove it. Target changes rebuild the exporter in place, so no
+window reload is needed. See the Settings reference for the fanout model.
+
 ## Mallard: Set Webhook API Key
 
 ID `mallard.setWebhookApiKey`. Prompts for the API key sent as `X-API-Key` on

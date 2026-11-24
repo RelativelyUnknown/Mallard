@@ -15,10 +15,10 @@ on:
       - '.github/actions/setup-toolchain/**'
   workflow_dispatch:
 
+# Least privilege: only the deploy job below may write Pages / mint an OIDC
+# token. PR builds (validate) and the build job run with read-only contents.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -57,6 +57,10 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

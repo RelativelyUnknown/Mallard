@@ -119,6 +119,34 @@ class TestWritePayload:
         assert "a" * 65 not in line
 
     @pytest.mark.asyncio
+    async def test_hostile_instance_id_sanitised_and_capped(self, write_api: AsyncMock) -> None:
+        batch = _batch([_event()])
+        batch.instance_id = 'x,evil=1 y"z\n' + "a" * 200
+        await write_payload(write_api, "b", "o", batch)
+        line = _lines(write_api)[0]
+        tags = line.split(" ")[0]
+        instance_tag = next(t for t in tags.split(",") if t.startswith("instance_id="))
+        assert len(instance_tag.removeprefix("instance_id=")) <= 64
+        assert "evil=1" not in line
+        assert "\n" not in line
+
+    @pytest.mark.asyncio
+    async def test_empty_instance_id_tagged_unknown(self, write_api: AsyncMock) -> None:
+        batch = _batch([_event()])
+        batch.instance_id = None
+        await write_payload(write_api, "b", "o", batch)
+        assert "instance_id=unknown" in _lines(write_api)[0]
+
+    @pytest.mark.asyncio
+    async def test_huge_schema_version_capped(self, write_api: AsyncMock) -> None:
+        batch = _batch([_event()])
+        batch.schema_version = 10**3000
+        await write_payload(write_api, "b", "o", batch)
+        tags = _lines(write_api)[0].split(" ")[0]
+        version_tag = next(t for t in tags.split(",") if t.startswith("schema_version="))
+        assert len(version_tag.removeprefix("schema_version=")) <= 64
+
+    @pytest.mark.asyncio
     async def test_extra_fields_stored_as_json(self, write_api: AsyncMock) -> None:
         await write_payload(write_api, "b", "o", _batch([_event(extra={"future": 1})]))
         assert "extra_json=" in _lines(write_api)[0]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 from functools import cached_property
 from typing import TYPE_CHECKING, Literal
 
@@ -11,6 +12,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
     from .credential_verifier import JwtConfig
+
+# Marker used by every shipped example file (.env.example, k8s secrets.yaml.example)
+# for values the operator must replace.
+_PLACEHOLDER_RE = re.compile(r"change[-_]?me", re.IGNORECASE)
 
 
 class Settings(BaseSettings):
@@ -111,6 +116,22 @@ class Settings(BaseSettings):
     jwt_label_claim: str = Field("sub", description="Claim used to derive the source label")
     jwt_labels: str = Field("", description="Comma-separated 'label:claimValue' pairs")
 
+    # How long a cached remote credential store may keep serving while refreshes
+    # fail (secret manager down). Past this age the cache is refused (503) and
+    # /health reports the secret manager as unavailable — otherwise a key revoked
+    # in the secret manager would stay valid for as long as the outage lasts.
+    credential_max_stale_seconds: float = Field(
+        86400.0,
+        ge=0,
+        description="Max age (seconds) of cached remote credentials served while refresh fails",
+    )
+
+    # Dev-only escape hatch for the CHANGE_ME placeholder check below.
+    allow_placeholder_secrets: bool = Field(
+        False,
+        description="Dev only: allow CHANGE_ME placeholder secrets from the example files",
+    )
+
     # Secret backend. "static" (the default) reads credentials from the env
     # vars above — a plain .env file or Kubernetes Secret is a first-class
     # production setup. "openbao" fetches them live from an OpenBao KV store
@@ -149,6 +170,30 @@ class Settings(BaseSettings):
                 raise ValueError("SECRET_MANAGER_URL must be set when SECRET_MANAGER_TYPE=openbao")
             if not self.secret_manager_token.strip():
                 raise ValueError("SECRET_MANAGER_TOKEN must be set when SECRET_MANAGER_TYPE=openbao")
+        return self
+
+    @model_validator(mode="after")
+    def _no_placeholder_secrets(self) -> "Settings":
+        """Refuse to start with the CHANGE_ME values shipped in .env.example /
+        secrets.yaml.example. A placeholder is non-empty, so it sails through
+        compose's `${VAR:?required}` checks and would otherwise run in
+        production as a publicly known credential."""
+        if self.allow_placeholder_secrets:
+            return self
+        secrets = {
+            "INFLUX_TOKEN": self.influx_token,
+            "API_KEYS": self.api_keys,
+            "MQTT_PASSWORD": self.mqtt_password,
+            "WEBHOOK_HMAC_SECRETS": self.webhook_hmac_secrets,
+            "JWT_HMAC_SECRET": self.jwt_hmac_secret,
+            "SECRET_MANAGER_TOKEN": self.secret_manager_token,
+        }
+        offenders = [name for name, value in secrets.items() if _PLACEHOLDER_RE.search(value)]
+        if offenders:
+            raise ValueError(
+                f"{', '.join(offenders)} still hold a CHANGE_ME placeholder — set real secrets "
+                "(e.g. `openssl rand -hex 32`), or ALLOW_PLACEHOLDER_SECRETS=true for local dev only"
+            )
         return self
 
     @cached_property

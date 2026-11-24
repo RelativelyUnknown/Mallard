@@ -41,7 +41,7 @@ The division of labour: repo, branch, and language are **calculated on the edge*
 
 One point per event in the `mallard_events` measurement, timestamped at the event's `ts`:
 
-- **Tags** (indexed, bounded, sanitised): `source` (the server-side credential label — API key label, cert CN, or JWT claim), `connector`, `model`, `surface`, `language`, `repo`, `branch`, `attribution`, `instance_id`, `schema_version`.
+- **Tags** (indexed, bounded, sanitised): `source` (the server-side credential label — API key label, cert CN, or JWT claim), `connector`, `model`, `surface`, `language`, `repo`, `branch`, `attribution`, `instance_id`, `schema_version`. Every client-supplied tag value, `instance_id` and `schema_version` included, is reduced to `[A-Za-z0-9._@ /-]` (anything else becomes `_`) and capped at 64 characters.
 - **Fields**: `credits`, `cost_usd`, `count` (always 1 — sum it for event counts), `estimated`, per-token-type counts, `cbc_<category>` cost splits, `event_id`, and `extra_json` for anything the server didn't recognize.
 
 The server-side `source` tag and the edge-calculated labels compose: per-credential-per-repo, per-team-per-language, and similar splits are single Flux `group()` calls.
@@ -50,4 +50,5 @@ The server-side `source` tag and the edge-calculated labels compose: per-credent
 
 - Batches are sent as ingest happens — a genuine streaming workload: bursty while you code, quiet when idle. On failure they are queued durably on-device (oldest-first, capped) and re-sent in order when the endpoint recovers.
 - Delivery is at-least-once: a batch whose write succeeded but whose response was lost may be re-sent. Points with identical tags and millisecond timestamps overwrite rather than double-count; the `event_id` field makes remaining duplicates auditable.
-- A batch is rejected (HTTP 400) only when it isn't a JSON object, has no integer `schema_version`, or has no `events` list. Everything else is read tolerantly.
+- A batch is rejected (HTTP 400) only when it isn't a JSON object (including bodies that can't be parsed at all, such as integers over 4300 digits or absurdly deep nesting), has no integer `schema_version`, or has no `events` list. Everything else is read tolerantly.
+- A well-formed batch carrying a value InfluxDB cannot store is rejected with HTTP 422 before anything is written: an event `ts` outside `0` – `9223372036854` ms (int64 nanoseconds, up to the year 2262), a token count outside `0` – `2^63 − 1`, or a non-finite / unrepresentable `credits`, `cost_usd` or `cost_by_category` value. A missing or non-numeric `ts` is not an error — it falls back to `sent_at`.

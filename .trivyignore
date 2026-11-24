@@ -1,9 +1,14 @@
-# Trivy vulnerability / rule ignore file.
-# List CVE IDs or Trivy rule IDs here (one per line) to suppress known-acceptable findings.
+# Trivy vulnerability / rule ignore file (read from the repo root by the scans in
+# .github/workflows/security.yml, which fail the job on fixed HIGH/CRITICAL
+# findings).
 #
-# File-path exclusions are handled via skip-files in .github/workflows/security.yml:
-#   src/server/k8s/openbao/agent-injector-patch.yaml     — kustomize strategic-merge patch
+# Add a CVE ID or Trivy rule ID per line ONLY for a finding that is understood
+# and accepted, and always give it an expiry date and a reason so it is
+# re-examined instead of living here forever:
 #
-# Kustomize patches are intentionally partial resources; their security context is
-# supplied by the base Deployment (src/server/k8s/server/deployment.yaml). Trivy evaluates
-# them in isolation and incorrectly flags KSV-0118 (default security context).
+#   CVE-2099-00000 exp:2027-03-31   # reason: not reachable (feature X unused); fix pending upstream
+#
+# File-path exclusions are not made here but via `skip-files` in security.yml
+# (currently: the kustomize strategic-merge patch k8s/openbao/patch-server-env.yaml,
+# which Trivy would evaluate as an incomplete Deployment, and the CHANGE_ME
+# secrets.yaml.example templates).

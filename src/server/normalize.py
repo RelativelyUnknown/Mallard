@@ -11,6 +11,7 @@ working against an older server.
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -24,6 +25,19 @@ class InvalidIngestPayload(Exception):
     """Raised only for the things that can't be worked around: a body that
     isn't a JSON object, no `schema_version`, or no usable `events` list."""
 
+
+class PayloadOutOfRange(InvalidIngestPayload):
+    """A well-typed value that InfluxDB can't store (a timestamp outside its
+    int64-nanosecond range, a token count past int64, a non-finite or
+    unrepresentable float). Rejected up front: left alone it either makes
+    InfluxDB refuse the whole batch (a 503 the client would retry forever) or,
+    for a huge int, raises inside the float conversion."""
+
+
+# InfluxDB stores int64 nanoseconds; points are written at millisecond precision.
+_MAX_TS_MS = (2**63 - 1) // 1_000_000
+# InfluxDB integer fields are int64.
+_MAX_INT_FIELD = 2**63 - 1
 
 # Token fields carried per event, wire name → canonical name (identical today).
 _TOKEN_FIELDS = (
@@ -75,7 +89,15 @@ KNOWN_SCHEMA_VERSIONS = [1]
 
 
 def _coerce_float(v: Any) -> float | None:
-    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+    if not isinstance(v, (int, float)) or isinstance(v, bool):
+        return None
+    try:
+        f = float(v)
+    except OverflowError:  # an int too large for a double
+        raise PayloadOutOfRange("numeric value out of range") from None
+    if not math.isfinite(f):
+        raise PayloadOutOfRange("numeric value out of range")
+    return f
 
 
 def _coerce_int(v: Any) -> int | None:
@@ -106,13 +128,18 @@ def _coerce_num_map(v: Any) -> dict[str, float]:
 
 def _normalize_event(raw: dict[str, Any], fallback_ts_ms: int) -> NormalizedEvent:
     ts = _coerce_int(raw.get("ts"))
+    ts_ms = ts if ts is not None else fallback_ts_ms
+    if not 0 <= ts_ms <= _MAX_TS_MS:
+        raise PayloadOutOfRange("event timestamp out of range")
     tokens: dict[str, int] = {}
     for name in _TOKEN_FIELDS:
         value = _coerce_int(raw.get(name))
         if value is not None:
+            if not 0 <= value <= _MAX_INT_FIELD:
+                raise PayloadOutOfRange(f"{name} out of range")
             tokens[name] = value
     return NormalizedEvent(
-        ts_ms=ts if ts is not None else fallback_ts_ms,
+        ts_ms=ts_ms,
         connector=_coerce_str(raw.get("connector")) or "unknown",
         model=_coerce_str(raw.get("model")) or "unknown",
         surface=_coerce_str(raw.get("surface")) or "unknown",

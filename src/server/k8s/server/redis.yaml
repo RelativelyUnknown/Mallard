@@ -1,6 +1,13 @@
 # Redis backing the shared per-credential rate limiter. A single replica is
 # sufficient: the limiter keys carry short TTLs, so a Redis restart only resets
-# in-flight rate windows (fail-open for a few seconds), never persisted data.
+# in-flight rate windows, never persisted data.
+#
+# Redis is NOT a hard dependency of the server. If it is unreachable the limiter
+# fails open to a per-pod in-process limiter (the limit becomes per replica
+# instead of fleet-wide until Redis returns; an error is logged once a minute).
+# Ingest keeps working and /health stays 200 — it only reports
+# "rate_limiter": "degraded" in its body — so a Redis outage never drains the
+# server pods. Alert on that log line / body field rather than on readiness.
 # For a hardened setup, swap this for a managed Redis and point REDIS_URL at it.
 #
 # trivy:ignore:AVD-KSV-0040 -- the mallard namespace already declares a
