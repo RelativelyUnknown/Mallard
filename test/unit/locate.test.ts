@@ -153,9 +153,51 @@ describe('findLogFiles — edge cases', () => {
 });
 
 describe('claudeCodeLogRoots', () => {
-  it('returns [~/.claude/projects]', () => {
-    const roots = claudeCodeLogRoots();
-    assert.deepStrictEqual(roots, [path.join(os.homedir(), '.claude', 'projects')]);
+  const HOME = path.join(path.sep, 'home', 'me');
+
+  it('defaults to both ~/.claude/projects and the XDG ~/.config/claude/projects', () => {
+    assert.deepStrictEqual(claudeCodeLogRoots({}, HOME), [
+      path.join(HOME, '.claude', 'projects'),
+      path.join(HOME, '.config', 'claude', 'projects'),
+    ]);
+  });
+
+  it('honours XDG_CONFIG_HOME for the XDG location', () => {
+    const xdg = path.join(path.sep, 'xdg');
+    assert.deepStrictEqual(claudeCodeLogRoots({ XDG_CONFIG_HOME: xdg }, HOME), [
+      path.join(HOME, '.claude', 'projects'),
+      path.join(xdg, 'claude', 'projects'),
+    ]);
+  });
+
+  it('CLAUDE_CONFIG_DIR replaces the defaults; commas list several dirs', () => {
+    const a = path.join(path.sep, 'cfg', 'a');
+    const b = path.join(path.sep, 'cfg', 'b');
+    assert.deepStrictEqual(claudeCodeLogRoots({ CLAUDE_CONFIG_DIR: a }, HOME), [path.join(a, 'projects')]);
+    assert.deepStrictEqual(claudeCodeLogRoots({ CLAUDE_CONFIG_DIR: ` ${a} , ${b} ,` }, HOME), [
+      path.join(a, 'projects'),
+      path.join(b, 'projects'),
+    ]);
+  });
+
+  it('an empty CLAUDE_CONFIG_DIR falls back to the defaults, and duplicates collapse', () => {
+    assert.strictEqual(claudeCodeLogRoots({ CLAUDE_CONFIG_DIR: ' ' }, HOME).length, 2);
+    const a = path.join(path.sep, 'cfg', 'a');
+    assert.deepStrictEqual(claudeCodeLogRoots({ CLAUDE_CONFIG_DIR: `${a},${a}` }, HOME), [path.join(a, 'projects')]);
+  });
+
+  it('locateClaudeCodeLogDirs finds a CLAUDE_CONFIG_DIR projects dir on disk', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-cc-cfg-'));
+    const prev = process.env['CLAUDE_CONFIG_DIR'];
+    try {
+      await mkdir(path.join(tmp, 'projects'));
+      process.env['CLAUDE_CONFIG_DIR'] = tmp;
+      assert.deepStrictEqual(await locateClaudeCodeLogDirs(), [path.join(tmp, 'projects')]);
+    } finally {
+      if (prev === undefined) delete process.env['CLAUDE_CONFIG_DIR'];
+      else process.env['CLAUDE_CONFIG_DIR'] = prev;
+      await fs.rm(tmp, { recursive: true, force: true });
+    }
   });
 });
 

@@ -25,6 +25,8 @@ function makeConnectorWithHasField(hasFieldResult: boolean): ClaudeCodeConnector
   return new ClaudeCodeConnector(pricing, meta, fileReader, noopMatcher);
 }
 
+type BuildContext = (g: string[], watermarkMs?: number | null) => Promise<ParseContext>;
+
 function makeCtx(overrides?: Partial<ParseContext>): ParseContext {
   return { pricePerCredit: 0.04, now, ...overrides };
 }
@@ -57,20 +59,20 @@ describe('ClaudeCodeConnector — lifecycle', () => {
     assert.ok(Array.isArray(result.searchedDirs));
   });
 
-  it('buildContext() with hasField=true sets surface to "agent"', async () => {
-    const connector = makeConnectorWithHasField(true);
-    const ctx = await (connector as unknown as {
-      buildContext(g: string[]): Promise<import('../../../src/extension-backend/ingest/otelParse').ParseContext>;
-    }).buildContext([]);
-    assert.equal(ctx.surface, 'agent');
+  it('buildContext() sets no global surface — it is derived per row (the old hasField pre-scan never matched)', async () => {
+    for (const hasField of [true, false]) {
+      const connector = makeConnectorWithHasField(hasField);
+      const ctx = await (connector as unknown as { buildContext: BuildContext }).buildContext([]);
+      assert.equal(ctx.surface, undefined);
+    }
   });
 
-  it('buildContext() with hasField=false sets surface to "chat"', async () => {
-    const connector = makeConnectorWithHasField(false);
-    const ctx = await (connector as unknown as {
-      buildContext(g: string[]): Promise<import('../../../src/extension-backend/ingest/otelParse').ParseContext>;
-    }).buildContext([]);
-    assert.equal(ctx.surface, 'chat');
+  it('buildContext() honours the watermark: liveThresholdMs only exists once one is set', async () => {
+    const connector = makeConnector();
+    const build = (connector as unknown as { buildContext: BuildContext }).buildContext.bind(connector);
+    assert.equal((await build([], null)).liveThresholdMs, undefined, 'backfill pass: nothing is live');
+    const live = await build([], 1_700_000_000_000);
+    assert.ok(live.liveThresholdMs !== undefined && live.liveThresholdMs <= Date.now(), 'steady state: window is open');
   });
 });
 
@@ -360,10 +362,10 @@ describe('ClaudeCodeConnector.mapRow()', () => {
     assert.equal(result?.surface, 'agent');
   });
 
-  it('defaults surface to "agent" when ctx.surface is absent', () => {
+  it('derives surface per row when ctx.surface is absent: plain reply is chat', () => {
     const connector = makeConnector();
     const result = connector.mapRow(makeLine({}), makeCtx());
-    assert.equal(result?.surface, 'agent');
+    assert.equal(result?.surface, 'chat');
   });
 
   it('respects ctx.surface = "chat"', () => {
@@ -372,20 +374,19 @@ describe('ClaudeCodeConnector.mapRow()', () => {
     assert.equal(result?.surface, 'chat');
   });
 
-  it('omits costByCategory when no token counts', () => {
+  it('skips a line with no token counts (nothing to count)', () => {
     const connector = makeConnector();
     const row = { type: 'assistant', model: 'claude-sonnet-4', usage: {}, timestamp: '2026-01-15T10:00:00.000Z' };
-    const result = connector.mapRow(row, makeCtx());
-    assert.equal(result?.costByCategory, undefined);
+    assert.equal(connector.mapRow(row, makeCtx()), null);
   });
 
-  it('omits costByCategory when model cost is zero', () => {
-    const manifest = { version: 1 as const, pricePerCredit: 0.04, updatedAt: '2026-01-01', models: { 'claude-sonnet-4': 0 } };
+  it('omits costByCategory when the model has no known price (cost 0, not a credit-based guess)', () => {
     const connector = makeConnector();
     const result = connector.mapRow(
-      { type: 'assistant', message: { model: 'claude-sonnet-4', usage: { input_tokens: 100, output_tokens: 50 } }, timestamp: '2026-01-15T10:00:00.000Z' },
-      makeCtx({ manifest }),
+      { type: 'assistant', message: { model: 'mystery-model', usage: { input_tokens: 100, output_tokens: 50 } }, timestamp: '2026-01-15T10:00:00.000Z' },
+      makeCtx(),
     );
+    assert.equal(result?.cost, 0);
     assert.equal(result?.costByCategory, undefined);
   });
 
@@ -487,5 +488,150 @@ describe('ClaudeCodeConnector.mapRow()', () => {
     const row = { type: 'assistant', message: { model: 'claude-sonnet-4', usage: { output_tokens: 50 } }, timestamp: '2026-01-15T10:00:00.000Z' };
     const result = connector.mapRow(row, makeCtx());
     assert.ok(result?.costByCategory?.['output'] !== undefined);
+  });
+});
+
+describe('ClaudeCodeConnector.mapRow() — streamed messages, surface, branch, cost', () => {
+  const ISO = '2026-01-15T10:00:00.000Z';
+  const withMsg = (message: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+    type: 'assistant',
+    timestamp: ISO,
+    message: { model: 'claude-sonnet-4', usage: { input_tokens: 100, output_tokens: 50 }, ...message },
+    ...extra,
+  });
+
+  it('keys the id on message.id + requestId, independent of session and uuid (resumed history is not double counted)', () => {
+    const connector = makeConnector();
+    const a = connector.mapRow(withMsg({ id: 'msg_1' }, { requestId: 'req_1', sessionId: 'aaaaaaaa-1', uuid: 'u1' }), makeCtx());
+    const b = connector.mapRow(withMsg({ id: 'msg_1' }, { requestId: 'req_1', sessionId: 'bbbbbbbb-2', uuid: 'u2' }), makeCtx());
+    assert.ok(a && b);
+    assert.equal(a.id, 'claude-code:msg_1:req_1');
+    assert.equal(b.id, a.id);
+    const c = connector.mapRow(withMsg({ id: 'msg_2' }, { requestId: 'req_1' }), makeCtx());
+    assert.notEqual(c?.id, a.id);
+  });
+
+  it('uses message.id alone when the line has no requestId', () => {
+    const connector = makeConnector();
+    assert.equal(connector.mapRow(withMsg({ id: 'msg_9' }), makeCtx())?.id, 'claude-code:msg_9');
+  });
+
+  it('skips <synthetic> model lines and lines with zero total tokens', () => {
+    const connector = makeConnector();
+    assert.equal(connector.mapRow(withMsg({ model: '<synthetic>' }), makeCtx()), null);
+    assert.equal(
+      connector.mapRow(withMsg({ usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 } }), makeCtx()),
+      null,
+    );
+    assert.ok(connector.mapRow(withMsg({ usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 7 } }), makeCtx()));
+  });
+
+  describe('surface per row', () => {
+    const toolUse = { type: 'tool_use', id: 'toolu_1', name: 'Bash', input: {} };
+    it('tool_use content is agent work', () => {
+      const connector = makeConnector();
+      const r = connector.mapRow(withMsg({ content: [{ type: 'text', text: 'ok' }, toolUse] }), makeCtx());
+      assert.equal(r?.surface, 'agent');
+    });
+    it('sidechain (sub-agent) lines are agent work', () => {
+      const connector = makeConnector();
+      assert.equal(connector.mapRow(withMsg({}, { isSidechain: true }), makeCtx())?.surface, 'agent');
+    });
+    it('plain text replies are chat', () => {
+      const connector = makeConnector();
+      const r = connector.mapRow(withMsg({ content: [{ type: 'text', text: 'hello' }] }, { isSidechain: false }), makeCtx());
+      assert.equal(r?.surface, 'chat');
+    });
+    it('reads block arrays that DuckDB surfaced as a JSON string', () => {
+      const connector = makeConnector();
+      const r = connector.mapRow(withMsg({ content: JSON.stringify([toolUse]) }), makeCtx());
+      assert.equal(r?.surface, 'agent');
+      assert.equal(connector.mapRow(withMsg({ content: 'plain text' }), makeCtx())?.surface, 'chat');
+      assert.equal(connector.mapRow(withMsg({ content: '[not json' }), makeCtx())?.surface, 'chat');
+    });
+  });
+
+  describe('gitBranch', () => {
+    it('is the authoritative branch, valid for backfill rows too', () => {
+      const connector = makeConnector();
+      const r = connector.mapRow(withMsg({}, { gitBranch: 'feature/login' }), makeCtx({ branch: 'heuristic-branch' }));
+      assert.equal(r?.branch, 'feature/login');
+      assert.equal(r?.attribution, 'authoritative');
+    });
+    it('beats the live heuristic branch', () => {
+      const connector = makeConnector();
+      const r = connector.mapRow(withMsg({}, { gitBranch: 'a' }), makeCtx({ branch: 'b', liveThresholdMs: 0 }));
+      assert.equal(r?.branch, 'a');
+    });
+    it('keeps a heuristic repo marked heuristic even with a line branch', () => {
+      const connector = makeConnector();
+      const r = connector.mapRow(withMsg({}, { gitBranch: 'a' }), makeCtx({ repo: 'ctx-repo', liveThresholdMs: 0 }));
+      assert.equal(r?.repo, 'ctx-repo');
+      assert.equal(r?.attribution, 'heuristic');
+    });
+  });
+
+  describe('cost', () => {
+    const tokens = { input_tokens: 1_000_000, output_tokens: 1_000_000 };
+    it('uses the feed price when it knows the model', () => {
+      const connector = makeConnector();
+      const r = connector.mapRow(
+        withMsg({ model: 'claude-opus-4-5-20251101', usage: tokens }),
+        makeCtx({ tokenPrices: { 'claude-opus-4-5': { input: 5e-6, output: 25e-6 } } }),
+      );
+      assert.ok(Math.abs(r!.cost - 30) < 1e-9);
+    });
+    it('without a feed, estimates from Claude list prices — never credits × pricePerCredit', () => {
+      const connector = makeConnector();
+      const r = connector.mapRow(withMsg({ model: 'claude-opus-4-5-20251101', usage: tokens }), makeCtx());
+      // 15 Copilot credits × $0.04 would be $0.60; Anthropic's list price is $5 + $25.
+      assert.ok(Math.abs(r!.cost - 30) < 1e-9, `cost ${r!.cost}`);
+      assert.equal(r!.estimated, true);
+      assert.ok(r!.cost !== r!.credits * 0.04);
+    });
+    it('falls back to the list prices when the feed lacks the model', () => {
+      const connector = makeConnector();
+      const r = connector.mapRow(
+        withMsg({ model: 'claude-sonnet-4-5', usage: tokens }),
+        makeCtx({ tokenPrices: { 'gpt-4o': { input: 1e-6, output: 1e-6 } } }),
+      );
+      assert.ok(Math.abs(r!.cost - 18) < 1e-9, `cost ${r!.cost}`);
+    });
+  });
+
+  describe('mergeDuplicate()', () => {
+    const merge = (a: ReturnType<ClaudeCodeConnector['mapRow']>, b: ReturnType<ClaudeCodeConnector['mapRow']>) =>
+      (makeConnector() as unknown as {
+        mergeDuplicate(x: NonNullable<typeof a>, y: NonNullable<typeof b>, ctx: ParseContext): NonNullable<typeof a>;
+      }).mergeDuplicate(a!, b!, makeCtx());
+
+    it('keeps the max per usage field, the later ts, agent if any line is, and re-prices from the merge', () => {
+      const connector = makeConnector();
+      const first = connector.mapRow(withMsg({ id: 'm', usage: { input_tokens: 100, output_tokens: 5 } }, { requestId: 'r' }), makeCtx());
+      const second = connector.mapRow(
+        withMsg(
+          { id: 'm', usage: { input_tokens: 100, output_tokens: 80, cache_read_input_tokens: 300 }, content: [{ type: 'tool_use', id: 't', name: 'x', input: {} }] },
+          { requestId: 'r', timestamp: '2026-01-15T10:00:05.000Z' },
+        ),
+        makeCtx(),
+      );
+      const merged = merge(first, second);
+      assert.equal(merged.promptTokens, 100);
+      assert.equal(merged.completionTokens, 80);
+      assert.equal(merged.cacheReadTokens, 300);
+      assert.equal(merged.ts, Date.parse('2026-01-15T10:00:05.000Z'));
+      assert.equal(merged.surface, 'agent');
+      const expected = 100 * 3e-6 + 80 * 15e-6 + 300 * 0.3e-6;
+      assert.ok(Math.abs(merged.cost - expected) < 1e-12);
+      assert.ok(merged.costByCategory?.['cache_read'] !== undefined);
+    });
+
+    it('is order-independent for usage (a smaller later line cannot shrink it)', () => {
+      const connector = makeConnector();
+      const big = connector.mapRow(withMsg({ id: 'm', usage: { input_tokens: 10, output_tokens: 90 } }, { requestId: 'r' }), makeCtx());
+      const small = connector.mapRow(withMsg({ id: 'm', usage: { input_tokens: 10, output_tokens: 20 } }, { requestId: 'r' }), makeCtx());
+      assert.equal(merge(big, small).completionTokens, 90);
+      assert.equal(merge(small, big).completionTokens, 90);
+    });
   });
 });

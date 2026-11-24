@@ -113,3 +113,36 @@ describe('formatMetric', () => {
     assert.throws(() => formatMetric(1, 'unknown' as Metric));
   });
 });
+
+describe('formatTokens — unit rollover', () => {
+  it('promotes a value that rounds up to 1000k into M instead of printing "1000.0k"', () => {
+    assert.equal(formatTokens(999_950), '1.0M');
+    assert.equal(formatTokens(999_999), '1.0M');
+    assert.equal(formatTokens(999_949), '999.9k');
+  });
+
+  it('promotes a value that rounds up to 1000 into k', () => {
+    assert.equal(formatTokens(999.6), '1.0k');
+    assert.equal(formatTokens(999.4), '999');
+  });
+});
+
+describe('formatMoney — sub-cent amounts', () => {
+  it('shows a floor instead of a misleading zero for a positive sub-cent amount', () => {
+    const r = formatMoney(0.004);
+    assert.ok(r.startsWith('<'), `expected a "<" floor, got "${r}"`);
+    assert.equal(r, `<${formatMoney(0.01)}`);
+  });
+
+  it('keeps exact zero, cents and larger amounts as they were', () => {
+    assert.equal(formatMoney(0), new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(0));
+    assert.ok(!formatMoney(0.01).startsWith('<'));
+    assert.ok(!formatMoney(12.5).startsWith('<'));
+  });
+
+  it('uses the currency\'s own smallest unit (no minor units for JPY)', () => {
+    const r = formatMoney(0.4, 'JPY');
+    assert.ok(r.startsWith('<'), r);
+    assert.ok(!formatMoney(1, 'JPY').startsWith('<'));
+  });
+});
