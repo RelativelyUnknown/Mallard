@@ -13,12 +13,16 @@ extension-frontend/
 ├── main.ts        entry point: mounts the dashboard, wires message routing
 ├── api.ts         acquireVsCodeApi() wrapper, typed postMessage in/out
 ├── store.ts       Zustand store for snapshot/config/layout/filter state
-├── theme.ts       palette resolution (swiss vs. VS Code theme)
+├── theme.ts       palette resolution (swiss vs. VS Code theme), forced light/dark scheme
 ├── color.ts       duotone colour ramp helpers
 ├── layout.ts      drag/resize/dock logic for the charts grid
+├── addChartMenu.ts  keyboard-accessible "Add chart" picker
+├── filterSync.ts  keeps the local filter in step with the host's (hydration, relative date presets)
+├── escapeHtml.ts  the one HTML-escape helper (chart tooltips, banners, sidebar)
+├── srDescriptions.ts  screen-reader summaries for every chart
 ├── lazyMount.ts   IntersectionObserver-based lazy chart mounting
 ├── chartDiff.ts   shallow-diff helpers so charts skip redundant re-renders
-├── charts/        one file per chart, each extending ChartComponent
+├── charts/        one file per chart, registered in charts/registry.ts
 ├── components/    KPI cards, filter bar, gauge, banners, panels
 ├── styles/        theme.css, dashboard.css, reset.css, fonts.css
 └── fonts/         bundled woff2 files (Archivo, Hanken Grotesk, IBM Plex Mono)
@@ -30,26 +34,33 @@ extension-frontend/
 
 ## Charts
 
-Every chart in `charts/` extends the shared `ChartComponent` base class (`charts/ChartComponent.ts`), which owns the ECharts instance lifecycle and theme application:
+There are 13 charts, all listed in `charts/registry.ts` (panel markup, lazy mounting, layout defaults and the dirty-check render loop all iterate that list). Twelve extend the shared `ChartComponent` base class (`charts/ChartComponent.ts`), which owns the ECharts instance lifecycle and theme application; the heatmap is plain DOM. The first eight are shown by default, the last five start hidden and are added from the "Add chart" picker.
 
 | File | Chart |
 | --- | --- |
 | `dailyBars.ts` | 30-day daily spend bar chart with a projected-pace line |
-| `heatmap.ts` | Calendar heatmap, last 12 weeks of activity |
+| `heatmap.ts` | GitHub-style contribution grid, past year of activity (plain DOM/CSS, not ECharts) |
 | `modelBreakdown.ts` | Horizontal bar chart of top models, click to focus |
 | `sankey.ts` | Flow chart from model to surface |
 | `categoryBreakdown.ts` | Spend by cost type (input/output/tool/etc.) |
 | `cumulativeArea.ts` | Cumulative spend over the current month |
 | `weekdayRadial.ts` | Usage by day of week |
 | `hourlyTimeline.ts` | Usage by hour of day |
+| `repoBreakdown.ts` | Spend by repository (extra) |
+| `categoryTrend.ts` | Cost categories over time, stacked area (extra) |
+| `tokensTimeline.ts` | Daily token volume (extra) |
+| `languageBreakdown.ts` | Spend by detected language (extra) |
+| `billingItems.ts` | GitHub billing line items (extra) |
 | `echarts.ts` | Shared ECharts init, theme registration, and type re-exports |
+
+Chart authors should know: tooltip formatters return HTML, so every interpolated string goes through `escapeHtml`; event handlers are attached with `ChartComponent.bind()` so they survive the instance being recreated on a theme change.
 
 ## Components
 
 `components/` holds the non-chart UI pieces, each a `mount*()` function that renders into a container element and returns an `update()` handle:
 
 - `KpiCards.ts`: today / month-to-date / projected / top-model cards
-- `FilterBar.ts`: date-range presets, metric toggle, model and surface filters
+- `FilterBar.ts`: date-range presets, metric toggle, model, repo, surface and source filters
 - `StatusBanner.ts`: ingest status (loading / ok / empty / error)
 - `RestrictionBanner.ts`: active Copilot restriction state
 - `GitHubBillingStrip.ts`: GitHub billing reconciliation summary
@@ -74,4 +85,8 @@ bun run compile   # one-shot build (host + webview)
 bun run watch      # rebuild on change
 ```
 
-There's no separate build step for this directory alone, and no dedicated test suite here; backend logic that the webview depends on (like `messaging.ts`) is tested from `../extension-backend`'s side in `test/unit/`.
+There's no separate build step for this directory alone.
+
+## Tests
+
+The webview has its own unit suite in `test/unit/frontend/` (charts, components, layout, store, theme, filter sync), run with the rest of the repo by `npx mocha`. It runs under jsdom with ECharts stubbed (`test/unit/setup/jsdom.cjs`): the stub records the option passed to `setOption`, so chart tests assert on the real option objects and tooltip output rather than pixels. The sidebar's inline script is covered in `test/unit/ui/SidebarView.test.ts`, and backend logic the webview depends on (like `messaging.ts`) is tested from `../extension-backend`'s side in `test/unit/`.

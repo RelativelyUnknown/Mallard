@@ -55,17 +55,22 @@ export function mountKpiCards(el: HTMLElement): KpiCardsHandle {
       );
       todaySub.textContent = `${formatCredits(today.credits)} cr · ${formatTokens(today.tokens)} tok`;
 
-      // MTD
-      mtdVal.textContent = formatMetric(
-        metric === 'cost'
-          ? budget.usedCost
-          : metric === 'credits'
-            ? budget.usedCredits
-            : budget.usedCredits * 1000,
-        metric,
-        currency,
-      );
-      mtdSub.textContent = `${formatCredits(budget.usedCredits)} cr`;
+      // MTD. The snapshot carries no month-to-date token total (only today's
+      // and a 30-day window), so the Tokens metric has no honest value here —
+      // show a dash rather than a number derived from credits.
+      if (metric === 'tokens') {
+        mtdVal.textContent = '—';
+        mtdVal.title = 'Month-to-date token totals are not available';
+        mtdSub.textContent = `${formatCredits(budget.usedCredits)} cr · tokens n/a`;
+      } else {
+        mtdVal.textContent = formatMetric(
+          metric === 'cost' ? budget.usedCost : budget.usedCredits,
+          metric,
+          currency,
+        );
+        mtdVal.removeAttribute('title');
+        mtdSub.textContent = `${formatCredits(budget.usedCredits)} cr`;
+      }
 
       // Projected
       if (forecast.basis === 'insufficient-data') {

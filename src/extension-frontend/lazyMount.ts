@@ -34,10 +34,18 @@ export function lazyChart<H extends { resize(): void; reinit(): void }>(
   };
 
   const io = new IntersectionObserver((entries) => {
-    if (entries.some((e) => e.isIntersecting)) {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    try {
       ensure();
-      io.disconnect();
+    } catch (err) {
+      // A chart that throws while mounting must not take the dashboard down
+      // with it, and must get another chance: stay observed so the next time
+      // the panel scrolls into view the factory runs again (inner is still
+      // null when the factory is what threw).
+      console.error('[mallard] chart failed to mount; will retry when next visible', err);
+      return;
     }
+    io.disconnect();
   });
   io.observe(el);
 

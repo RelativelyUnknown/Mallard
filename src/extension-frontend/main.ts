@@ -16,7 +16,11 @@ import {
   DEFAULT_DASHBOARD_LAYOUT,
 } from '../extension-backend/domain/types';
 import { applyTheme } from './charts/echarts';
-import { applyPalette } from './theme';
+import { applyPalette, setForcedScheme } from './theme';
+import { filterPatchFromSnapshot, postFilter, reresolveRelativeRange } from './filterSync';
+import { mountAddChartMenu } from './addChartMenu';
+import { describeCharts } from './srDescriptions';
+import { escapeHtml } from './escapeHtml';
 import { CHART_REGISTRY, ChartHooks, RegisteredChart } from './charts/registry';
 import { mountKpiCards } from './components/KpiCards';
 import { mountFilterBar } from './components/FilterBar';
@@ -26,23 +30,12 @@ import { mountEmptyState } from './components/EmptyState';
 import { mountAlertConfigPanel } from './components/AlertConfigPanel';
 import { mountRestrictionBanner } from './components/RestrictionBanner';
 import { mountCurrencySelector } from './components/CurrencySelector';
-import { formatCredits, formatMoney } from '../extension-backend/domain/format';
 
 const LOGO_SRC = document.body.dataset.logo ?? '';
 
 function setSrDesc(bodyId: string, text: string): void {
   const el = document.getElementById(`desc-${bodyId}`);
   if (el) el.textContent = text;
-}
-
-function applyForcedScheme(scheme: 'light' | 'dark' | null): void {
-  // Set on the root (html) element, not body: theme.ts reads the forced-scheme
-  // custom properties off getComputedStyle(document.documentElement), so a
-  // body-level attribute would recolour the DOM but leave the charts on the
-  // live editor theme.
-  const root = document.documentElement;
-  root.removeAttribute('data-force-scheme');
-  if (scheme) root.setAttribute('data-force-scheme', scheme);
 }
 
 /** Rerender closures for every mounted chart, registered once by mountDashboard. */
@@ -55,16 +48,12 @@ mountDashboard(document.getElementById('app')!);
 
 onMessage((msg) => {
   if (msg.type === 'snapshot') {
-    // The sidebar can change the model filter too (dual-connected model
-    // list) — pull its models back into local filter state so the filter
-    // bar's dropdown reflects a change made from the sidebar.
-    const incomingModels = msg.payload.filter.models ?? [];
-    const localModels = state().filter.models ?? [];
-    const modelsChanged = incomingModels.join(',') !== localModels.join(',');
-    const filter = { ...state().filter };
-    if (incomingModels.length > 0) filter.models = incomingModels;
-    else delete filter.models;
-    setState(modelsChanged ? { snapshot: msg.payload, filter } : { snapshot: msg.payload });
+    // The host's filter is authoritative: a reopened panel, the sidebar's
+    // model list, or another dashboard can all have changed it. Adopt it
+    // (without echoing a setFilter back) and then make sure a relative date
+    // preset still resolves to today's range.
+    setState({ snapshot: msg.payload, ...filterPatchFromSnapshot(msg.payload.filter) });
+    reresolveRelativeRange();
   } else if (msg.type === 'config') {
     setState({ config: msg.value });
   } else if (msg.type === 'layout') {
@@ -73,16 +62,16 @@ onMessage((msg) => {
     setState({ restriction: msg.value });
   } else if (msg.type === 'theme') {
     applyPalette(msg.palette, msg.kind);
-    applyTheme();
     // Only the very first theme message seeds the forced-scheme toggle (so
     // it starts in sync with VS Code); afterwards the toggle is a manual
     // override the user controls independently of the editor theme.
     if (state().forcedScheme === null) {
       const initial = msg.kind === 'light' || msg.kind === 'high-contrast-light' ? 'light' : 'dark';
       setState({ forcedScheme: initial });
-      applyForcedScheme(initial);
+      setForcedScheme(initial);
       updateThemeToggleUI(initial);
     }
+    applyTheme();
     rerenderAllChartsForTheme?.();
   }
 });
@@ -126,7 +115,7 @@ function mountDashboard(root: HTMLElement): void {
     <div class="wv-dashboard">
       <header class="wv-header">
         <div class="wv-brand">
-          <img class="wv-brand-logo" src="${LOGO_SRC}" alt="" aria-hidden="true" />
+          <img class="wv-brand-logo" src="${escapeHtml(LOGO_SRC)}" alt="" aria-hidden="true" />
           <div>
             <div class="wv-brand-name">Mallard</div>
             <div class="wv-brand-meta">Copilot spend · instrument</div>
@@ -220,7 +209,7 @@ function mountDashboard(root: HTMLElement): void {
     const current = state().forcedScheme ?? 'dark';
     const next = current === 'light' ? 'dark' : 'light';
     setState({ forcedScheme: next });
-    applyForcedScheme(next);
+    setForcedScheme(next);
     updateThemeToggleUI(next);
     applyTheme();
     rerenderAllChartsForTheme?.();
@@ -239,7 +228,7 @@ function mountDashboard(root: HTMLElement): void {
       if (current.size > 0) newFilter.models = [...current];
       else delete newFilter.models;
       setState({ filter: newFilter });
-      post({ type: 'setFilter', value: newFilter });
+      postFilter(newFilter);
     },
   };
 
@@ -297,46 +286,19 @@ function mountDashboard(root: HTMLElement): void {
 
   // "Add chart" picker: lists panels currently hidden in the layout (the
   // extra charts start life hidden); choosing one unhides it in place.
-  const addBtn = document.getElementById('layout-add')!;
-  const addMenu = document.getElementById('add-chart-menu')!;
   const titleById = new Map(CHART_REGISTRY.map((d) => [d.id, d.title]));
-
-  function closeAddMenu(): void {
-    addMenu.hidden = true;
-    addBtn.setAttribute('aria-expanded', 'false');
-  }
-
-  function openAddMenu(): void {
-    const hiddenPanels = state().layout.filter((pnl) => pnl.hidden && titleById.has(pnl.id));
-    addMenu.innerHTML = '';
-    if (hiddenPanels.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'wv-add-chart-empty';
-      empty.textContent = 'All charts are already shown';
-      addMenu.appendChild(empty);
-    }
-    for (const pnl of hiddenPanels) {
-      const item = document.createElement('button');
-      item.className = 'wv-btn wv-btn--sm wv-add-chart-item';
-      item.setAttribute('role', 'menuitem');
-      item.textContent = titleById.get(pnl.id)!;
-      item.addEventListener('click', () => {
-        const next = state().layout.map((q) => (q.id === pnl.id ? { ...q, hidden: false } : q));
-        post({ type: 'setLayout', value: next });
-        closeAddMenu();
-      });
-      addMenu.appendChild(item);
-    }
-    addMenu.hidden = false;
-    addBtn.setAttribute('aria-expanded', 'true');
-  }
-
-  addBtn.addEventListener('click', () => {
-    if (addMenu.hidden) openAddMenu();
-    else closeAddMenu();
-  });
-  document.addEventListener('click', (e) => {
-    if (!document.getElementById('add-chart-wrap')!.contains(e.target as Node)) closeAddMenu();
+  mountAddChartMenu({
+    wrap: document.getElementById('add-chart-wrap')!,
+    button: document.getElementById('layout-add')!,
+    menu: document.getElementById('add-chart-menu')!,
+    hiddenPanels: () =>
+      state().layout
+        .filter((pnl) => pnl.hidden && titleById.has(pnl.id))
+        .map((pnl) => ({ id: pnl.id, title: titleById.get(pnl.id)! })),
+    onPick: (id) => {
+      const next = state().layout.map((q) => (q.id === id ? { ...q, hidden: false } : q));
+      post({ type: 'setLayout', value: next });
+    },
   });
 
   resizeBtn.addEventListener('click', () => setMode('resize'));
@@ -346,13 +308,6 @@ function mountDashboard(root: HTMLElement): void {
   // just writing the default layout back.
   resetBtn.addEventListener('click', () => {
     post({ type: 'setLayout', value: DEFAULT_DASHBOARD_LAYOUT });
-  });
-
-  // Ctrl/Cmd+Shift+E toggles resize mode, Ctrl/Cmd+Shift+M toggles move mode.
-  document.addEventListener('keydown', (e) => {
-    if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return;
-    if (e.key === 'E') { e.preventDefault(); resizeBtn.click(); }
-    else if (e.key === 'M') { e.preventDefault(); moveBtn.click(); }
   });
 
   alertConfig.update(state().config);
@@ -400,10 +355,6 @@ function mountDashboard(root: HTMLElement): void {
     filterBar.update(s.snapshot, s.metric);
     restrictBanner.update(s.restriction);
 
-    // Make the latest snapshot available to the Monaco editor so its live
-    // preview can re-evaluate rules as the user types.
-    (window as unknown as { __wvSnapshot?: typeof s.snapshot }).__wvSnapshot = s.snapshot;
-
     if (!isEmpty) {
       const snapshot = s.snapshot;
       const metric = s.metric;
@@ -435,46 +386,5 @@ function mountDashboard(root: HTMLElement): void {
 }
 
 function updateSrDescriptions(snapshot: import('../extension-backend/domain/types').UsageSnapshot): void {
-  const { dailyBars, heatmap, modelBreakdown, categoryBreakdown, hourlyTimeline } = snapshot.chartData;
-
-  const peakDay = dailyBars.points.reduce(
-    (best, p) => (p.credits > (best?.credits ?? -1) ? p : best),
-    dailyBars.points[0] ?? null,
-  );
-  setSrDesc(
-    'chart-daily',
-    peakDay
-      ? `30-day bar chart. Peak: ${formatCredits(peakDay.credits)} cr on ${peakDay.date}. Today: ${formatCredits(snapshot.today.credits)} cr.`
-      : '30-day bar chart. No data.',
-  );
-
-  setSrDesc(
-    'chart-heatmap',
-    heatmap.max > 0
-      ? `Activity heatmap, past year. Max daily usage: ${formatCredits(heatmap.max)} cr.`
-      : 'Activity heatmap. No usage data.',
-  );
-
-  const topModel = modelBreakdown.labels[0];
-  setSrDesc(
-    'chart-models',
-    topModel
-      ? `Model breakdown. Top model: ${topModel} with ${formatCredits(modelBreakdown.credits[0] ?? 0)} cr.`
-      : 'Model breakdown. No data.',
-  );
-
-  setSrDesc(
-    'chart-category',
-    categoryBreakdown.available
-      ? `Cost by category: ${categoryBreakdown.categories.map((c, i) => `${c} ${formatMoney(categoryBreakdown.costs[i] ?? 0, snapshot.currency)}`).join(', ')}.`
-      : 'Cost category breakdown unavailable.',
-  );
-
-  const peak = hourlyTimeline.peakHour;
-  setSrDesc(
-    'chart-hourly',
-    hourlyTimeline.hours.some((h) => h > 0)
-      ? `Usage by hour. Peak hour: ${peak}:00.`
-      : 'Usage by hour. No data.',
-  );
+  for (const [bodyId, text] of Object.entries(describeCharts(snapshot))) setSrDesc(bodyId, text);
 }

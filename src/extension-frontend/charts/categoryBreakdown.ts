@@ -8,6 +8,7 @@ import { readTheme } from '../theme';
 import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatMoney } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 const LABELS: Record<string, string> = {
   input: 'Input',
@@ -43,7 +44,7 @@ class CategoryBreakdownChart extends ChartComponent {
         trigger: 'item',
         formatter(p: TooltipComponentOption) {
           const item = p as unknown as { name: string; value: number; percent: number };
-          return `${item.name}: ${formatMoney(item.value, currency)} (${item.percent}%)`;
+          return `${escapeHtml(item.name)}: ${escapeHtml(formatMoney(item.value, currency))} (${item.percent}%)`;
         },
       },
       legend: { bottom: 0, textStyle: { fontSize: 11 } },

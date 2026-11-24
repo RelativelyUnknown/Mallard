@@ -7,6 +7,27 @@ function cssVar(name: string, fallback = ''): string {
 }
 
 /**
+ * Read a dashboard token (`--w-*`) rather than the raw `--vscode-*` variable
+ * behind it. theme.css maps the former onto the latter, and the forced
+ * light/dark scheme overrides the former only — so reading `--vscode-*` here
+ * would recolour the page but leave chart axes and tooltips on the editor theme.
+ * The `--vscode-*` name is only a fallback for when the stylesheet isn't loaded.
+ */
+function themeVar(token: string, vscodeVar: string, fallback: string): string {
+  return cssVar(token) || cssVar(vscodeVar, fallback);
+}
+
+type ForcedScheme = 'light' | 'dark';
+
+function forcedScheme(): ForcedScheme | null {
+  const forced = document.documentElement.getAttribute('data-force-scheme');
+  return forced === 'light' || forced === 'dark' ? forced : null;
+}
+
+let lastPalette: PaletteMode = 'swiss';
+let lastKind: ThemeKind = 'dark';
+
+/**
  * Resolve the dashboard accent for the active palette mode and theme, set it on
  * the document root, and run it through the accessibility checks — for BOTH
  * modes, not just the theme-derived one:
@@ -18,9 +39,15 @@ function cssVar(name: string, fallback = ''): string {
  */
 export function applyPalette(palette: PaletteMode, kind: ThemeKind): void {
   const root = document.documentElement;
-  const bgStr = cssVar('--vscode-editor-background', '#1e1e1e');
+  lastPalette = palette;
+  lastKind = kind;
+  // A forced scheme overrides the surface colours, so contrast must be judged
+  // against the background actually on screen (--w-bg), and the base red must
+  // follow the forced scheme rather than the editor's theme kind.
+  const effectiveKind: ThemeKind = forcedScheme() ?? kind;
+  const bgStr = themeVar('--w-bg', '--vscode-editor-background', '#1e1e1e');
   const bg = parseColor(bgStr) ?? { r: 30, g: 30, b: 30 };
-  const light = kind === 'light' || kind === 'high-contrast-light';
+  const light = effectiveKind === 'light' || effectiveKind === 'high-contrast-light';
   const baseRed = light ? '#e5231b' : '#ff453a';
 
   let accent: string;
@@ -41,6 +68,20 @@ export function applyPalette(palette: PaletteMode, kind: ThemeKind): void {
   if (accentRgb) root.style.setProperty('--w-accent-fg', readableForeground(accentRgb));
 }
 
+/**
+ * Force the dashboard light or dark (null releases it back to the editor
+ * theme). The accent is written inline by applyPalette, and an inline custom
+ * property beats the scheme's own stylesheet rule — so toggling the scheme
+ * must re-derive the accent for the new background instead of leaving the
+ * previous scheme's value in place.
+ */
+export function setForcedScheme(scheme: ForcedScheme | null): void {
+  const root = document.documentElement;
+  root.removeAttribute('data-force-scheme');
+  if (scheme) root.setAttribute('data-force-scheme', scheme);
+  applyPalette(lastPalette, lastKind);
+}
+
 export interface MallardTheme {
   bg: string;
   card: string;
@@ -53,6 +94,7 @@ export interface MallardTheme {
   sevWarn: string;
   sevOver: string;
   tooltipBg: string;
+  tooltipFg: string;
   labelFont: string;
   highContrast: boolean;
 }
@@ -67,12 +109,13 @@ function seriesColors(): string[] {
 export function readTheme(): MallardTheme {
   const body = document.body.classList;
   return {
-    bg: cssVar('--vscode-editor-background', '#1e1e1e'),
-    card: cssVar('--vscode-sideBar-background', '#252526'),
-    fg: cssVar('--vscode-editor-foreground', '#cccccc'),
-    muted: cssVar('--vscode-descriptionForeground', '#858585'),
-    border: cssVar('--vscode-panel-border', '#3c3c3c'),
-    tooltipBg: cssVar('--vscode-editorHoverWidget-background', '#2d2d2d'),
+    bg: themeVar('--w-bg', '--vscode-editor-background', '#1e1e1e'),
+    card: themeVar('--w-bg-card', '--vscode-sideBar-background', '#252526'),
+    fg: themeVar('--w-fg', '--vscode-editor-foreground', '#cccccc'),
+    muted: themeVar('--w-fg-muted', '--vscode-descriptionForeground', '#858585'),
+    border: themeVar('--w-border', '--vscode-panel-border', '#3c3c3c'),
+    tooltipBg: themeVar('--w-tooltip-bg', '--vscode-editorHoverWidget-background', '#2d2d2d'),
+    tooltipFg: themeVar('--w-tooltip-fg', '--vscode-editorHoverWidget-foreground', '#cccccc'),
     // IBM Plex Mono technical labels (bundled); falls back to the editor mono.
     labelFont: cssVar('--w-label-font', "'IBM Plex Mono', monospace"),
     // Analogous ramp: red accent first, then red-toward-amber steps that
@@ -98,7 +141,7 @@ export function buildEChartsTheme(t: MallardTheme): Record<string, any> {
     tooltip: {
       backgroundColor: t.tooltipBg,
       borderColor: t.border,
-      textStyle: { color: t.fg, fontSize: 12 },
+      textStyle: { color: t.tooltipFg, fontSize: 12 },
     },
     color: t.series,
     categoryAxis: {

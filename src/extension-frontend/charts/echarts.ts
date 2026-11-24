@@ -1,11 +1,9 @@
 import * as echarts from 'echarts/core';
-import { BarChart, LineChart, HeatmapChart, SankeyChart, PieChart } from 'echarts/charts';
+import { BarChart, LineChart, SankeyChart, PieChart } from 'echarts/charts';
 import {
   GridComponent,
   TooltipComponent,
   LegendComponent,
-  CalendarComponent,
-  VisualMapComponent,
   MarkLineComponent,
   PolarComponent,
 } from 'echarts/components';
@@ -23,14 +21,11 @@ import { buildEChartsTheme, readTheme } from '../theme';
 echarts.use([
   BarChart,
   LineChart,
-  HeatmapChart,
   SankeyChart,
   PieChart,
   GridComponent,
   TooltipComponent,
   LegendComponent,
-  CalendarComponent,
-  VisualMapComponent,
   MarkLineComponent,
   PolarComponent,
   CanvasRenderer,

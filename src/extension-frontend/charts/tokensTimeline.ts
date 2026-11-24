@@ -8,6 +8,7 @@ import { readTheme } from '../theme';
 import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatTokens } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 export interface TokensTimelineHandle {
   update(snapshot: UsageSnapshot): void;
@@ -41,7 +42,7 @@ class TokensTimelineChart extends ChartComponent {
           const p = (params as unknown as Array<{ dataIndex: number; axisValue: string }>)[0];
           if (!p) return '';
           const i = p.dataIndex;
-          return `${p.axisValue}<br/>${formatTokens(tokens[i] ?? 0)} tokens · ${events[i] ?? 0} requests`;
+          return `${escapeHtml(p.axisValue)}<br/>${formatTokens(tokens[i] ?? 0)} tokens · ${events[i] ?? 0} requests`;
         },
       },
       grid: { left: 44, right: 12, top: 8, bottom: 20 },

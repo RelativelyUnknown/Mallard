@@ -9,6 +9,7 @@ import { readTheme } from '../theme';
 import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatCredits, formatMoney } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 const TOP_N = 8;
 
@@ -52,7 +53,7 @@ class RepoBreakdownChart extends ChartComponent {
           const approx = share > 0
             ? `<br/><i>≈ ${Math.round(share * 100)}% attributed heuristically</i>`
             : '';
-          return `${r.key}<br/>${formatCredits(r.credits)} cr · ${formatMoney(r.cost, currency)}${approx}`;
+          return `${escapeHtml(r.key)}<br/>${formatCredits(r.credits)} cr · ${escapeHtml(formatMoney(r.cost, currency))}${approx}`;
         },
       },
       grid: { left: 8, right: 16, top: 8, bottom: 20, containLabel: true },
