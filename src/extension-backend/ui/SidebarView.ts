@@ -325,17 +325,15 @@ export class SidebarView implements vscode.WebviewViewProvider {
     }
     function fmtMoney(amount, currency) {
       const digits = amount >= 100 ? 0 : amount >= 1 ? 2 : 3;
-      // The code comes from config.json via the host and the result is written
-      // with innerHTML, so only ever use a well-formed 3-letter ISO code —
-      // the Intl-failure fallback below would otherwise inject it raw.
-      const code = /^[A-Za-z]{3}$/.test(currency) ? currency.toUpperCase() : 'USD';
       try {
         return new Intl.NumberFormat(undefined, {
-          style: 'currency', currency: code,
+          style: 'currency', currency: currency || 'USD',
           minimumFractionDigits: digits, maximumFractionDigits: digits,
         }).format(amount);
       } catch {
-        return code + ' ' + amount.toFixed(digits);
+        // The raw code is echoed here; every caller passes the result through
+        // escHtml before it reaches innerHTML.
+        return (currency || 'USD') + ' ' + amount.toFixed(digits);
       }
     }
 
