@@ -126,6 +126,45 @@ describe('startup failure recovery', () => {
     assert.deepEqual(executed, ['workbench.action.reloadWindow']);
   });
 
+  it('contributedCommandIds is empty when the manifest has no commands (or no manifest at all)', () => {
+    const ctx = (extension: unknown) => ({ extension }) as unknown as vscode.ExtensionContext;
+    assert.deepEqual(contributedCommandIds(ctx(undefined)), []);
+    assert.deepEqual(contributedCommandIds(ctx({ packageJSON: {} })), []);
+    assert.deepEqual(contributedCommandIds(ctx({ packageJSON: { contributes: {} } })), []);
+  });
+
+  it('choosing "Reset Mallard Data…" on the failure notice runs the same confirmed reset as mallard.clearData', async () => {
+    const dir = await tmpDir();
+    await fs.writeFile(path.join(dir, 'events.duckdb'), 'db');
+    await fs.writeFile(path.join(dir, 'config.json'), '{}');
+    registerStartupFailure(makeContext(dir), 'corrupt', { show() {} });
+    await new Promise((r) => setImmediate(r)); // let the initial notice settle with no choice
+
+    errorChoice = 'Reset Mallard Data…';
+    warningChoice = 'Delete and reload';
+    await handlers.get('mallard.refresh')!();
+    assert.deepEqual(await fs.readdir(dir), ['config.json']);
+    assert.deepEqual(executed, ['workbench.action.reloadWindow']);
+  });
+
+  it('a confirmed reset with no database on disk still reloads, and logs that nothing was deleted', async () => {
+    const dir = await tmpDir();
+    registerStartupFailure(makeContext(dir), 'locked', { show() {} });
+    const lines: string[] = [];
+    const detach = defaultLogger.attachSink({ appendLine: (l) => void lines.push(l) });
+    const log = console.log;
+    console.log = () => {};
+    try {
+      warningChoice = 'Delete and reload';
+      await handlers.get('mallard.clearData')!();
+    } finally {
+      console.log = log;
+      detach();
+    }
+    assert.ok(lines.some((l) => l.includes('deleted nothing from')), lines.join('\n'));
+    assert.deepEqual(executed, ['workbench.action.reloadWindow']);
+  });
+
   it('registers a placeholder sidebar that escapes the message', async () => {
     registerStartupFailure(makeContext(await tmpDir()), '<img src=x onerror=alert(1)>', { show() {} });
     assert.equal(providers.length, 1);

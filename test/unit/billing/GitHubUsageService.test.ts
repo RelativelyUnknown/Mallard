@@ -392,3 +392,133 @@ describe('GitHubUsageService — failures are errors, never cached', () => {
     svc.dispose();
   });
 });
+
+/** A real Response whose body arrives as separate chunks (how fetch delivers a large payload). */
+function streamed(chunks: Uint8Array[], init: ResponseInit = {}): Response {
+  let i = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      const next = chunks[i++];
+      if (next === undefined) controller.close();
+      else controller.enqueue(next);
+    },
+  });
+  return new Response(body, { status: 200, ...init });
+}
+
+describe('GitHubUsageService — streamed bodies', () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  it('reassembles a body delivered in chunks, including a multi-byte character split across two of them', async () => {
+    const quota = Buffer.from(JSON.stringify({ ...QUOTA_RESPONSE, copilot_plan: 'pro€' }), 'utf8');
+    const euro = quota.indexOf(Buffer.from('€', 'utf8'));
+    const split = euro + 1; // between the first and second byte of the 3-byte euro sign
+    const billing = Buffer.from(JSON.stringify(BILLING_RESPONSE), 'utf8');
+    globalThis.fetch = (async (url: unknown) =>
+      String(url).includes('copilot_internal')
+        ? streamed([quota.subarray(0, split), quota.subarray(split)])
+        : streamed([billing.subarray(0, 10), billing.subarray(10, 40), billing.subarray(40)])) as typeof fetch;
+
+    const svc = new GitHubUsageService(makeSession());
+    const result = await svc.fetch();
+    assert.ok(result.isOk());
+    const data = result._unsafeUnwrap();
+    assert.equal(data.quota?.plan, 'pro€', 'the split character is decoded once, from the joined bytes');
+    assert.equal(data.items.length, 2);
+    svc.dispose();
+  });
+
+  it('retries a 5xx (draining its body) and succeeds on the next attempt', async () => {
+    let quotaCalls = 0;
+    let drained = 0;
+    globalThis.fetch = (async (url: unknown) => {
+      const u = String(url);
+      if (u.includes('copilot_internal')) {
+        if (quotaCalls++ === 0) {
+          const failing = new Response('upstream sad', { status: 503 });
+          const cancel = failing.body!.cancel.bind(failing.body);
+          failing.body!.cancel = (reason?: unknown) => { drained++; return cancel(reason); };
+          return failing;
+        }
+        return new Response(JSON.stringify(QUOTA_RESPONSE), { status: 200 });
+      }
+      return new Response(JSON.stringify(BILLING_RESPONSE), { status: 200 });
+    }) as typeof fetch;
+
+    const svc = new GitHubUsageService(makeSession());
+    const result = await svc.fetch();
+    assert.ok(result.isOk(), 'the second attempt succeeds');
+    assert.equal(quotaCalls, 2);
+    assert.equal(drained, 1, 'the failed response body is cancelled so the socket is released');
+    svc.dispose();
+  });
+
+  it('does not retry a body that cannot be read, and reports the cause whatever was thrown', async () => {
+    for (const thrown of [new TypeError('terminated'), 'socket hung up']) {
+      let calls = 0;
+      globalThis.fetch = (async () => {
+        calls++;
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          text: async () => { throw thrown; },
+        } as unknown as Response;
+      }) as typeof fetch;
+      const svc = new GitHubUsageService(makeSession());
+      const result = await svc.fetch();
+      assert.ok(result.isErr());
+      assert.equal(billingErrorKind(result._unsafeUnwrapErr()), 'network');
+      assert.match(result._unsafeUnwrapErr().message, thrown instanceof Error ? /terminated/ : /socket hung up/);
+      assert.equal(calls, 2, 'one attempt per endpoint');
+      svc.dispose();
+    }
+  });
+
+  it('describes a non-Error rejection of fetch() itself in the network error', async () => {
+    globalThis.fetch = (async () => { throw 'dns exploded'; }) as typeof fetch;
+    const svc = new GitHubUsageService(makeSession({ getToken: async () => ({ token: 't' }) }));
+    const result = await svc.fetch();
+    assert.ok(result.isErr());
+    assert.equal(billingErrorKind(result._unsafeUnwrapErr()), 'network');
+    assert.match(result._unsafeUnwrapErr().message, /dns exploded/);
+    svc.dispose();
+  });
+});
+
+describe('GitHubUsageService — sparse quota payloads', () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  const quotaFor = async (quotaBody: unknown) => {
+    stubFetch({ copilot_internal: quotaBody, '/users/octocat/': BILLING_RESPONSE });
+    const svc = new GitHubUsageService(makeSession());
+    try {
+      return (await svc.fetch())._unsafeUnwrap().quota;
+    } finally {
+      svc.dispose();
+    }
+  };
+
+  it('fills in plan, reset date and unlimited when the API leaves them out', async () => {
+    const quota = await quotaFor({ quota_snapshots: { premium_interactions: { entitlement: 300, percent_remaining: 50 } } });
+    assert.deepEqual(quota, { plan: 'unknown', entitlement: 300, used: 150, resetDate: null, unlimited: false });
+  });
+
+  it('treats an unparseable reset date as unknown rather than NaN', async () => {
+    const quota = await quotaFor({
+      copilot_plan: 'copilot_pro',
+      quota_reset_date: 'next tuesday-ish',
+      quota_snapshots: { premium_interactions: { entitlement: 100, percent_remaining: 100, unlimited: true } },
+    });
+    assert.equal(quota?.resetDate, null);
+    assert.equal(quota?.unlimited, true);
+    assert.equal(quota?.used, 0);
+  });
+
+  it('has no quota when the premium bucket is missing or the payload is the wrong shape', async () => {
+    assert.equal(await quotaFor({ copilot_plan: 'free', quota_snapshots: {} }), null);
+    assert.equal(await quotaFor({ copilot_plan: 42 }), null);
+  });
+});

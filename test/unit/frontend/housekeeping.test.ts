@@ -225,6 +225,17 @@ describe('lazyChart', () => {
     assert.equal(rendered, 2);
   });
 
+  it('a second notification queued before disconnect() took effect does not mount the chart twice', () => {
+    let mounted = 0;
+    lazyChart<Handle>(document.createElement('div'), () => {
+      mounted++;
+      return { resize() {}, reinit() {}, renders: 0 };
+    });
+    observers[0]!.callback(visible);
+    observers[0]!.callback(visible);
+    assert.equal(mounted, 1);
+  });
+
   it('resize is a no-op while off screen and reaches the mounted chart afterwards', () => {
     let resizes = 0;
     const lazy = lazyChart<Handle>(document.createElement('div'), () => ({

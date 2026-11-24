@@ -74,6 +74,30 @@ describe('migration 0006 — BIGINT token columns', () => {
   });
 });
 
+describe('migration 0006 — nothing to widen', () => {
+  it('is a no-op (no transaction, no DDL) when the columns are already BIGINT', async () => {
+    const statements: string[] = [];
+    const conn = {
+      run: async (sql: string) => {
+        statements.push(sql);
+        return { columnNames: () => ['column_name'], chunkCount: 0, getChunk: () => ({ getRows: () => [] }) };
+      },
+    };
+    await bigintTokens.up(conn as never);
+    assert.equal(statements.length, 1, 'only the column probe ran');
+    assert.match(statements[0]!, /duckdb_columns/);
+
+    // And on a real, freshly created (already BIGINT) database it leaves the schema as it was.
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-mig6-noop-'));
+    const store = await EventStore.open(dir);
+    try {
+      await store.writer.insert([makeEvent({ id: 'x', ts: Date.now(), promptTokens: 5 })]);
+      await bigintTokens.up(store.conn);
+      assert.equal(await store.count(), 1);
+    } finally { store.dispose(); }
+  });
+});
+
 describe('migration 0006 — failure handling', () => {
   it('is atomic: when widening fails, the dropped indexes and the old column types come back and the error surfaces', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-mig6-fail-'));

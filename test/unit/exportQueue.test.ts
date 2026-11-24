@@ -53,6 +53,23 @@ describe('ExportQueue', () => {
     await fs.rm(dir, { recursive: true });
   });
 
+  it('dequeue of an unknown id changes nothing and does not rewrite the file', async () => {
+    const dir = await makeTmpDir();
+    const queue = new ExportQueue(dir);
+    queue.enqueue('t', { n: 1 });
+    const file = path.join(dir, 'export-queue.json');
+    const before = await fs.stat(file);
+    const textBefore = await fs.readFile(file, 'utf8');
+    await new Promise((r) => setTimeout(r, 20));
+
+    queue.dequeue('no-such-id');
+
+    assert.equal(queue.peekAll().length, 1);
+    assert.equal(await fs.readFile(file, 'utf8'), textBefore);
+    assert.equal((await fs.stat(file)).mtimeMs, before.mtimeMs, 'the file was not touched');
+    await fs.rm(dir, { recursive: true });
+  });
+
   it('persists across instances (writeToDisk/readFromDisk round-trip)', async () => {
     const dir = await makeTmpDir();
     const first = new ExportQueue(dir);
