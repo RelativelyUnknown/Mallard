@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { evalCondition, evalSimpleCondition, evalRule, compileConditions, resolveVar, JsonConditionSchema } from '../../src/extension-backend/domain/expr/jsonCondition';
+import { evalCondition, evalSimpleCondition, evalRule, parseVarPath, resolveVar, wildcardMatches, JsonConditionSchema } from '../../src/extension-backend/domain/expr/jsonCondition';
 import type { JsonCondition, JsonOperand } from '../../src/extension-backend/domain/types';
 
 const ctx: Record<string, unknown> = {
@@ -80,8 +80,11 @@ describe('evalCondition — comparison operators', () => {
     assert.equal(evalCondition({ '==': [{ var: 'today.credits' }, 50] }, ctx), true);
   });
 
-  it('== does not coerce types', () => {
-    assert.equal(evalCondition({ '==': [{ var: 'today.credits' }, '50'] }, ctx), false);
+  // Was "== does not coerce types" (50 == '50' → false). Comparison semantics are
+  // now defined once: numeric when both sides are numeric, strict otherwise.
+  it('== compares numerically when both sides are numeric (number vs numeric string)', () => {
+    assert.equal(evalCondition({ '==': [{ var: 'today.credits' }, '50'] }, ctx), true);
+    assert.equal(evalCondition({ '!=': [{ var: 'today.credits' }, '50'] }, ctx), false);
   });
 
   it('!= fires when values differ', () => {
@@ -210,85 +213,22 @@ describe('evalSimpleCondition', () => {
     assert.equal(evalSimpleCondition({ field: 'topModel.id', op: 'in', value: 'gpt-4o' as unknown as string[] }, ctx), false);
   });
 
-  it('evaluates matches operator with regex', () => {
+  it('evaluates matches operator with ^/$ anchored patterns', () => {
     assert.equal(evalSimpleCondition({ field: 'topModel.id', op: 'matches', value: '^claude-' }, ctx), true);
     assert.equal(evalSimpleCondition({ field: 'topModel.id', op: 'matches', value: '^gpt-' }, ctx), false);
   });
 
-  it('matches operator coerces undefined fieldValue to empty string', () => {
-    assert.equal(evalSimpleCondition({ field: 'nonexistent', op: 'matches', value: '^$' }, ctx), true);
+  // Was "matches operator coerces undefined fieldValue to empty string" (^$ → true):
+  // a missing value now never satisfies any operator except !=.
+  it('matches is false for a missing field, whatever the pattern', () => {
+    assert.equal(evalSimpleCondition({ field: 'nonexistent', op: 'matches', value: '^$' }, ctx), false);
+    assert.equal(evalSimpleCondition({ field: 'nonexistent', op: 'matches', value: '*' }, ctx), false);
     assert.equal(evalSimpleCondition({ field: 'nonexistent', op: 'matches', value: '^claude' }, ctx), false);
   });
 
-  it('returns false for matches with invalid regex', () => {
+  it('treats regex metacharacters literally instead of failing', () => {
     assert.equal(evalSimpleCondition({ field: 'topModel.id', op: 'matches', value: '[invalid(' }, ctx), false);
-  });
-
-  it('returns false for a matches pattern rejected by the ReDoS safety guard', () => {
-    // Contains `(?` — flagged as unsafe before ever compiling the RegExp.
     assert.equal(evalSimpleCondition({ field: 'topModel.id', op: 'matches', value: '(?:a)' }, ctx), false);
-  });
-});
-
-describe('compileConditions', () => {
-  const ctx = { today: { credits: 75 } };
-
-  it('returns true for empty conditions', () => {
-    assert.equal(evalCondition(compileConditions([]), ctx), true);
-  });
-
-  it('all match = AND', () => {
-    const cond = compileConditions([
-      { field: 'today.credits', op: '>', value: 50 },
-      { field: 'today.credits', op: '<', value: 100 },
-    ], 'all');
-    assert.equal(evalCondition(cond, ctx), true);
-  });
-
-  it('any match = OR', () => {
-    const cond = compileConditions([
-      { field: 'today.credits', op: '>', value: 100 },
-      { field: 'today.credits', op: '>', value: 50 },
-    ], 'any');
-    assert.equal(evalCondition(cond, ctx), true);
-  });
-
-  it('none match = NOR', () => {
-    const cond = compileConditions([
-      { field: 'today.credits', op: '>', value: 100 },
-    ], 'none');
-    assert.equal(evalCondition(cond, ctx), true);
-  });
-
-  it('in condition with ctx pre-evaluates via evalSimpleCondition', () => {
-    const evalCtx = { topModel: { id: 'claude-sonnet-4' } };
-    const cond = compileConditions(
-      [{ field: 'topModel.id', op: 'in', value: ['claude-sonnet-4', 'gpt-4o'] }],
-      'all',
-      evalCtx,
-    );
-    // Pre-evaluated to a boolean literal
-    assert.equal(cond, true);
-  });
-
-  it('in condition without ctx returns true literal', () => {
-    const cond = compileConditions(
-      [{ field: 'topModel.id', op: 'in', value: ['claude-sonnet-4'] }],
-      'all',
-    );
-    assert.equal(cond, true);
-  });
-
-  it('none match with multiple conditions returns { not: { or: [...] } }', () => {
-    const evalCtx = { today: { credits: 75 } };
-    const cond = compileConditions(
-      [
-        { field: 'today.credits', op: '>' as const, value: 100 },
-        { field: 'today.credits', op: '>' as const, value: 200 },
-      ],
-      'none',
-    );
-    assert.equal(evalCondition(cond, evalCtx), true); // none match (both false)
   });
 });
 
@@ -317,8 +257,13 @@ describe('evalCondition — non-numeric string operands', () => {
     assert.equal(evalCondition({ '<': ['abc', 'def'] }, {}), false);
   });
 
-  it('== does not coerce non-numeric strings to numbers', () => {
-    assert.equal(evalCondition({ '==': ['5', 5] }, {}), false);
+  // Was "== does not coerce non-numeric strings to numbers" using ['5', 5] — but '5'
+  // IS numeric, so that pinned the old strict-only rule. Non-numeric strings stay strict.
+  it('== compares non-numeric strings strictly, never as numbers', () => {
+    assert.equal(evalCondition({ '==': ['abc', 5] }, {}), false);
+    assert.equal(evalCondition({ '==': ['abc', 'abc'] }, {}), true);
+    assert.equal(evalCondition({ '==': ['', 0] }, {}), false);
+    assert.equal(evalCondition({ '==': ['5', 5] }, {}), true);
   });
 });
 
@@ -353,5 +298,180 @@ describe('evalRule', () => {
       match: 'none' as const,
     };
     assert.equal(evalRule(rule2, ctx), false); // credits=75 > 50, so "some" match → none=false
+  });
+});
+
+describe('matches — safe wildcard matching (no user regex)', () => {
+  const cx = { model: { id: 'Claude-3.5-Sonnet' }, n: 42, flag: true };
+  const matches = (value: string, field = 'model.id') =>
+    evalSimpleCondition({ field, op: 'matches', value }, cx);
+
+  it('supports * and ? wildcards, case-insensitively, anchored to the whole value', () => {
+    assert.equal(matches('claude-*'), true);
+    assert.equal(matches('*sonnet'), true);
+    assert.equal(matches('claude-?.?-sonnet'), true);
+    assert.equal(matches('claude'), false, 'no implicit substring match');
+    assert.equal(matches('claude-3.5-sonnet'), true, 'case-insensitive exact');
+    assert.equal(matches('claude-3.5'), false, 'anchored at the end');
+    assert.equal(matches('*'), true);
+    assert.equal(matches('?'), false);
+  });
+
+  it('treats regex metacharacters as literals', () => {
+    assert.equal(matches('claude-3.5-*'), true);
+    assert.equal(matches('claude-3x5-*'), false, '"." is not a wildcard');
+    assert.equal(matches('(claude|gpt)*'), false, 'alternation is not supported');
+    assert.equal(matches('[a-z]*'), false);
+  });
+
+  it('keeps accepting simple ^prefix / suffix$ / ^exact$ anchors', () => {
+    assert.equal(matches('^claude-'), true);
+    assert.equal(matches('^gpt-'), false);
+    assert.equal(matches('sonnet$'), true);
+    assert.equal(matches('^claude-3.5-sonnet$'), true);
+    assert.equal(matches('^claude$'), false);
+  });
+
+  it('REGRESSION: a catastrophic-backtracking pattern runs in linear time (was ~1.5s at 26 chars, ~19s at 30)', () => {
+    const victim = { text: `${'a'.repeat(26)}!` };
+    const started = Date.now();
+    const result = evalSimpleCondition({ field: 'text', op: 'matches', value: '(a|a)*$' }, victim);
+    const elapsed = Date.now() - started;
+    assert.equal(result, false);
+    assert.ok(elapsed < 200, `matches took ${elapsed}ms`);
+  });
+
+  it('many-star patterns stay fast on long inputs', () => {
+    const victim = { text: 'a'.repeat(500) };
+    const started = Date.now();
+    assert.equal(evalSimpleCondition({ field: 'text', op: 'matches', value: '*a*a*a*a*a*a*a*a*b' }, victim), false);
+    assert.ok(Date.now() - started < 200);
+  });
+
+  it('caps input and pattern length (over the cap never matches)', () => {
+    assert.equal(wildcardMatches('*', 'a'.repeat(512)), true);
+    assert.equal(wildcardMatches('*', 'a'.repeat(513)), false);
+    assert.equal(wildcardMatches('a'.repeat(256), 'a'.repeat(256)), true);
+    assert.equal(wildcardMatches('a'.repeat(257), 'a'.repeat(257)), false);
+  });
+
+  it('only matches string patterns against primitive values', () => {
+    assert.equal(evalSimpleCondition({ field: 'n', op: 'matches', value: '4?' }, cx), true, 'numbers are stringified');
+    assert.equal(evalSimpleCondition({ field: 'flag', op: 'matches', value: 'true' }, cx), true);
+    assert.equal(evalSimpleCondition({ field: 'n', op: 'matches', value: 42 }, cx), false, 'non-string pattern');
+    assert.equal(evalSimpleCondition({ field: 'n', op: 'matches', value: ['42'] }, cx), false);
+    assert.equal(evalSimpleCondition({ field: 'model', op: 'matches', value: '*' }, cx), false, 'objects never match');
+  });
+});
+
+describe('comparison semantics (shared by evalCondition and evalSimpleCondition)', () => {
+  type Op = '>' | '>=' | '<' | '<=' | '==' | '!=';
+  const OPS: Op[] = ['>', '>=', '<', '<=', '==', '!='];
+  const cx = { n: 5, s: '5', word: 'abc', yes: true, zero: 0, blank: '', nil: null };
+
+  /** Evaluate the same comparison through both entry points. */
+  function both(field: string, op: Op, value: number | string | boolean): [boolean, boolean] {
+    const viaJson = evalCondition({ [op]: [{ var: field }, value] } as JsonCondition, cx);
+    const viaSimple = evalSimpleCondition({ field, op, value }, cx);
+    return [viaJson, viaSimple];
+  }
+
+  it('a missing or null operand makes every operator false except !=', () => {
+    for (const field of ['missing', 'nil']) {
+      for (const op of OPS) {
+        const [viaJson, viaSimple] = both(field, op, 5);
+        const expected = op === '!=';
+        assert.equal(viaJson, expected, `${field} ${op} 5 (evalCondition)`);
+        assert.equal(viaSimple, expected, `${field} ${op} 5 (evalSimpleCondition)`);
+      }
+    }
+    // The right-hand side is covered too.
+    assert.equal(evalCondition({ '<': [5, { var: 'missing' }] }, cx), false);
+    assert.equal(evalCondition({ '!=': [5, { var: 'missing' }] }, cx), true);
+  });
+
+  it('ordering operators need two numbers; numeric strings coerce, everything else is false', () => {
+    assert.deepEqual(both('s', '>', 4), [true, true], "'5' > 4");
+    assert.deepEqual(both('n', '<=', '5'), [true, true], "5 <= '5'");
+    assert.deepEqual(both('n', '>=', '1e1'), [false, false], "5 >= '1e1' (=10)");
+    for (const field of ['word', 'blank', 'yes']) {
+      for (const op of ['>', '>=', '<', '<='] as const) {
+        assert.deepEqual(both(field, op, 0), [false, false], `${field} ${op} 0 must not coerce`);
+      }
+    }
+    assert.equal(evalCondition({ '>=': ['0x10', 1] }, {}), false, 'hex is not canonical numeric');
+    assert.equal(evalCondition({ '>': [' 7', 1] }, {}), false, 'padded strings are not canonical numeric');
+    assert.equal(evalCondition({ '<': [Infinity, 1] }, {}), false);
+  });
+
+  it('== / != are numeric when both sides are numeric, strict otherwise', () => {
+    assert.deepEqual(both('n', '==', '5'), [true, true]);
+    assert.deepEqual(both('s', '==', 5), [true, true]);
+    assert.deepEqual(both('n', '!=', '5'), [false, false]);
+    assert.deepEqual(both('yes', '==', 1), [false, false], 'booleans are not numbers');
+    assert.deepEqual(both('yes', '==', true), [true, true]);
+    assert.deepEqual(both('blank', '==', 0), [false, false], "'' is not 0");
+    assert.deepEqual(both('word', '==', 'abc'), [true, true]);
+    assert.deepEqual(both('word', '!=', 'abc'), [false, false]);
+  });
+
+  it("'in' uses the same equality as ==, and a missing field is never 'in'", () => {
+    assert.equal(evalSimpleCondition({ field: 'n', op: 'in', value: ['5', 'x'] }, cx), true, "5 in ['5']");
+    assert.equal(evalSimpleCondition({ field: 's', op: 'in', value: [5] }, cx), true, "'5' in [5]");
+    assert.equal(evalSimpleCondition({ field: 'word', op: 'in', value: ['abc'] }, cx), true);
+    assert.equal(evalSimpleCondition({ field: 'blank', op: 'in', value: [0] }, cx), false);
+    assert.equal(evalSimpleCondition({ field: 'missing', op: 'in', value: ['', 0] }, cx), false);
+  });
+});
+
+describe('var paths — bracket segments and own-property reads', () => {
+  it('parseVarPath splits dotted paths as before and reads bracket segments literally', () => {
+    assert.deepEqual(parseVarPath('today.credits'), ['today', 'credits']);
+    assert.deepEqual(parseVarPath('model["gpt-4.1"].credits'), ['model', 'gpt-4.1', 'credits']);
+    assert.deepEqual(parseVarPath("repo['foo.js']"), ['repo', 'foo.js']);
+    assert.deepEqual(parseVarPath('a["x"]["y.z"].b'), ['a', 'x', 'y.z', 'b']);
+    assert.deepEqual(parseVarPath('a["it\\"s"]'), ['a', 'it"s'], 'backslash escapes the quote');
+    assert.deepEqual(parseVarPath('a[0]'), ['a', '0'], 'bare bracket content');
+    assert.deepEqual(parseVarPath('a..b'), ['a', '', 'b'], 'empty segments are kept');
+  });
+
+  it('parseVarPath rejects malformed paths', () => {
+    assert.equal(parseVarPath('a["b'), null);
+    assert.equal(parseVarPath('a["b"'), null);
+    assert.equal(parseVarPath('a[b'), null);
+    assert.equal(parseVarPath('a["b"]c'), null);
+  });
+
+  it('REGRESSION: keys containing dots are reachable (gpt-4.1, claude-3.5-sonnet, foo.js)', () => {
+    const cx = {
+      model: { 'gpt-4.1': { credits: 12 }, 'claude-3.5-sonnet': { credits: 7 } },
+      repo: { 'foo.js': { cost: 3 }, 'a.b/c.d': { cost: 9 } },
+    };
+    assert.equal(resolveVar('model["gpt-4.1"].credits', cx), 12);
+    assert.equal(resolveVar("model['claude-3.5-sonnet'].credits", cx), 7);
+    assert.equal(resolveVar('repo["foo.js"].cost', cx), 3);
+    assert.equal(resolveVar("repo['a.b/c.d'].cost", cx), 9);
+    // The unquoted dotted form still means nested access (and so does not find them).
+    assert.equal(resolveVar('model.gpt-4.1.credits', cx), undefined);
+    assert.equal(evalCondition({ '>': [{ var: 'model["gpt-4.1"].credits' }, 10] }, cx), true);
+    assert.equal(evalSimpleCondition({ field: "repo['foo.js'].cost", op: '==', value: 3 }, cx), true);
+  });
+
+  it('only reads own properties: inherited names resolve to undefined', () => {
+    const cx: Record<string, unknown> = { a: {} };
+    assert.equal(resolveVar('constructor', cx), undefined);
+    assert.equal(resolveVar('a.constructor', cx), undefined);
+    assert.equal(resolveVar('__proto__', cx), undefined);
+    assert.equal(resolveVar('a.__proto__', cx), undefined);
+    assert.equal(resolveVar('a["toString"]', cx), undefined);
+    assert.equal(resolveVar('a.hasOwnProperty', cx), undefined);
+    assert.equal(evalCondition({ var: 'constructor' }, cx), false);
+  });
+
+  it('reads an own "__proto__" key from a null-prototype map as plain data', () => {
+    const map = Object.create(null) as Record<string, unknown>;
+    map['__proto__'] = { credits: 1 };
+    assert.equal(resolveVar('m["__proto__"].credits', { m: map }), 1);
+    assert.equal(Object.getPrototypeOf(map), null);
   });
 });

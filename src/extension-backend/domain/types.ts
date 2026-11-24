@@ -147,10 +147,16 @@ export interface RuleRestrict {
  * A single condition in the structured `conditions` shorthand.
  * More approachable than raw JSONLogic — no nested prefix notation required.
  *
- * Supported operators: `>` `>=` `<` `<=` `==` `!=` `in` `matches`
+ * Supported operators: `>` `>=` `<` `<=` `==` `!=` `in` `matches`. Comparison
+ * semantics (missing values, numeric strings) are defined once in
+ * expr/jsonCondition.ts. `matches` is a case-insensitive wildcard match
+ * (`*` any run, `?` one character), NOT a regular expression.
  */
 export interface SimpleCondition {
-  /** Dot-path into the rule context. E.g. "today.credits", "budget.percentOfBudget". */
+  /**
+   * Var path into the rule context. E.g. "today.credits", "budget.percentOfBudget".
+   * Keys containing dots use brackets: `model["gpt-4.1"].credits`.
+   */
   field: string;
   /** Comparison operator. */
   op: '>' | '>=' | '<' | '<=' | '==' | '!=' | 'in' | 'matches';
@@ -168,13 +174,23 @@ export interface ThresholdLevel extends SimpleCondition {
   cooldown?: string;
 }
 
+/**
+ * One alert/restriction rule. A rule needs at least one trigger form; if
+ * several are present the precedence is `thresholds` > `when` > `conditions`
+ * (the lower forms are ignored, not combined). The same decision (`ruleMatches`
+ * in alertRules.ts) drives both alerts and restrictions, including the
+ * `requiresAuth`, `active` and `snoozeUntil` gates.
+ */
 export interface AlertRule {
   id: string;
+  /** Severity when fired; defaults to "warning" when omitted in config.json (thresholds override it per level). */
   severity: 'info' | 'warning' | 'critical';
+  /** Minimum time between firings: a positive number + m/h/d/w ("30m", "1.5h", "2d"). Defaults to 1h. */
   cooldown?: string;
   message: string;
   /**
-   * JSONLogic condition tree (original syntax). Required unless `conditions` is provided.
+   * JSONLogic condition tree (original syntax). Required unless `conditions` or
+   * `thresholds` is provided. Takes precedence over `conditions`.
    */
   when?: JsonCondition;
   /**
@@ -194,7 +210,7 @@ export interface AlertRule {
   /**
    * Severity escalation: instead of a single `when`, declare multiple threshold
    * levels. The highest-severity level whose condition fires wins. Each level
-   * can have its own cooldown.
+   * can have its own cooldown. When non-empty, `when`/`conditions` are ignored.
    */
   thresholds?: ThresholdLevel[];
   /**
@@ -213,16 +229,23 @@ export interface AlertGroup {
 export interface DisplayPrefs {
   /** Days shown in the daily-bars and cumulative-area charts. Default 30. */
   dailyBarsWindow?: number;
-  /** Weeks shown in the activity heatmap. Default 12. */
+  /** Weeks shown in the activity heatmap. Default 52 (a full year). */
   heatmapWeeks?: number;
   /** Max models/repos shown in ranked lists. Default 8. */
   topN?: number;
 }
 
 export interface UserConfig {
-  /** Monthly USD budget; 0 = no budget set. */
+  /**
+   * Monthly USD budget; 0 = no budget set. This top-level value is the one
+   * UsageService and the built-in alerts read; `budget.monthlyUsd` below is
+   * accepted and persisted by mergeConfig but never consulted.
+   */
   monthlyBudget: number;
-  /** Premium requests included in the plan; colours the spend gauge. */
+  /**
+   * Premium requests included in the plan; colours the spend gauge. Top-level
+   * wins over `budget.includedCredits` for the same reason as `monthlyBudget`.
+   */
   includedCredits: number;
   /** Warn once a day when daily credits exceed this; 0 = off. */
   dailyCreditAlert: number;
@@ -232,6 +255,7 @@ export interface UserConfig {
   vars?: Record<string, number | string | boolean | (string | number)[]>;
   groups?: AlertGroup[];
   rules?: AlertRule[];
+  /** Alternative spelling of the two top-level budget fields; see their docs — currently unused at runtime. */
   budget?: { monthlyUsd: number; includedCredits: number };
   /** Per-branch credit caps keyed by branch name. Used in restriction rules. */
   branchBudgets?: Record<string, number>;
@@ -608,8 +632,10 @@ export interface CategoryTrendData {
 export interface WeekdayData {
   /** Credits per weekday, index 0=Sun … 6=Sat. */
   totals: number[];
-  /** Index of the busiest weekday (0–6, Sun=0 basis). */
+  /** Index of the busiest weekday (0–6, Sun=0 basis). 0 when every total is zero — prefer `peakWeekday`. */
   peak: number;
+  /** Busiest weekday (Sun=0 basis), or null when there is no weekday activity at all (mirrors `peakHour`). */
+  peakWeekday?: number | null;
 }
 
 export interface ChartData {

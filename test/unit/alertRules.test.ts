@@ -1,5 +1,13 @@
 import * as assert from 'assert';
-import { parseAlertRules, evaluateAlertRules, shouldNotify } from '../../src/extension-backend/domain/alertRules';
+import {
+  computeAlertEvaluation,
+  evaluateAlertRules,
+  matchRule,
+  parseAlertRules,
+  parseDurationMs,
+  ruleMatches,
+  shouldNotify,
+} from '../../src/extension-backend/domain/alertRules';
 import { AlertRule, UsageSnapshot } from '../../src/extension-backend/domain/types';
 
 function snap(todayCredits = 0): UsageSnapshot {
@@ -431,5 +439,187 @@ describe('shouldNotify', () => {
     assert.equal(shouldNotify(first[0]!.rule), false);
     const second = evaluateAlertRules({ snapshot: snap(0), rules, fired, now: now + 60_000 });
     assert.equal(second.length, 0, 'cooldown still applies even though the rule never notified');
+  });
+});
+
+describe('parseDurationMs / cooldown validation', () => {
+  it('accepts m/h/d/w case-insensitively with optional decimals', () => {
+    assert.equal(parseDurationMs('30m'), 30 * 60_000);
+    assert.equal(parseDurationMs('30M'), 30 * 60_000);
+    assert.equal(parseDurationMs('1.5h'), 90 * 60_000);
+    assert.equal(parseDurationMs('2D'), 2 * 86_400_000);
+    assert.equal(parseDurationMs('.5w'), 302_400_000);
+    assert.equal(parseDurationMs(' 4 h '), 4 * 3_600_000);
+  });
+
+  it('rejects zero, negative, unitless and unparseable values', () => {
+    for (const bad of ['0m', '0.0h', '-5m', '', 'abc', '10', '1 hour', '1x', 'm', '1..5h', '1e3m']) {
+      assert.equal(parseDurationMs(bad), null, JSON.stringify(bad));
+    }
+    assert.equal(parseDurationMs(`${'9'.repeat(400)}d`), null, 'overflow to Infinity is rejected');
+  });
+
+  it('REGRESSION: parseAlertRules reports a bad rule cooldown instead of silently using 1h', () => {
+    for (const cooldown of ['1 hour', '0m', '-5m', 'soon']) {
+      const result = parseAlertRules({ rules: [{ id: 'r', message: '', when: true, cooldown }] });
+      assert.equal(result.ok, false, `cooldown ${JSON.stringify(cooldown)} must be rejected`);
+      assert.ok(
+        result.errors.some((e) => e.field === 'rules.0.cooldown' && /cooldown/.test(e.message)),
+        JSON.stringify(result.errors),
+      );
+    }
+  });
+
+  it('REGRESSION: parseAlertRules reports a bad threshold-level cooldown', () => {
+    const result = parseAlertRules({
+      rules: [{
+        id: 'r', message: '',
+        thresholds: [{ field: 'today.credits', op: '>', value: 1, severity: 'info', cooldown: 'x' }],
+      }],
+    });
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((e) => e.field === 'rules.0.thresholds.0.cooldown'), JSON.stringify(result.errors));
+  });
+
+  it('parseAlertRules accepts decimal and upper-case cooldowns', () => {
+    const result = parseAlertRules({
+      rules: [{ id: 'r', message: '', when: true, cooldown: '1.5H' }],
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.doc.rules[0]?.cooldown, '1.5H');
+  });
+
+  it('parseAlertRules rejects a matches condition without a string pattern', () => {
+    const bad = parseAlertRules({
+      rules: [{ id: 'r', message: '', conditions: [{ field: 'topModel.id', op: 'matches', value: 5 }] }],
+    });
+    assert.equal(bad.ok, false);
+    const tooLong = parseAlertRules({
+      rules: [{ id: 'r', message: '', conditions: [{ field: 'topModel.id', op: 'matches', value: 'a'.repeat(257) }] }],
+    });
+    assert.equal(tooLong.ok, false);
+    const good = parseAlertRules({
+      rules: [{ id: 'r', message: '', conditions: [{ field: 'topModel.id', op: 'matches', value: 'claude-*' }] }],
+    });
+    assert.equal(good.ok, true);
+  });
+});
+
+describe('alertRules — runtime cooldown parsing', () => {
+  const now = Date.now();
+  const rule = (cooldown: string): AlertRule[] => [{ id: 'r', severity: 'warning', message: '', when: true, cooldown }];
+
+  it('REGRESSION: a zero cooldown is not honoured as "no cooldown"; it falls back to 1h', () => {
+    const fired = new Map<string, number>([['r#warning', now - 60_000]]);
+    const out = evaluateAlertRules({ snapshot: snap(0), rules: rule('0m'), fired, now });
+    assert.equal(out.length, 0, 'fired 1 minute ago, still inside the 1h fallback');
+  });
+
+  it('REGRESSION: decimal cooldowns are honoured (0.5h = 30 minutes)', () => {
+    const recent = new Map<string, number>([['r#warning', now - 20 * 60_000]]);
+    assert.equal(evaluateAlertRules({ snapshot: snap(0), rules: rule('0.5h'), fired: recent, now }).length, 0);
+    const old = new Map<string, number>([['r#warning', now - 40 * 60_000]]);
+    assert.equal(evaluateAlertRules({ snapshot: snap(0), rules: rule('0.5h'), fired: old, now }).length, 1);
+  });
+
+  it('REGRESSION: unit letters are case-insensitive (30M = 30 minutes)', () => {
+    const old = new Map<string, number>([['r#warning', now - 40 * 60_000]]);
+    assert.equal(evaluateAlertRules({ snapshot: snap(0), rules: rule('30M'), fired: old, now }).length, 1);
+  });
+});
+
+describe('alertRules — shared rule matching', () => {
+  const now = Date.now();
+
+  it('precedence: thresholds win over when, and when wins over conditions', () => {
+    const thresholdsAndWhen: AlertRule = {
+      id: 'a', severity: 'info', message: '',
+      when: true,
+      thresholds: [{ field: 'today.credits', op: '>', value: 500, severity: 'critical' }],
+    };
+    assert.equal(matchRule(thresholdsAndWhen, { today: { credits: 1 } }, now), null, 'when is ignored');
+    assert.equal(matchRule(thresholdsAndWhen, { today: { credits: 900 } }, now), 'critical');
+
+    const whenAndConditions: AlertRule = {
+      id: 'b', severity: 'warning', message: '',
+      when: false,
+      conditions: [{ field: 'today.credits', op: '>', value: 0 }],
+    };
+    assert.equal(ruleMatches(whenAndConditions, { today: { credits: 10 } }, now), false, 'conditions are ignored');
+  });
+
+  it('gates: requiresAuth, active and snoozeUntil all apply', () => {
+    const base: AlertRule = { id: 'g', severity: 'warning', message: '', when: true };
+    assert.equal(ruleMatches({ ...base, requiresAuth: true }, { signedIn: false }, now), false);
+    assert.equal(ruleMatches({ ...base, requiresAuth: true }, { signedIn: true }, now), true);
+    assert.equal(ruleMatches({ ...base, active: false }, {}, now), false);
+    assert.equal(ruleMatches({ ...base, snoozeUntil: new Date(now + 60_000).toISOString() }, {}, now), false);
+    assert.equal(ruleMatches({ ...base, snoozeUntil: new Date(now - 60_000).toISOString() }, {}, now), true);
+  });
+});
+
+describe('alertRules — pure evaluation', () => {
+  const now = Date.now();
+  const rules: AlertRule[] = [{ id: 'r', severity: 'warning', message: 'm', when: true, cooldown: '1h' }];
+
+  it('REGRESSION: computeAlertEvaluation never mutates the fired map and returns the new entries', () => {
+    const fired = new Map<string, number>([['other#info', 1]]);
+    const { results, firedKeys } = computeAlertEvaluation({ snapshot: snap(0), rules, fired, now });
+    assert.equal(results.length, 1);
+    assert.deepEqual([...fired], [['other#info', 1]], 'input untouched');
+    assert.deepEqual([...firedKeys], [['r#warning', now]]);
+  });
+
+  it('applying firedKeys reproduces what evaluateAlertRules records', () => {
+    const viaWrapper = new Map<string, number>();
+    evaluateAlertRules({ snapshot: snap(0), rules, fired: viaWrapper, now });
+    const pure = computeAlertEvaluation({ snapshot: snap(0), rules, fired: new Map(), now });
+    assert.deepEqual([...viaWrapper], [...pure.firedKeys]);
+  });
+
+  it('is repeatable: the same pure call twice yields the same alerts', () => {
+    const fired = new Map<string, number>();
+    const first = computeAlertEvaluation({ snapshot: snap(0), rules, fired, now });
+    const second = computeAlertEvaluation({ snapshot: snap(0), rules, fired, now });
+    assert.equal(first.results.length, 1);
+    assert.equal(second.results.length, 1);
+  });
+
+  it('still debounces duplicate rule ids within a single pass', () => {
+    const dup: AlertRule[] = [
+      { id: 'r', severity: 'warning', message: 'first', when: true },
+      { id: 'r', severity: 'warning', message: 'second', when: true },
+    ];
+    const { results } = computeAlertEvaluation({ snapshot: snap(0), rules: dup, fired: new Map(), now });
+    assert.deepEqual(results.map((r) => r.message), ['first']);
+  });
+});
+
+describe('alertRules — template paths', () => {
+  const now = Date.now();
+  const snapshot = {
+    ...snap(0),
+    topModels: [{ key: 'gpt-4.1', credits: 12, cost: 0.5, tokens: 100 }],
+    allModels: ['gpt-4.1'],
+  } as unknown as UsageSnapshot;
+  const render = (message: string): string | undefined =>
+    evaluateAlertRules({
+      snapshot,
+      rules: [{ id: 'r', severity: 'warning', message, when: true }],
+      fired: new Map(),
+      now,
+    })[0]?.message;
+
+  it('REGRESSION: bracket paths reach keys that contain dots', () => {
+    assert.equal(render('gpt-4.1 used {{ model["gpt-4.1"].credits }} cr'), 'gpt-4.1 used 12 cr');
+    assert.equal(render("{{model['gpt-4.1'].cost}}"), '0.50');
+  });
+
+  it('REGRESSION: inherited names never render (constructor, __proto__)', () => {
+    assert.equal(render('[{{constructor}}][{{__proto__}}][{{today.constructor}}]'), '[][][]');
+  });
+
+  it('leaves text that is not a valid path untouched', () => {
+    assert.equal(render('{{ not a path }} {{model["oops}}'), '{{ not a path }} {{model["oops}}');
   });
 });

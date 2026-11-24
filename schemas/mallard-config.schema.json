@@ -177,29 +177,29 @@
           },
           "cooldown": {
             "type": "string",
-            "pattern": "^\\d+[mhdw]$",
-            "description": "Minimum time between firings. Examples: \"1h\", \"30m\", \"1d\". Defaults to 1h."
+            "pattern": "^\\s*(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*[mMhHdDwW]\\s*$",
+            "description": "Minimum time between firings: a positive number (decimals allowed) followed by m, h, d or w, in either case. Examples: \"1h\", \"30m\", \"1.5h\", \"1d\". Zero is rejected. Defaults to 1h."
           },
           "message": {
             "type": "string",
             "description": "Alert message. Use {{ today.credits }} to insert live values via dot-path."
           },
-          "when": { "$ref": "#/$defs/JsonCondition", "description": "JSONLogic condition tree. Use 'conditions' for a simpler syntax." },
+          "when": { "$ref": "#/$defs/JsonCondition", "description": "JSONLogic condition tree. Use 'conditions' for a simpler syntax. If both are present, 'when' wins; 'thresholds' (when non-empty) wins over both." },
           "conditions": {
             "type": "array",
-            "description": "Structured condition shorthand — easier to read and write than 'when'. Provide either 'when' or 'conditions', not both.",
+            "description": "Structured condition shorthand — easier to read and write than 'when'. If both 'when' and 'conditions' are present, 'when' wins.",
             "items": {
               "type": "object",
               "required": ["field", "op", "value"],
               "properties": {
                 "field": {
                   "type": "string",
-                  "description": "Dot-path into the rule context. Examples: \"today.credits\", \"budget.percentOfBudget\", \"velocity.creditsPerHour\"."
+                  "description": "Path into the rule context. Examples: \"today.credits\", \"budget.percentOfBudget\", \"velocity.creditsPerHour\". Keys containing dots use brackets: model[\"gpt-4.1\"].credits."
                 },
                 "op": {
                   "type": "string",
                   "enum": [">", ">=", "<", "<=", "==", "!=", "in", "matches"],
-                  "description": "Comparison operator. 'in': field value is one of an array. 'matches': field matches a regex/glob."
+                  "description": "Comparison operator. 'in': field value is one of an array (same equality as '=='). 'matches': case-insensitive wildcard match of the whole value, where '*' is any run of characters and '?' is one character (not a regex; a leading '^' / trailing '$' anchor a prefix / suffix). A missing field never satisfies an operator except '!='."
                 },
                 "value": {
                   "description": "Value to compare against. For 'in', provide an array.",
@@ -225,16 +225,16 @@
           "notify": { "type": "boolean", "description": "Whether to surface a VS Code notification when the rule fires." },
           "thresholds": {
             "type": "array",
-            "description": "Severity escalation: instead of a single condition, declare multiple threshold levels. The highest-severity level whose condition fires wins.",
+            "description": "Severity escalation: instead of a single condition, declare multiple threshold levels. The highest-severity level whose condition fires wins. When non-empty, 'when' and 'conditions' are ignored.",
             "items": {
               "type": "object",
               "required": ["field", "op", "value", "severity"],
               "properties": {
-                "field": { "type": "string", "description": "Dot-path into the rule context." },
+                "field": { "type": "string", "description": "Path into the rule context (dots, or brackets for keys containing dots)." },
                 "op": {
                   "type": "string",
                   "enum": [">", ">=", "<", "<=", "==", "!=", "in", "matches"],
-                  "description": "Comparison operator."
+                  "description": "Comparison operator. Same semantics as in 'conditions' ('matches' is a wildcard match, not a regex)."
                 },
                 "value": {
                   "description": "Value to compare against.",
@@ -252,8 +252,8 @@
                 },
                 "cooldown": {
                   "type": "string",
-                  "pattern": "^\\d+[mhdw]$",
-                  "description": "Per-level cooldown. Overrides the rule-level cooldown for this severity."
+                  "pattern": "^\\s*(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*[mMhHdDwW]\\s*$",
+                  "description": "Per-level cooldown (same format as the rule-level cooldown). Overrides the rule-level cooldown for this severity."
                 }
               },
               "additionalProperties": false

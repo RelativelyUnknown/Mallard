@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import { evaluateRestrictionState } from '../../src/extension-backend/domain/restriction/evaluator';
+import { ruleMatches } from '../../src/extension-backend/domain/alertRules';
 import { AlertRule } from '../../src/extension-backend/domain/types';
 
 describe('evaluateRestrictionState', () => {
@@ -162,5 +163,113 @@ describe('evaluateRestrictionState', () => {
     const out = evaluateRestrictionState(rules, { today: { credits: 1 } }, Date.now());
     assert.equal(out.active, null);
     assert.equal(out.matching.length, 0);
+  });
+});
+
+describe('evaluateRestrictionState — same matching as alerts', () => {
+  const now = Date.now();
+
+  it('REGRESSION: honours `thresholds` (restrict rules with only thresholds used to never match)', () => {
+    const rules: AlertRule[] = [
+      {
+        id: 't',
+        severity: 'info',
+        message: '',
+        thresholds: [
+          { field: 'today.credits', op: '>', value: 50, severity: 'warning' },
+          { field: 'today.credits', op: '>', value: 90, severity: 'critical' },
+        ],
+        restrict: {},
+      },
+    ];
+    assert.equal(evaluateRestrictionState(rules, { today: { credits: 10 } }, now).active, null);
+    assert.equal(evaluateRestrictionState(rules, { today: { credits: 60 } }, now).active!.id, 't');
+  });
+
+  it('REGRESSION: honours `snoozeUntil` exactly like the alert path', () => {
+    const base: AlertRule = {
+      id: 's',
+      severity: 'warning',
+      message: '',
+      when: { '>': [{ var: 'today.credits' }, 0] },
+      restrict: {},
+    };
+    const ctx = { today: { credits: 100 } };
+    const snoozed = { ...base, snoozeUntil: new Date(now + 60_000).toISOString() };
+    const expired = { ...base, snoozeUntil: new Date(now - 60_000).toISOString() };
+    assert.equal(evaluateRestrictionState([snoozed], ctx, now).active, null);
+    assert.equal(evaluateRestrictionState([expired], ctx, now).active!.id, 's');
+  });
+
+  it('honours the `conditions` shorthand and "thresholds > when > conditions" precedence', () => {
+    const conditions: AlertRule = {
+      id: 'c',
+      severity: 'warning',
+      message: '',
+      conditions: [{ field: 'today.credits', op: '>', value: 50 }],
+      restrict: {},
+    };
+    assert.equal(evaluateRestrictionState([conditions], { today: { credits: 60 } }, now).active!.id, 'c');
+    assert.equal(evaluateRestrictionState([conditions], { today: { credits: 10 } }, now).active, null);
+
+    const both: AlertRule = { ...conditions, id: 'both', when: false };
+    assert.equal(evaluateRestrictionState([both], { today: { credits: 60 } }, now).active, null, 'when wins');
+  });
+
+  it('a restriction and an alert agree on every rule in a mixed set', () => {
+    const rules: AlertRule[] = [
+      { id: 'a', severity: 'warning', message: '', when: true, restrict: {} },
+      { id: 'b', severity: 'warning', message: '', when: true, restrict: {}, snoozeUntil: new Date(now + 5_000).toISOString() },
+      { id: 'c', severity: 'warning', message: '', conditions: [{ field: 'x', op: '==', value: 1 }], restrict: {} },
+      { id: 'd', severity: 'warning', message: '', when: true, restrict: {}, requiresAuth: true },
+    ];
+    const ctx = { x: 1, signedIn: false };
+    const matched = evaluateRestrictionState(rules, ctx, now).matching.map((r) => r.id);
+    assert.deepEqual(matched, rules.filter((r) => ruleMatches(r, ctx, now)).map((r) => r.id));
+    assert.deepEqual(matched, ['a', 'c']);
+  });
+});
+
+describe('evaluateRestrictionState — clearing the active restriction', () => {
+  const now = Date.now();
+  const rule = (restrict: AlertRule['restrict']): AlertRule => ({
+    id: 'r',
+    severity: 'warning',
+    message: '',
+    when: { '>': [{ var: 'today.credits' }, 50] },
+    restrict: restrict ?? {},
+  });
+
+  it('REGRESSION: the active rule is clearable once its `when` has gone false and reEnableWhen holds', () => {
+    const rules = [rule({ reEnableWhen: { '<': [{ var: 'today.credits' }, 10] } })];
+    // Trigger no longer holds (credits 5 <= 50) and the re-enable condition is true.
+    const out = evaluateRestrictionState(rules, { today: { credits: 5 } }, now, 'r');
+    assert.equal(out.active, null);
+    assert.equal(out.matching.length, 0);
+    assert.deepEqual(out.canClear.map((r) => r.id), ['r']);
+    assert.equal(out.canClearActive, true);
+    // Without telling it which rule is active, nothing can be reported.
+    assert.equal(evaluateRestrictionState(rules, { today: { credits: 5 } }, now).canClear.length, 0);
+  });
+
+  it('the active rule is NOT clearable while its reEnableWhen is still false', () => {
+    const rules = [rule({ reEnableWhen: { '<': [{ var: 'today.credits' }, 10] } })];
+    const out = evaluateRestrictionState(rules, { today: { credits: 30 } }, now, 'r');
+    assert.equal(out.canClearActive, false);
+    assert.equal(out.canClear.length, 0);
+  });
+
+  it('without a reEnableWhen the active rule clears only when its trigger has stopped matching', () => {
+    const rules = [rule({})];
+    assert.equal(evaluateRestrictionState(rules, { today: { credits: 5 } }, now, 'r').canClearActive, true);
+    const stillMatching = evaluateRestrictionState(rules, { today: { credits: 90 } }, now, 'r');
+    assert.equal(stillMatching.canClearActive, false);
+    assert.equal(stillMatching.active!.id, 'r');
+  });
+
+  it('an unknown activeRuleId reports nothing clearable', () => {
+    const out = evaluateRestrictionState([rule({})], { today: { credits: 5 } }, now, 'gone');
+    assert.equal(out.canClearActive, false);
+    assert.equal(out.canClear.length, 0);
   });
 });
