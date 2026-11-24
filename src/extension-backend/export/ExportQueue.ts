@@ -8,9 +8,68 @@
  * can be exercised directly in the unit-test runner (see
  * test/unit/exportQueue.test.ts and the stub in test/unit/metricExporter.test.ts).
  */
+import * as crypto from 'crypto';
+import { readdirSync, unlinkSync } from 'fs';
+import * as path from 'path';
 import { JsonFileStore } from '../util/JsonFileStore';
 
 const QUEUE_FILE = 'export-queue.json';
+
+/**
+ * Queue file for an export target: the primary target (no name) uses the
+ * historical `export-queue.json`; a named target gets `export-queue-<name>.json`.
+ * Characters outside [a-z0-9._-] are replaced, which on its own maps distinct
+ * names onto the same file ("a/b" and "a_b"), so any name that needed
+ * replacing also carries a short hash of the original — distinct targets can
+ * never share (and corrupt) one queue. Names that need no replacing keep
+ * their historical file, so existing backlogs survive the upgrade.
+ */
+export function queueFileFor(name: string | undefined): string {
+  if (name === undefined) return QUEUE_FILE;
+  const safe = name.replace(/[^a-z0-9._-]/gi, '_');
+  if (safe === name) return `export-queue-${safe}.json`;
+  const hash = crypto.createHash('sha256').update(name).digest('hex').slice(0, 8);
+  return `export-queue-${safe}-${hash}.json`;
+}
+
+const isQueueFile = (name: string): boolean =>
+  name === QUEUE_FILE || (name.startsWith('export-queue-') && name.endsWith('.json'));
+
+/** Delete every export queue file in `dir` (the full wipe). Best-effort; returns the names removed. */
+export function deleteQueueFiles(dir: string): string[] {
+  const removed: string[] = [];
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return removed;
+  }
+  for (const name of names) {
+    if (!isQueueFile(name)) continue;
+    try {
+      unlinkSync(path.join(dir, name));
+      removed.push(name);
+    } catch {
+      /* already gone or locked: best-effort */
+    }
+  }
+  return removed;
+}
+
+function isQueuedExport(v: unknown): v is QueuedExport {
+  if (typeof v !== 'object' || v === null) return false;
+  const e = v as Record<string, unknown>;
+  return (
+    typeof e['id'] === 'string' &&
+    e['id'].length > 0 &&
+    typeof e['topic'] === 'string' &&
+    typeof e['payload'] === 'object' &&
+    e['payload'] !== null &&
+    !Array.isArray(e['payload']) &&
+    typeof e['enqueuedAt'] === 'number' &&
+    Number.isFinite(e['enqueuedAt'])
+  );
+}
 
 /**
  * Oldest-evicted-first cap once exceeded. This is a count, not a duration,
@@ -63,7 +122,10 @@ export class ExportQueue {
 
   private readFromDisk(): QueuedExport[] {
     const parsed = this.store.read();
-    return Array.isArray(parsed) ? (parsed as QueuedExport[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // A hand-edited or half-corrupt file must not feed malformed entries to
+    // the protocol (e.g. a null payload would throw inside send()).
+    return parsed.filter(isQueuedExport).slice(-MAX_QUEUE_SIZE);
   }
 
   private writeToDisk(): void {

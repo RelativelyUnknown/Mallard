@@ -104,6 +104,7 @@
     },
     "currency": {
       "type": "string",
+      "pattern": "^[A-Za-z]{3}$",
       "description": "Display currency ISO code (e.g. \"EUR\"). Set from the dashboard's header selector; costs are converted from USD with daily Frankfurter rates."
     },
     "monthlyBudget": {

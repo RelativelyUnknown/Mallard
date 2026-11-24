@@ -11,7 +11,10 @@
  *   - mTLS client certificates: when certFile/keyFile/caFile are supplied,
  *     requests are sent via Node.js https.request (which supports TLS client
  *     certs) instead of the global fetch().
- *   - Retry with exponential backoff on 5xx / network error (p-retry).
+ *   - Redirects are never followed (a 3xx is a fatal, non-retryable failure),
+ *     so credentials and payloads cannot be forwarded to another host.
+ *   - Retry with exponential backoff on 5xx, 401/403/408/429 and network
+ *     errors (p-retry); other 4xx responses are fatal.
  *   - 10-second per-request timeout.
  */
 import * as crypto from 'crypto';
@@ -24,6 +27,35 @@ import type { MetricProtocol, SendResult } from './MetricExporter';
 import { defaultLogger, Logger } from '../util/logger';
 
 const REQUEST_TIMEOUT_MS = 10_000;
+
+/** Status reported when a redirect was refused (see isRedirectError). */
+const REDIRECT_STATUS = 307;
+
+/** Client errors that are about the moment, not the payload: the request may succeed on a later attempt. */
+const RETRYABLE_CLIENT_ERRORS = new Set([401, 403, 408, 429]);
+
+/**
+ * How a response status should be treated:
+ *   ok    — 2xx, delivered.
+ *   retry — 5xx, 401/403 (credentials can be fixed), 408, 429, or anything
+ *           non-HTTP-final (1xx/0): try again later.
+ *   fatal — other 4xx (the payload is wrong) and 3xx. A redirect is never
+ *           success: it was not followed, so nothing was delivered, and
+ *           re-sending the same request would hit the same redirect.
+ */
+function classifyStatus(status: number): 'ok' | 'retry' | 'fatal' {
+  if (status >= 200 && status < 300) return 'ok';
+  if (status >= 300 && status < 400) return 'fatal';
+  if (status >= 400 && status < 500) return RETRYABLE_CLIENT_ERRORS.has(status) ? 'retry' : 'fatal';
+  return 'retry';
+}
+
+function isRedirectError(err: unknown): boolean {
+  if (!(err instanceof TypeError)) return false;
+  const cause = (err as { cause?: unknown }).cause;
+  const text = `${err.message} ${cause instanceof Error ? cause.message : ''}`;
+  return /redirect/i.test(text);
+}
 
 export interface WebhookProtocolOptions {
   url: string;
@@ -88,11 +120,12 @@ export class WebhookProtocol implements MetricProtocol {
             })
           : await this._postWithFetch(url, body, extraHeaders);
 
-        if (status >= 500) {
+        const outcome = classifyStatus(status);
+        if (outcome === 'retry') {
           throw new Error(`HTTP ${status} from webhook endpoint`);
         }
-        if (status >= 400) {
-          // 4xx = client error; abort immediately (no retry).
+        if (outcome === 'fatal') {
+          // The same payload will never succeed: abort immediately (no retry).
           onAbort(true);
           throw new AbortError(`HTTP ${status} from webhook endpoint`);
         }
@@ -113,13 +146,22 @@ export class WebhookProtocol implements MetricProtocol {
     body: string,
     headers: Record<string, string>,
   ): Promise<number> {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers,
-      body,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    return res.status;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body,
+        // Never follow redirects: the API key / signature headers and the
+        // payload must only ever go to the configured endpoint.
+        redirect: 'error',
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      return res.status;
+    } catch (err) {
+      // undici reports redirect:'error' as a TypeError, not a response.
+      if (isRedirectError(err)) return REDIRECT_STATUS;
+      throw err;
+    }
   }
 
   private _postWithClientCert(

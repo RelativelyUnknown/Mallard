@@ -3,10 +3,14 @@
 Mallard works out of the box. Budget and alert settings live in a JSON config file in Mallard's storage directory:
 
 ```
-~/.config/Code/User/globalStorage/RelativelyUnknown.mallard/mallard/config.json
+~/.config/Code/User/globalStorage/RelativelyUnknown.mallard/config.json
 ```
 
+(`<globalStorage>/<publisher>.<name>/config.json`; the folder name may be lower-case on some platforms.)
+
 Click **Edit alert rules** in the dashboard to open it with inline validation, hover docs, and autocompletion.
+
+Mallard never discards a config file it cannot fully read. If the file is not valid JSON, the last good configuration stays in force and the file is left untouched; if only some blocks are invalid (for example a malformed `rules` array), those blocks are ignored with a warning in the **Mallard** Output panel and the rest still apply. The first time you change a setting from the dashboard afterwards, the unreadable original is saved next to it as `config.json.bad-<timestamp>` before the file is rewritten.
 
 ## Budget and alerts
 

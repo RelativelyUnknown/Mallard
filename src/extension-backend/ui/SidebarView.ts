@@ -331,6 +331,8 @@ export class SidebarView implements vscode.WebviewViewProvider {
           minimumFractionDigits: digits, maximumFractionDigits: digits,
         }).format(amount);
       } catch {
+        // The raw code is echoed here; every caller passes the result through
+        // escHtml before it reaches innerHTML.
         return (currency || 'USD') + ' ' + amount.toFixed(digits);
       }
     }

@@ -113,6 +113,18 @@ export function exportTargetSlots(exportCfg: {
   ];
 }
 
+/**
+ * True for a SecretStorage key the metric exporter reads — a base export
+ * secret or a per-target `<base>:<name>` one (the GitHub PAT is not one).
+ * The exporter captures its credentials when built, so a change to any of
+ * these must rebuild it.
+ */
+export function isExportSecretKey(key: string): boolean {
+  return ALL_SECRET_KEYS.some(
+    (base) => base !== SECRET_KEYS.githubPat && (key === base || key.startsWith(`${base}:`)),
+  );
+}
+
 /** Prompt for a value and store/clear the given secret. Reused by all setter commands. */
 export async function promptAndStoreSecret(
   secrets: vscode.SecretStorage,

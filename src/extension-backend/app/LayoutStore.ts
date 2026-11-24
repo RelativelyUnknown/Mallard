@@ -30,7 +30,8 @@ export class LayoutStore implements vscode.Disposable {
   }
 
   get(): DashboardLayout {
-    return configPanelsToLayout(this.userConfig.get().dashboard?.panels);
+    const dashboard = this.userConfig.get().dashboard;
+    return configPanelsToLayout(dashboard?.panels, dashboard?.columns);
   }
 
   async set(layout: DashboardLayout): Promise<void> {
