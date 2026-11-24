@@ -6,7 +6,7 @@
  */
 import type { TooltipComponentOption } from './echarts';
 import { readTheme } from '../theme';
-import { UsageSnapshot, WeekdayData } from '../../extension-backend/domain/types';
+import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatCredits } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
 import { escapeHtml } from '../escapeHtml';
@@ -26,11 +26,7 @@ class WeekdayRadialChart extends ChartComponent {
   }
 
   protected buildOption(s: UsageSnapshot): object {
-    // `peakWeekday` is optional on the wire; the cast keeps this compiling
-    // against a WeekdayData that predates it (it is then simply a no-op).
-    const { totals, peak, peakWeekday } = s.chartData.weekdayBreakdown as WeekdayData & {
-      peakWeekday?: number | null;
-    };
+    const { totals, peak, peakWeekday } = s.chartData.weekdayBreakdown;
     const t = readTheme();
 
     // Rotate from Sun=0 storage to Mon=0 display: displayIdx → storedIdx = (displayIdx + 1) % 7
