@@ -49,6 +49,16 @@ export function nextBucketStart(ts: number, g: Granularity): number {
   }
 }
 
+/**
+ * Epoch ms of local midnight `days` calendar days after (negative: before) the
+ * day containing `ts`. Unlike `ts + days * DAY_MS` this is DST-correct — a
+ * 23h/25h day does not shift the result by an hour into the neighbouring day.
+ */
+export function dayStartOffset(ts: number, days: number): number {
+  const date = new Date(ts);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days).getTime();
+}
+
 /** ISO-8601 week number and its week-year. */
 export function isoWeek(ts: number): { year: number; week: number } {
   const date = new Date(ts);

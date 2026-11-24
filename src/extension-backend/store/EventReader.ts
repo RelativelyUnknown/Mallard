@@ -2,7 +2,7 @@
 import { DuckDBConnection } from '@duckdb/node-api';
 import { z } from 'zod';
 import { CostCategory, SourceKind, Surface, UsageEvent } from '../domain/types';
-import { DAY_MS } from '../util/time';
+import { DAY_MS, bucketKey, nextBucketStart, startOf } from '../util/time';
 import {
   AggregateResult,
   BucketBy,
@@ -10,7 +10,7 @@ import {
   RecordFilter,
   TimeBucket,
 } from './EventRepository';
-import { readRows, readPrepared } from './dbUtils';
+import { dateToId, readRows, readPrepared } from './dbUtils';
 import {
   COUNT_ALL_SQL,
   CREDITS_BY_BRANCH_SQL,
@@ -120,17 +120,20 @@ function coerceEnum<T extends string>(fallback: T, label: string) {
   };
 }
 
+// DuckDB hands BIGINT columns back as bigint, INTEGER as number.
+const NumLike = z.union([z.number(), z.bigint()]).transform(Number);
+
 const EventRow = z.object({
   id: z.string(),
-  ts: z.union([z.number(), z.bigint()]).transform(Number),
+  ts: NumLike,
   modelId: z.string(),
   surface: z.enum(['chat', 'inline', 'agent', 'edit', 'unknown']).catch(coerceEnum('unknown', 'surface')),
   source: z.enum(['lm', 'local', 'github', 'claude-code']).catch(coerceEnum('local', 'source')),
   credits: z.number(),
   cost: z.number(),
   estimated: z.boolean().catch(true),
-  promptTokens: z.number().nullish(),
-  completionTokens: z.number().nullish(),
+  promptTokens: NumLike.nullish(),
+  completionTokens: NumLike.nullish(),
   repo: z.string().nullish(),
   branch: z.string().nullish(),
   attribution: z.enum(['authoritative', 'heuristic']).nullish(),
@@ -176,14 +179,6 @@ function rowToEvent(row: Record<string, unknown>): UsageEvent | null {
 
 // ── Filter helpers ─────────────────────────────────────────────────────────────
 
-function dateToId(ms: number): number {
-  // Local date parts, not UTC: fact_daily_usage.date_id is written via DuckDB
-  // strftime on a TIMESTAMPTZ, which renders in the session (= system) timezone.
-  // Using UTC here made range filters miss rows on machines east of UTC.
-  const d = new Date(ms);
-  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-}
-
 function buildFilterSQL(filter?: RecordFilter): { clause: string; params: unknown[] } {
   /* c8 ignore next */
   if (!filter) return { clause: '', params: [] };
@@ -217,11 +212,13 @@ export interface SnapshotCacheToken {
 }
 
 export class EventReader implements IEventReader {
-  private snapCache?: { version: number; data: SnapshotSourceData };
+  private snapCache?: { version: number; dayKey: string; data: SnapshotSourceData };
 
   constructor(
     private readonly conn: DuckDBConnection,
     private readonly cacheToken: SnapshotCacheToken = { version: 0 },
+    /** Injectable clock; defines "today" / "month to date" for the snapshot. */
+    private readonly clock: () => number = Date.now,
   ) {}
 
   async find(filter?: RecordFilter): Promise<UsageEvent[]> {
@@ -452,17 +449,26 @@ export class EventReader implements IEventReader {
    * O(1). (Previously a second, separately-maintained snap_* materialization
    * computed the same numbers and could silently drift from the filtered path.)
    * The writer bumps cacheToken.version on every mutation to invalidate this.
+   *
+   * The totals also depend on the clock (today / month-to-date), so the memo is
+   * keyed on the local calendar day as well — a month change implies a day
+   * change. The version is captured BEFORE the read: a write that commits while
+   * the query is in flight bumps the token, so the (possibly pre-write) result
+   * is stored under the old version and is not served as current afterwards.
    */
   async readSnapshotCache(): Promise<SnapshotSourceData> {
-    if (this.snapCache && this.snapCache.version === this.cacheToken.version) {
+    const version = this.cacheToken.version;
+    const now = this.clock();
+    const dayKey = bucketKey(now, 'day');
+    if (this.snapCache && this.snapCache.version === version && this.snapCache.dayKey === dayKey) {
       return this.snapCache.data;
     }
-    const data = await this.readFilteredSnapshot({});
-    this.snapCache = { version: this.cacheToken.version, data };
+    const data = await this.readFilteredSnapshot({}, now);
+    this.snapCache = { version, dayKey, data };
     return data;
   }
 
-  async readFilteredSnapshot(filter: RecordFilter): Promise<SnapshotSourceData> {
+  async readFilteredSnapshot(filter: RecordFilter, now: number = this.clock()): Promise<SnapshotSourceData> {
     const { clause, params }                           = buildFilterSQL(filter);
     const rangeOnly: RecordFilter                      = filter.range ? { range: filter.range } : {};
     const { clause: rangeClause, params: rangeParams } = buildFilterSQL(rangeOnly);
@@ -472,8 +478,10 @@ export class EventReader implements IEventReader {
     // Arrays are serialised to JSON inside DuckDB so JS receives plain strings —
     // avoiding @duckdb/node-api's LIST<STRUCT> → JS conversion quirks.
     const tok      = `COALESCE(CAST(SUM(COALESCE(promptTokens,0)+COALESCE(completionTokens,0)) AS BIGINT),0)`;
-    const mtdCond  = `date_trunc('month', to_timestamp(ts/1000.0)::TIMESTAMPTZ) = date_trunc('month', now()::TIMESTAMPTZ)`;
-    const todaCond = `date_trunc('day',   to_timestamp(ts/1000.0)::TIMESTAMPTZ) = date_trunc('day',   now()::TIMESTAMPTZ)`;
+    // "Today" / month-to-date are local-calendar windows of the injected clock
+    // (not SQL now()); the bounds are integers we computed, safe to inline.
+    const mtdCond  = `ts >= ${startOf(now, 'month')} AND ts < ${nextBucketStart(now, 'month')}`;
+    const todaCond = `ts >= ${startOf(now, 'day')} AND ts < ${nextBucketStart(now, 'day')}`;
 
     // Scalar subquery over f (optional extra WHERE condition)
     const agg = (col: string, cond = '') =>

@@ -154,13 +154,16 @@ export class DuckDBFileReader {
 
     const globList = globArray.map((g) => `'${g.replace(/'/g, "''")}'`).join(', ');
     // sinceMs is an internal epoch-ms watermark; the integer guard keeps any
-    // non-numeric value out of the SQL text. Rows whose timestamp is not
-    // readable in SQL always pass: they are re-read each run and deduped on
+    // non-numeric value out of the SQL text. `>=`, not `>`: the watermark is the
+    // newest ts already ingested, and a later row can share that exact
+    // millisecond — a strict compare skipped it forever. Re-reading the rows at
+    // the watermark is harmless (inserts dedupe by id). Rows whose timestamp is
+    // not readable in SQL always pass: they are re-read each run and deduped on
     // their stable ids.
     const rowMs = timestampMsSql();
     const tsFilter =
       sinceMs != null && Number.isFinite(sinceMs)
-        ? `WHERE (${rowMs} IS NULL OR ${rowMs} > ${Math.floor(sinceMs)})`
+        ? `WHERE (${rowMs} IS NULL OR ${rowMs} >= ${Math.floor(sinceMs)})`
         : '';
     const select = (where: string): string =>
       `SELECT *, filename FROM read_ndjson([${globList}], ignore_errors := true, auto_detect := true, filename := true) ${where}`;
@@ -205,12 +208,25 @@ export class DuckDBFileReader {
   }
 
   private sqliteExtensionReady = false;
+  /** Set when INSTALL/LOAD failed (e.g. offline): not retried until restart. */
+  private sqliteExtensionFailure: unknown;
 
-  /** Load the DuckDB sqlite extension once per connection (idempotent). */
+  /**
+   * Load the DuckDB sqlite extension once per connection (idempotent). A
+   * failure is cached for the session — INSTALL downloads the extension, and
+   * retrying on every debounced file-watcher tick only repeats a failing
+   * network call.
+   */
   private async ensureSqliteExtension(): Promise<void> {
     if (this.sqliteExtensionReady) return;
-    await this.conn.run('INSTALL sqlite');
-    await this.conn.run('LOAD sqlite');
+    if (this.sqliteExtensionFailure !== undefined) throw this.sqliteExtensionFailure;
+    try {
+      await this.conn.run('INSTALL sqlite');
+      await this.conn.run('LOAD sqlite');
+    } catch (err) {
+      this.sqliteExtensionFailure = err;
+      throw err;
+    }
     this.sqliteExtensionReady = true;
   }
 

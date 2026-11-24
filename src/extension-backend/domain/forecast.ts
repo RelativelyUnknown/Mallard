@@ -31,9 +31,6 @@ export function selectForecaster(activeDays: number): Forecaster {
   return seasonalForecaster;
 }
 
-/** The fallback forecaster; kept for API compatibility. */
-export const defaultForecaster: Forecaster = linearForecaster;
-
 /* c8 ignore next */
 export function forecastMonth(
   dayAggregates: UsageAggregate[],

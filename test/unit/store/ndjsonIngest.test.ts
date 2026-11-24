@@ -115,7 +115,7 @@ describe('ingest through real DuckDB read_ndjson', () => {
         }));
       });
 
-      it('applies the watermark filter on the same instants (no off-by-offset skips or re-reads)', async () => {
+      it('applies the watermark filter on the same instants (no off-by-offset skips or re-reads of older rows)', async () => {
         await withTz(tz, () => withStore(async (store, dir) => {
           const file = path.join(dir, 's.jsonl');
           const at = (iso: string, id: string) =>
@@ -132,8 +132,10 @@ describe('ingest through real DuckDB read_ndjson', () => {
             ctx,
             EPOCH,
           );
-          // Strictly newer than the watermark instant, whatever the host zone.
-          assert.deepEqual(seen, ['after']);
+          // At or after the watermark instant, whatever the host zone: the row
+          // exactly at the watermark is re-read (a later row can share its
+          // millisecond; inserts dedupe by id) and the earlier row is not.
+          assert.deepEqual(seen, ['edge', 'after']);
         }));
       });
 
