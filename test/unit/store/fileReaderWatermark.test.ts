@@ -76,7 +76,10 @@ describe('DuckDBFileReader.ingestGlob — files without a timestamp column', () 
       assert.equal(result.inserted, 2, 'both rows are read (an unfiltered retry, not a failed ingest): without a timestamp the watermark cannot exclude the old one');
       assert.equal(result.maxEventTs, Date.parse('2026-06-10T13:00:00.000Z'));
       assert.deepEqual((await store.reader.find()).map((e) => e.id).sort(), ['new', 'old']);
-    } finally { store.dispose(); }
+    } finally {
+      store.dispose();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('still surfaces a genuine SQL failure under a watermark: warns and ingests nothing', async () => {

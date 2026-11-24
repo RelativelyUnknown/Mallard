@@ -16,6 +16,15 @@ async function tmpDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), 'mallard-container-life-'));
 }
 
+/**
+ * Delete a container's temp dir. Background work (DuckDB checkpoint, config
+ * watcher) can still create a file between rm's readdir and rmdir right after
+ * dispose, which surfaced as a flaky ENOTEMPTY; rm retries that case itself.
+ */
+function removeDir(dir: string): Promise<void> {
+  return fs.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+}
+
 function makeContext(dir: string, secretCbs: SecretCb[] = []): vscode.ExtensionContext {
   return {
     subscriptions: [] as { dispose(): void }[],
@@ -95,7 +104,7 @@ describe('buildContainer — exporter lifecycle', () => {
       assert.equal(built, 3, 'unrelated secrets leave the exporter alone');
     } finally {
       disposeAll(context);
-      await fs.rm(dir, { recursive: true, force: true });
+      await removeDir(dir);
     }
   });
 
@@ -119,7 +128,7 @@ describe('buildContainer — exporter lifecycle', () => {
       await tick(80);
       assert.deepEqual([...live], [], 'every exporter ever built has been disposed');
     } finally {
-      await fs.rm(dir, { recursive: true, force: true });
+      await removeDir(dir);
     }
   });
 });
@@ -142,7 +151,7 @@ describe('buildContainer — restriction only reconciles unfiltered snapshots', 
       assert.equal(c.restriction.getState().active, true, 'the unfiltered snapshot does');
     } finally {
       disposeAll(context);
-      await fs.rm(dir, { recursive: true, force: true });
+      await removeDir(dir);
     }
   });
 });
@@ -185,7 +194,7 @@ describe('buildContainer — failed startup cleans up after itself', () => {
       assert.deepEqual([...disposed].sort(), ['currency', 'pricing', 'store']);
       assert.equal(context.subscriptions.length, 0, 'nothing left registered (e.g. the compaction interval)');
     } finally {
-      await fs.rm(dir, { recursive: true, force: true });
+      await removeDir(dir);
     }
   });
 });

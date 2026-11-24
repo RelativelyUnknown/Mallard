@@ -12,6 +12,15 @@ async function tmpDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), 'mallard-container-'));
 }
 
+/**
+ * Delete a container's temp dir. Background work (DuckDB checkpoint, config
+ * watcher) can still create a file between rm's readdir and rmdir right after
+ * dispose, which surfaced as a flaky ENOTEMPTY; rm retries that case itself.
+ */
+function removeDir(dir: string): Promise<void> {
+  return fs.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+}
+
 function makeContext(dir: string): vscode.ExtensionContext {
   return {
     subscriptions: [] as { dispose(): void }[],
@@ -72,7 +81,7 @@ describe('buildContainer', () => {
       assert.deepEqual(ids, ['claude-code']);
     } finally {
       disposeAll(context);
-      await fs.rm(dir, { recursive: true, force: true });
+      await removeDir(dir);
     }
   });
 
@@ -112,7 +121,7 @@ describe('buildContainer', () => {
       void container;
     } finally {
       disposeAll(context);
-      await fs.rm(dir, { recursive: true, force: true });
+      await removeDir(dir);
     }
   });
 });

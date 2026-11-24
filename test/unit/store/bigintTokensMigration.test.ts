@@ -94,7 +94,10 @@ describe('migration 0006 — nothing to widen', () => {
       await store.writer.insert([makeEvent({ id: 'x', ts: Date.now(), promptTokens: 5 })]);
       await bigintTokens.up(store.conn);
       assert.equal(await store.count(), 1);
-    } finally { store.dispose(); }
+    } finally {
+      store.dispose();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -126,6 +129,7 @@ describe('migration 0006 — failure handling', () => {
     } finally {
       conn.closeSync();
       instance.closeSync();
+      await fs.rm(dir, { recursive: true, force: true });
     }
   });
 

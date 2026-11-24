@@ -7,11 +7,13 @@ import { EventStore } from '../../../src/extension-backend/store/EventStore';
 import { makeEvent } from '../helpers';
 
 async function withStore<T>(fn: (store: EventStore) => Promise<T>): Promise<T> {
-  const store = await EventStore.open(await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-eventreader-')));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-eventreader-'));
+  const store = await EventStore.open(dir);
   try {
     return await fn(store);
   } finally {
     store.dispose();
+    await fs.rm(dir, { recursive: true, force: true });
   }
 }
 
