@@ -16,6 +16,7 @@ import hashlib
 import hmac
 import logging
 import re
+import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -24,7 +25,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 import jwt
-from jwt import PyJWKClient
+from jwt import PyJWK, PyJWKClient, PyJWKClientError
 
 from .auth import _lookup_label
 
@@ -200,10 +201,69 @@ def _jwt_config_from(raw: dict[str, str]) -> JwtConfig:
     )
 
 
+# Minimum gap between forced JWKS refetches triggered by an unknown `kid`.
+_JWKS_MIN_REFETCH_SECONDS = 60.0
+
+
+class _RateLimitedJwksClient(PyJWKClient):
+    """PyJWKClient that refetches the JWKS for an unknown `kid` at most once per
+    ``min_refetch_seconds``.
+
+    The stock client refetches on *every* unknown `kid` to pick up a rotated
+    key, which lets any caller turn junk tokens (an attacker-chosen `kid` is
+    free) into one outbound HTTP request each against the identity provider.
+    Rotation is still picked up: the regular JWK-set cache expires on its own
+    (5 min) and a legitimately new `kid` triggers at most one forced refetch
+    per window.
+    """
+
+    def __init__(self, url: str, min_refetch_seconds: float = _JWKS_MIN_REFETCH_SECONDS) -> None:
+        # No per-kid LRU (cache_keys): it never expires, so a key removed from
+        # the JWKS (revoked) would keep verifying until the process restarts.
+        super().__init__(url)
+        self._min_refetch = min_refetch_seconds
+        self._last_forced_refetch = float("-inf")
+        self._refetch_lock = threading.Lock()
+
+    def get_signing_key(self, kid: str) -> PyJWK:
+        key = self.match_kid(self.get_signing_keys(), kid)
+        if key is not None:
+            return key
+        with self._refetch_lock:
+            now = time.monotonic()
+            if now - self._last_forced_refetch < self._min_refetch:
+                raise PyJWKClientError(f"Unable to find a signing key that matches: {kid!r}")
+            self._last_forced_refetch = now
+        key = self.match_kid(self.get_signing_keys(refresh=True), kid)
+        if key is None:
+            raise PyJWKClientError(f"Unable to find a signing key that matches: {kid!r}")
+        return key
+
+
 @lru_cache(maxsize=16)
 def _jwks_client(url: str) -> PyJWKClient:
-    """Cache one PyJWKClient per JWKS URL so signing keys are fetched/cached once."""
-    return PyJWKClient(url, cache_keys=True)
+    """Cache one JWKS client per URL so the key set is fetched/cached once."""
+    return _RateLimitedJwksClient(url)
+
+
+def warn_if_jwt_unpinned(cfg: JwtConfig) -> None:
+    """Warn when a JWKS-backed JWT config doesn't pin issuer and audience.
+
+    A JWKS endpoint serves the keys of an identity provider that usually signs
+    tokens for many applications and tenants. Without `iss`/`aud` enforcement,
+    *any* validly signed, unexpired token from that provider authenticates —
+    including one issued to someone else's application.
+    """
+    if not cfg.jwks_url:
+        return
+    missing = [n for n, v in (("JWT_ISSUER", cfg.issuer), ("JWT_AUDIENCE", cfg.audience)) if not v]
+    if missing:
+        logger.warning(
+            "SECURITY: JWT_JWKS_URL is set but %s is not — any token signed by a key in that "
+            "JWKS, including tokens issued to other applications or tenants, will authenticate. "
+            "Set JWT_ISSUER and JWT_AUDIENCE to pin them.",
+            " and ".join(missing),
+        )
 
 
 async def _resolve_jwt_key(token: str, cfg: JwtConfig) -> tuple[object, list[str]]:
@@ -290,29 +350,100 @@ class StaticCredentialVerifier(CredentialVerifier):
 # ── Remote base (shared TTL cache logic) ──────────────────────────────────────
 
 
+# Retry backoff after a failed credential refresh: 1s, 2s, 4s ... capped at 60s.
+_REFRESH_BACKOFF_BASE_SECONDS = 1.0
+_REFRESH_BACKOFF_MAX_SECONDS = 60.0
+
+# Default cap on how long a cached store may keep serving while refreshes fail.
+DEFAULT_CREDENTIAL_MAX_STALE_SECONDS = 86400.0
+
+
+class CredentialStoreUnavailable(RuntimeError):
+    """No usable credential store: the first fetch failed (and retries are
+    backing off), or the cache is older than the max-stale age."""
+
+
 class RemoteCredentialVerifier(CredentialVerifier, ABC):
-    def __init__(self, settings: "Settings", ttl_seconds: int = 30) -> None:
+    """Serves credentials from a TTL cache of a remote store.
+
+    A refresh is single-flight (concurrent callers share one fetch, which runs
+    outside any lock) and a failed one backs off exponentially, so an
+    unreachable secret manager costs one request per backoff window, not one
+    per ingest request. While refreshes fail the last good store keeps serving
+    — but only up to ``max_stale_seconds``: past that, a key revoked in the
+    secret manager would otherwise stay valid forever, so the cache is
+    refused (503) and ``healthcheck`` goes unhealthy.
+    """
+
+    def __init__(
+        self,
+        settings: "Settings",
+        ttl_seconds: int = 30,
+        max_stale_seconds: float = DEFAULT_CREDENTIAL_MAX_STALE_SECONDS,
+    ) -> None:
         self._settings = settings
         self._ttl = ttl_seconds
+        self._max_stale = max_stale_seconds
         self._store: CredentialStore | None = None
-        self._lock = asyncio.Lock()
+        self._inflight: asyncio.Future[CredentialStore] | None = None
+        self._failures = 0
+        self._retry_at = 0.0
+        self._last_error: Exception | None = None
 
     @abstractmethod
     async def _fetch_store(self) -> CredentialStore: ...
 
+    def _usable(self, store: CredentialStore, now: float) -> bool:
+        return now - store.fetched_at <= self._max_stale
+
     async def _get_store(self) -> CredentialStore:
-        async with self._lock:
-            now = time.monotonic()
-            if self._store is None or (now - self._store.fetched_at) > self._ttl:
-                try:
-                    self._store = await self._fetch_store()
-                except Exception as exc:
-                    if self._store is not None:
-                        # Keep serving from stale cache while the secret manager recovers.
-                        logger.warning("credential fetch failed, using stale cache: %s", exc)
-                    else:
-                        raise  # no cache to fall back to — caller gets a 503
-        return self._store  # type: ignore[return-value]  # guarded: either set or raised above
+        now = time.monotonic()
+        store = self._store
+        if store is not None and now - store.fetched_at <= self._ttl:
+            return store
+        usable = store is not None and self._usable(store, now)
+        if now < self._retry_at:
+            # The last refresh failed and is backing off: don't hammer a secret
+            # manager that is down. Serve the cache if it is still young enough.
+            if store is not None and usable:
+                return store
+            raise CredentialStoreUnavailable("credential store unavailable (retrying)") from self._last_error
+        if self._inflight is not None and store is not None and usable:
+            return store  # a refresh is already running: don't queue behind a slow fetch
+        if self._inflight is None:
+            self._inflight = asyncio.ensure_future(self._refresh())
+            # Retrieve the result even if every waiter was cancelled, so a
+            # failed refresh never logs "exception was never retrieved".
+            self._inflight.add_done_callback(lambda f: f.cancelled() or f.exception())
+        # shield: a cancelled request must not cancel the fetch other callers share.
+        return await asyncio.shield(self._inflight)
+
+    async def _refresh(self) -> CredentialStore:
+        try:
+            try:
+                store = await self._fetch_store()
+            except Exception as exc:
+                self._failures += 1
+                self._last_error = exc
+                self._retry_at = time.monotonic() + min(
+                    _REFRESH_BACKOFF_MAX_SECONDS,
+                    _REFRESH_BACKOFF_BASE_SECONDS * 2 ** (self._failures - 1),
+                )
+                old = self._store
+                if old is None:
+                    raise  # no cache to fall back to — caller gets a 503
+                if not self._usable(old, time.monotonic()):
+                    raise CredentialStoreUnavailable(
+                        f"credential cache older than {self._max_stale:.0f}s and refresh failing"
+                    ) from exc
+                logger.warning("credential fetch failed, using stale cache: %s", exc)
+                return old
+            if store.jwt != (self._store.jwt if self._store else None):
+                warn_if_jwt_unpinned(store.jwt)
+            self._store, self._failures, self._retry_at = store, 0, 0.0
+            return store
+        finally:
+            self._inflight = None
 
     async def verify_api_key(self, key: str) -> VerifiedIdentity | None:
         store = await self._get_store()
@@ -397,5 +528,8 @@ def create_verifier(settings: "Settings") -> CredentialVerifier:
     OpenBao KV store so they can be rotated without a restart.
     """
     if settings.secret_manager_type == "openbao":
-        return OpenBaoCredentialVerifier(settings)
+        return OpenBaoCredentialVerifier(
+            settings, max_stale_seconds=settings.credential_max_stale_seconds
+        )
+    warn_if_jwt_unpinned(settings.parsed_jwt)
     return StaticCredentialVerifier(settings)

@@ -161,13 +161,42 @@ class TestMqttHandleMessage:
         await _handle_message(_make_message(VALID_JSON), "c1", ctx)  # second exceeds 1/min for c1
         assert mock_write_api.write.call_count == 1
 
-    async def test_rate_limit_is_per_client(self, mock_write_api, settings, static_verifier) -> None:
+    async def test_rate_limit_is_per_peer_address(self, mock_write_api, settings, static_verifier) -> None:
+        # Previously keyed on the client-chosen client_id (so "c1" vs "c2" were
+        # separate buckets); the bucket is now the peer address.
+        from server.mqtt import _handle_message
+
+        ctx = _ctx(settings, mock_write_api, static_verifier, limiter=_limiter("1/minute"))
+        await _handle_message(_make_message(VALID_JSON), "c1", ctx, remote_address="10.0.0.1")
+        await _handle_message(_make_message(VALID_JSON), "c1", ctx, remote_address="10.0.0.2")
+        assert mock_write_api.write.call_count == 2  # different peer, still allowed
+        await _handle_message(_make_message(VALID_JSON), "c1", ctx, remote_address="10.0.0.1")
+        assert mock_write_api.write.call_count == 2  # same peer, over its limit
+
+    async def test_varying_client_id_does_not_dodge_the_limit(
+        self, mock_write_api, settings, static_verifier
+    ) -> None:
+        """client_id is chosen by the (password-holding) client: minting a new one
+        per message must neither reset the limit nor grow the limiter map."""
+        from server.mqtt import _handle_message
+
+        limiter = _limiter("2/minute")
+        ctx = _ctx(settings, mock_write_api, static_verifier, limiter=limiter)
+        for i in range(10):
+            await _handle_message(_make_message(VALID_JSON), f"fresh-id-{i}", ctx, remote_address="10.0.0.1")
+        assert mock_write_api.write.call_count == 2
+        assert len(limiter._hits) == 1
+        assert not any("fresh-id" in key for key in limiter._hits)
+
+    async def test_without_a_peer_address_all_clients_share_the_source_bucket(
+        self, mock_write_api, settings, static_verifier
+    ) -> None:
         from server.mqtt import _handle_message
 
         ctx = _ctx(settings, mock_write_api, static_verifier, limiter=_limiter("1/minute"))
         await _handle_message(_make_message(VALID_JSON), "c1", ctx)
-        await _handle_message(_make_message(VALID_JSON), "c2", ctx)  # different client, still allowed
-        assert mock_write_api.write.call_count == 2
+        await _handle_message(_make_message(VALID_JSON), "c2", ctx)
+        assert mock_write_api.write.call_count == 1
 
 
 class TestMallardAuthPlugin:
@@ -297,6 +326,79 @@ class TestMallardMessagePlugin:
         mock_write_api.write.assert_not_called()
 
 
+class TestMallardTopicPlugin:
+    """Broker-level ACL: publish / subscribe / delivery only under MQTT_TOPIC_PREFIX."""
+
+    def _make_plugin(self):
+        from server.mqtt import _MallardTopicPlugin
+
+        ctx = MagicMock()
+        ctx.config = _MallardTopicPlugin.Config()
+        ctx.logger = logging.getLogger("test.topic")
+        return _MallardTopicPlugin(ctx)
+
+    @pytest.mark.parametrize("action", ["publish", "subscribe", "receive"])
+    @pytest.mark.parametrize("topic", ["mallard/metrics", "mallard/a/b", "mallard/#", "mallard/+/x"])
+    async def test_in_prefix_topics_allowed(self, broker_ctx, action: str, topic: str) -> None:
+        from amqtt.contexts import Action
+
+        assert await self._make_plugin().topic_filtering(topic=topic, action=Action(action)) is True
+
+    @pytest.mark.parametrize("action", ["publish", "subscribe", "receive"])
+    @pytest.mark.parametrize("topic", ["other/metrics", "#", "+/x", "mallardx", "", "$SYS/broker/clients"])
+    async def test_out_of_prefix_topics_denied(self, broker_ctx, action: str, topic: str) -> None:
+        from amqtt.contexts import Action
+
+        assert await self._make_plugin().topic_filtering(topic=topic, action=Action(action)) is False
+
+    async def test_fails_closed_without_broker_context(self, monkeypatch) -> None:
+        from amqtt.contexts import Action
+
+        monkeypatch.setattr(mqtt_module, "_broker_ctx", None)
+        assert await self._make_plugin().topic_filtering(topic="mallard/x", action=Action.PUBLISH) is False
+
+    async def test_honours_a_custom_prefix(self, broker_ctx, settings) -> None:
+        from amqtt.contexts import Action
+
+        settings.mqtt_topic_prefix = "acme/ingest/"
+        plugin = self._make_plugin()
+        assert await plugin.topic_filtering(topic="acme/ingest/x", action=Action.PUBLISH) is True
+        assert await plugin.topic_filtering(topic="mallard/x", action=Action.PUBLISH) is False
+
+
+class TestMessagePluginPeerAddress:
+    async def test_session_remote_address_keys_the_rate_limit(
+        self, broker_ctx, mock_write_api
+    ) -> None:
+        from server.mqtt import _MallardMessagePlugin
+
+        ctx = MagicMock()
+        ctx.config = _MallardMessagePlugin.Config()
+        ctx.logger = logging.getLogger("test.msg")
+        session = MagicMock()
+        session.remote_address = "203.0.113.9"
+        ctx.get_session.return_value = session
+        plugin = _MallardMessagePlugin(ctx)
+
+        with patch("server.mqtt._handle_message", new=AsyncMock()) as handle:
+            await plugin.on_broker_message_received(client_id="c1", message=_make_message(VALID_JSON))
+        assert handle.call_args.kwargs["remote_address"] == "203.0.113.9"
+        ctx.get_session.assert_called_once_with("c1")
+
+    async def test_unknown_session_means_no_address(self, broker_ctx) -> None:
+        from server.mqtt import _MallardMessagePlugin
+
+        ctx = MagicMock()
+        ctx.config = _MallardMessagePlugin.Config()
+        ctx.logger = logging.getLogger("test.msg")
+        ctx.get_session.return_value = None
+        plugin = _MallardMessagePlugin(ctx)
+
+        with patch("server.mqtt._handle_message", new=AsyncMock()) as handle:
+            await plugin.on_broker_message_received(client_id="gone", message=_make_message(VALID_JSON))
+        assert handle.call_args.kwargs["remote_address"] is None
+
+
 class TestMqttBrokerLifecycle:
     """Test run_mqtt_broker starts cleanly and shuts down on cancellation."""
 
@@ -319,3 +421,82 @@ class TestMqttBrokerLifecycle:
         mock_broker.start.assert_called_once()
         mock_broker.shutdown.assert_called_once()
         assert mqtt_module._broker_ctx is None  # cleared on shutdown
+
+    async def test_registers_topic_acl_and_prunes_the_limiter(
+        self, settings, mock_write_api, static_verifier
+    ) -> None:
+        from server.mqtt import run_mqtt_broker
+
+        mock_broker = AsyncMock()
+        mock_event_instance = MagicMock()
+        mock_event_instance.wait = AsyncMock(side_effect=asyncio.CancelledError())
+        pruned = []
+
+        def fake_prune(limiter, interval: float = 300.0):
+            pruned.append(limiter)  # recorded when the task is created: the mocked
+            return asyncio.sleep(3600)  # broker stops before the task is ever scheduled
+
+        with (
+            patch("server.mqtt.Broker", return_value=mock_broker) as broker_cls,
+            patch("server.mqtt.asyncio.Event", return_value=mock_event_instance),
+            patch("server.mqtt.prune_expired", fake_prune),
+        ):
+            await run_mqtt_broker(settings, mock_write_api, static_verifier)
+
+        plugins = broker_cls.call_args.kwargs["config"]["plugins"]
+        assert any(name.endswith("._MallardTopicPlugin") for name in plugins)
+        assert len(pruned) == 1 and isinstance(pruned[0], SlidingWindowLimiter)
+
+
+class TestRealBrokerEnforcesTopicAcl:
+    """End to end through the real amqtt broker (WebSocket, auth plugin, topic
+    plugin, message plugin) rather than the plugins in isolation."""
+
+    async def test_out_of_prefix_subscribe_denied_and_publish_not_relayed(
+        self, settings, mock_write_api, static_verifier
+    ) -> None:
+        import socket
+
+        from amqtt.client import MQTTClient
+
+        from server.mqtt import run_mqtt_broker
+
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            settings.mqtt_port = s.getsockname()[1]
+        broker = asyncio.create_task(run_mqtt_broker(settings, mock_write_api, static_verifier))
+        url = f"ws://u:secret@127.0.0.1:{settings.mqtt_port}"
+        clients = []
+        try:
+            subscriber = MQTTClient(client_id="sub", config={"auto_reconnect": False})
+            for _ in range(50):  # wait for the listener
+                try:
+                    await subscriber.connect(url)
+                    break
+                except Exception:
+                    await asyncio.sleep(0.1)
+            else:
+                pytest.fail("broker never started listening")
+            clients.append(subscriber)
+
+            codes = await subscriber.subscribe([("mallard/#", 0), ("other/#", 0), ("#", 0)])
+            assert codes == [0, 0x80, 0x80]
+
+            publisher = MQTTClient(client_id="pub", config={"auto_reconnect": False})
+            await publisher.connect(url)
+            clients.append(publisher)
+            await publisher.publish("other/secret", b"leak")
+            await publisher.publish("mallard/metrics", b"ok")
+
+            delivered = await asyncio.wait_for(subscriber.deliver_message(), timeout=5)
+            assert delivered.publish_packet.variable_header.topic_name == "mallard/metrics"
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(subscriber.deliver_message(), timeout=0.5)
+        finally:
+            for c in clients:
+                try:
+                    await c.disconnect()
+                except Exception:  # best-effort teardown
+                    pass
+            broker.cancel()
+            await asyncio.gather(broker, return_exceptions=True)

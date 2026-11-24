@@ -9,18 +9,27 @@ Two backends implement the same async `check(key)` contract:
   * ``RedisRateLimiter`` — a shared sliding window in Redis. Use this in any
     multi-replica deployment (the server runs 2–10 replicas under the HPA); an
     in-process limiter would multiply the effective limit by the replica count
-    and reset on every restart/scale event.
+    and reset on every restart/scale event. If Redis becomes unreachable it
+    fails *open* to a per-process limiter: a rate-limit backend outage must
+    degrade the limit (to per-replica), never take ingest down.
   * ``InProcessRateLimiter`` — wraps the in-process ``SlidingWindowLimiter``
     for single-node / local dev where Redis isn't configured.
 """
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 import re
 import time
 from collections import deque
+from collections.abc import Callable
 from typing import Protocol, runtime_checkable
+
+from redis.exceptions import RedisError
+
+logger = logging.getLogger(__name__)
 
 _PERIOD_SECONDS = {"second": 1.0, "minute": 60.0, "hour": 3600.0, "day": 86400.0}
 _SPEC_RE = re.compile(r"^\s*(\d+)\s*/\s*(second|minute|hour|day)\s*$")
@@ -84,6 +93,10 @@ class RateLimiter(Protocol):
 
     async def check(self, key: str, now: float | None = None) -> float | None: ...
 
+    def cleanup(self, now: float | None = None) -> int:
+        """Evict expired per-key state held in this process; returns keys removed."""
+        ...
+
     async def healthy(self) -> bool: ...
 
     async def aclose(self) -> None: ...
@@ -142,12 +155,30 @@ return {1, '0'}
 """
 
 
+# After a Redis failure, skip Redis entirely for this long (so a black-holed
+# Redis doesn't add its connect/read timeout to every request) and log the
+# outage at most once per this interval.
+_REDIS_RETRY_SECONDS = 5.0
+_REDIS_LOG_INTERVAL_SECONDS = 60.0
+
+
 class RedisRateLimiter:
     """Shared sliding-window limiter backed by Redis, so the per-credential limit
     holds across all replicas and survives restarts. Keys carry a TTL, so expired
-    windows evict themselves — no separate cleanup task needed."""
+    windows evict themselves in Redis; only the local fallback needs ``cleanup``.
 
-    def __init__(self, redis, limit: int, window_seconds: float, namespace: str = "mallard:rl") -> None:
+    Fails open: when Redis errors, the check is answered by a per-process
+    ``SlidingWindowLimiter`` with the same limit (so the effective limit becomes
+    per-replica while Redis is down, rather than ingest returning 500)."""
+
+    def __init__(
+        self,
+        redis,
+        limit: int,
+        window_seconds: float,
+        namespace: str = "mallard:rl",
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         if limit < 1 or window_seconds <= 0:
             raise ValueError("limit must be >= 1 and window_seconds > 0")
         self._redis = redis
@@ -155,6 +186,10 @@ class RedisRateLimiter:
         self.window_seconds = window_seconds
         self._window_ms = int(window_seconds * 1000)
         self._namespace = namespace
+        self._fallback = SlidingWindowLimiter(limit, window_seconds)
+        self._clock = clock
+        self._skip_redis_until = float("-inf")
+        self._next_log_at = float("-inf")
 
     @classmethod
     def from_string(cls, redis, spec: str, namespace: str = "mallard:rl") -> "RedisRateLimiter":
@@ -164,16 +199,35 @@ class RedisRateLimiter:
         return cls(redis, int(m.group(1)), _PERIOD_SECONDS[m.group(2)], namespace)
 
     async def check(self, key: str, now: float | None = None) -> float | None:
+        if self._clock() < self._skip_redis_until:
+            return self._fallback.check(key, now)
         now_ms = int((time.time() if now is None else now) * 1000)
         member = f"{now_ms}-{os.urandom(6).hex()}"
-        allowed, oldest = await self._redis.eval(
-            _REDIS_SLIDING_WINDOW_LUA, 1, f"{self._namespace}:{key}",
-            now_ms, self._window_ms, self.limit, member,
-        )
+        try:
+            allowed, oldest = await self._redis.eval(
+                _REDIS_SLIDING_WINDOW_LUA, 1, f"{self._namespace}:{key}",
+                now_ms, self._window_ms, self.limit, member,
+            )
+        except (RedisError, OSError, asyncio.TimeoutError) as exc:
+            self._on_redis_failure(exc)
+            return self._fallback.check(key, now)
         if int(allowed) == 1:
             return None
         retry_ms = float(oldest) + self._window_ms - now_ms
         return max(0.0, retry_ms / 1000.0)
+
+    def _on_redis_failure(self, exc: Exception) -> None:
+        t = self._clock()
+        self._skip_redis_until = t + _REDIS_RETRY_SECONDS
+        if t >= self._next_log_at:
+            self._next_log_at = t + _REDIS_LOG_INTERVAL_SECONDS
+            logger.error(
+                "Redis rate limiter unavailable (%s: %s); failing open to the per-process limiter",
+                type(exc).__name__, exc,
+            )
+
+    def cleanup(self, now: float | None = None) -> int:
+        return self._fallback.cleanup(now)
 
     async def healthy(self) -> bool:
         try:
@@ -192,6 +246,25 @@ async def create_rate_limiter(settings) -> RateLimiter:
     if settings.redis_url:
         import redis.asyncio as aioredis
 
-        client = aioredis.from_url(settings.redis_url, decode_responses=True)
+        # Bounded timeouts: with the redis-py defaults (none) a black-holed Redis
+        # would hang every ingest request instead of failing open.
+        client = aioredis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=1.0,
+            socket_timeout=1.0,
+        )
         return RedisRateLimiter.from_string(client, settings.rate_limit)
     return InProcessRateLimiter.from_string(settings.rate_limit)
+
+
+class Prunable(Protocol):
+    def cleanup(self, now: float | None = None) -> int: ...
+
+
+async def prune_expired(limiter: Prunable, interval: float = 300.0) -> None:
+    """Periodically evict expired keys from a limiter's in-process state so its
+    map doesn't grow unbounded. Run as a background task; cancel to stop."""
+    while True:
+        await asyncio.sleep(interval)
+        limiter.cleanup()

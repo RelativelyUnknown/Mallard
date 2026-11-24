@@ -367,6 +367,219 @@ class TestRemoteCredentialVerifierCaching:
         assert result == VerifiedIdentity(label="my-team")
 
 
+# ── RemoteCredentialVerifier: single-flight, backoff, max-stale ───────────────
+
+
+class _FakeClock:
+    """Stands in for the `time` module inside server.credential_verifier only
+    (patching time.monotonic globally would also move the event loop's clock)."""
+
+    def __init__(self, now: float = 10_000.0) -> None:
+        self.now = now
+
+    def monotonic(self) -> float:
+        return self.now
+
+
+class TestRemoteVerifierResilience:
+    def _verifier(self, **kwargs):
+        from server.credential_verifier import OpenBaoCredentialVerifier
+
+        s = MagicMock()
+        s.secret_manager_url = "http://openbao:8200"
+        s.secret_manager_token = "tok"
+        s.secret_manager_ca_cert_path = ""
+        s.openbao_secret_path = "secret/data/mallard/server"
+        s.openbao_namespace = ""
+        return OpenBaoCredentialVerifier(s, **kwargs)
+
+    @staticmethod
+    def _aged_store(age: float, api_key: str = "key", label: str = "lbl", now: float | None = None):
+        from server.credential_verifier import CredentialStore
+
+        t = time.monotonic() if now is None else now
+        h = hashlib.sha256(api_key.encode()).hexdigest()
+        return CredentialStore(api_keys={h: label}, fetched_at=t - age)
+
+    async def test_failed_refresh_is_not_retried_by_every_request(self) -> None:
+        """A failed refresh used to leave fetched_at untouched, so every single
+        request re-ran the (up to 10s) fetch."""
+        verifier = self._verifier()
+        stale = self._aged_store(100)
+        verifier._store = stale
+        fetch = AsyncMock(side_effect=RuntimeError("openbao down"))
+
+        with patch.object(verifier, "_fetch_store", new=fetch):
+            results = [await verifier._get_store() for _ in range(5)]
+
+        assert fetch.call_count == 1
+        assert all(r is stale for r in results)
+
+    async def test_concurrent_failing_refreshes_share_one_fetch(self) -> None:
+        """The fetch used to run under the lock, so N waiters meant N serial failures."""
+        verifier = self._verifier()
+        verifier._store = self._aged_store(100)
+        calls = 0
+
+        async def slow_failure():
+            nonlocal calls
+            calls += 1
+            await asyncio.sleep(0.05)
+            raise RuntimeError("openbao down")
+
+        with patch.object(verifier, "_fetch_store", new=slow_failure):
+            await asyncio.gather(*[verifier._get_store() for _ in range(5)])
+
+        assert calls == 1
+
+    async def test_requests_are_not_blocked_behind_a_slow_refresh(self) -> None:
+        """The lock used to be held across the HTTP fetch, stalling every request
+        (even though a usable cached store existed) for as long as it took."""
+        verifier = self._verifier()
+        stale = self._aged_store(100)
+        verifier._store = stale
+        release = asyncio.Event()
+        fresh = self._aged_store(0)
+
+        async def blocked_fetch():
+            await release.wait()
+            return fresh
+
+        with patch.object(verifier, "_fetch_store", new=blocked_fetch):
+            refresher = asyncio.ensure_future(verifier._get_store())
+            await asyncio.sleep(0)  # let the refresh start
+            assert await asyncio.wait_for(verifier._get_store(), timeout=1.0) is stale
+            release.set()
+            assert await refresher is fresh
+
+    async def test_first_fetch_failure_backs_off_instead_of_hammering(self) -> None:
+        from server.credential_verifier import CredentialStoreUnavailable
+
+        verifier = self._verifier()
+        fetch = AsyncMock(side_effect=RuntimeError("openbao down"))
+
+        with patch.object(verifier, "_fetch_store", new=fetch):
+            with pytest.raises(RuntimeError, match="openbao down"):
+                await verifier._get_store()
+            for _ in range(3):
+                with pytest.raises(CredentialStoreUnavailable):
+                    await verifier._get_store()
+
+        assert fetch.call_count == 1
+
+    async def test_backoff_is_exponential_and_capped(self, monkeypatch) -> None:
+        import server.credential_verifier as cv
+
+        clock = _FakeClock()
+        monkeypatch.setattr(cv, "time", clock)
+        verifier = self._verifier()
+        verifier._store = self._aged_store(100, now=clock.now)
+        fetch = AsyncMock(side_effect=RuntimeError("down"))
+
+        with patch.object(verifier, "_fetch_store", new=fetch):
+            await verifier._get_store()  # failure 1 -> back off 1s
+            assert fetch.call_count == 1
+            clock.now += 0.5
+            await verifier._get_store()
+            assert fetch.call_count == 1  # still backing off
+            clock.now += 0.6
+            await verifier._get_store()  # failure 2 -> back off 2s
+            assert fetch.call_count == 2
+            clock.now += 1.5
+            await verifier._get_store()
+            assert fetch.call_count == 2  # 1s would have elapsed, 2s has not
+            clock.now += 0.6
+            await verifier._get_store()
+            assert fetch.call_count == 3
+            for _ in range(20):  # many failures: the delay never exceeds the cap
+                clock.now += 61.0
+                await verifier._get_store()
+            assert fetch.call_count == 3 + 20
+
+    async def test_recovery_resets_backoff_and_replaces_the_store(self, monkeypatch) -> None:
+        import server.credential_verifier as cv
+
+        clock = _FakeClock()
+        monkeypatch.setattr(cv, "time", clock)
+        verifier = self._verifier()
+        verifier._store = self._aged_store(100, now=clock.now)
+        fresh = self._aged_store(0, api_key="new", now=clock.now + 2)
+        fetch = AsyncMock(
+            side_effect=[RuntimeError("down"), fresh, RuntimeError("down again"), RuntimeError("still down")]
+        )
+
+        with patch.object(verifier, "_fetch_store", new=fetch):
+            await verifier._get_store()
+            clock.now += 2.0
+            assert await verifier._get_store() is fresh
+            clock.now += 31.0  # fresh store expires; next failure backs off from 1s again
+            await verifier._get_store()
+            clock.now += 1.1
+            await verifier._get_store()
+        assert fetch.call_count == 4  # 1s, not the 2s a never-reset counter would give
+
+    async def test_cache_older_than_max_stale_is_refused(self) -> None:
+        """Past max-stale a revoked key must stop working: requests get a 503
+        (CredentialStoreUnavailable) and health goes unhealthy."""
+        from server.credential_verifier import CredentialStoreUnavailable
+
+        verifier = self._verifier(max_stale_seconds=500)
+        verifier._store = self._aged_store(1000, api_key="revoked-key")
+        fetch = AsyncMock(side_effect=RuntimeError("openbao down"))
+
+        with patch.object(verifier, "_fetch_store", new=fetch):
+            with pytest.raises(CredentialStoreUnavailable):
+                await verifier.verify_api_key("revoked-key")
+            assert await verifier.healthcheck() is False
+            with pytest.raises(CredentialStoreUnavailable):
+                await verifier.verify_api_key("revoked-key")  # still refused while backing off
+        assert fetch.call_count == 1
+
+    async def test_cache_within_max_stale_keeps_serving_and_stays_healthy(self) -> None:
+        from server.credential_verifier import VerifiedIdentity
+
+        verifier = self._verifier(max_stale_seconds=500)
+        verifier._store = self._aged_store(100, api_key="good-key", label="team")
+        fetch = AsyncMock(side_effect=RuntimeError("openbao down"))
+
+        with patch.object(verifier, "_fetch_store", new=fetch):
+            assert await verifier.verify_api_key("good-key") == VerifiedIdentity("team")
+            assert await verifier.healthcheck() is True
+
+    async def test_default_max_stale_is_24_hours(self) -> None:
+        assert self._verifier()._max_stale == 86400
+
+    async def test_cancelled_waiter_does_not_cancel_the_shared_fetch(self) -> None:
+        verifier = self._verifier()
+        release = asyncio.Event()
+        fresh = self._aged_store(0)
+        fetch_count = 0
+
+        async def blocked_fetch():
+            nonlocal fetch_count
+            fetch_count += 1
+            await release.wait()
+            return fresh
+
+        with patch.object(verifier, "_fetch_store", new=blocked_fetch):
+            first = asyncio.ensure_future(verifier._get_store())
+            second = asyncio.ensure_future(verifier._get_store())
+            await asyncio.sleep(0)
+            first.cancel()
+            await asyncio.sleep(0)
+            release.set()
+            assert await second is fresh
+        assert fetch_count == 1
+
+    async def test_create_verifier_passes_configured_max_stale(self) -> None:
+        from server.credential_verifier import create_verifier
+
+        s = MagicMock()
+        s.secret_manager_type = "openbao"
+        s.credential_max_stale_seconds = 123.0
+        assert create_verifier(s)._max_stale == 123.0
+
+
 # ── OpenBaoCredentialVerifier._fetch_store ────────────────────────────────────
 
 
