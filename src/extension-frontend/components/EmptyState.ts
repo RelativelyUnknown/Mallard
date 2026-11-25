@@ -16,7 +16,7 @@ export function mountEmptyState(el: HTMLElement): EmptyStateHandle {
       <ol class="wv-empty-steps">
         <li>Make sure GitHub Copilot is installed and you have used it recently.</li>
         <li>Run <strong>Mallard: Show Detected Log Path</strong> to verify discovery.</li>
-        <li>If no path is found, set <code>mallard.copilotLogPath</code> in settings.</li>
+        <li>If Copilot usage is still missing, use <strong>Enable Copilot tracking</strong> below, or point <code>mallard.copilotOtelPath</code> at Copilot's OpenTelemetry export file.</li>
       </ol>
       <div class="wv-empty-actions">
         <button class="wv-btn wv-btn--primary" id="empty-refresh">

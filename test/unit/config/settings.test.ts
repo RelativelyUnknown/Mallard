@@ -232,7 +232,10 @@ describe('settings table — alerts.rules (flat rules, validated per entry)', ()
     const out = d.sanitize([{ ...good, id: 'first' }, ...bad.map(([b]) => b), { ...good, id: 'last' }], c);
     assert.deepEqual(out.map((r) => r.id), ['first', 'last']);
     assert.equal(reports.length, bad.length);
-    bad.forEach(([, why], i) => assert.match(reports[i]!, new RegExp(`entry ${i + 2} ignored: .*${why.source}`)));
+    bad.forEach(([, why], i) => {
+      assert.ok(reports[i]!.startsWith(`entry ${i + 2} ignored: `), reports[i]);
+      assert.match(reports[i]!, why);
+    });
   });
 
   it('drops a repeated id', () => {

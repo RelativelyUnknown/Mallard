@@ -65,7 +65,7 @@ Chart authors should know: tooltip formatters return HTML, so every interpolated
 - `RestrictionBanner.ts`: active Copilot restriction state
 - `GitHubBillingStrip.ts`: GitHub billing reconciliation summary
 - `EmptyState.ts`: no-data placeholder
-- `AlertConfigPanel.ts`: `config.json` editor entry point
+- `AlertConfigPanel.ts`: entry point to the alert settings (opens the Settings editor)
 - `CurrencySelector.ts`: display-currency dropdown
 
 ## Host communication

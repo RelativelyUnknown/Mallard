@@ -1,5 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { SETTING_ENTRIES } from '../../src/extension-backend/config/settings';
+import { manifestProperties, manifestProperty } from '../unit/config/manifestProperty';
 
 const EXT_ID = 'RelativelyUnknown.mallard';
 
@@ -86,27 +88,20 @@ describe('Mallard extension (integration)', () => {
     assert.strictEqual(ext.exports.status, 'ready');
   });
 
-  it('exposes only the documented settings', () => {
+  it('contributes exactly the settings in the table, as the table says (read back from the installed manifest)', () => {
     const ext = vscode.extensions.getExtension(EXT_ID)!;
-    const props = ext.packageJSON.contributes.configuration.properties as Record<string, unknown>;
-    assert.deepStrictEqual(Object.keys(props).sort(), [
-      'mallard.copilotLogPath',
-      'mallard.copilotOtelPath',
-      'mallard.dataRetentionDays',
-      'mallard.enabledConnectors',
-      'mallard.export.transport',
-      'mallard.githubBilling.org',
-      'mallard.mqtt.auth',
-      'mallard.mqtt.url',
-      'mallard.mqtt.username',
-      'mallard.palette',
-      'mallard.pricingManifestUrl',
-      'mallard.refreshIntervalMinutes',
-      'mallard.server.url',
-      'mallard.shared.certificate.caFile',
-      'mallard.shared.certificate.file',
-      'mallard.shared.certificate.keyFile',
-      'mallard.webhook.auth',
-    ]);
+    // contributes.configuration is one object or an array of them.
+    const props = manifestProperties(ext.packageJSON.contributes.configuration);
+    assert.deepStrictEqual(Object.keys(props).sort(), SETTING_ENTRIES.map(([k]) => k).sort());
+    for (const [key, def] of SETTING_ENTRIES) {
+      assert.deepStrictEqual(props[key], manifestProperty(def), `${key} differs from the settings table`);
+    }
+  });
+
+  it('serves each setting\'s contributed default through the real configuration API', () => {
+    for (const [key, def] of SETTING_ENTRIES) {
+      const inspected = vscode.workspace.getConfiguration('mallard').inspect(key.slice('mallard.'.length));
+      assert.deepStrictEqual(inspected?.defaultValue, def.default, `${key} default`);
+    }
   });
 });

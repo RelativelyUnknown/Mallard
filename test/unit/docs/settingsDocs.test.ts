@@ -18,10 +18,12 @@ describe('docs/reference/settings.md', () => {
   it('documents every setting, each in the block of its own group', () => {
     const groups = [...new Set(SETTING_ENTRIES.map(([, d]) => d.group))];
     for (const group of groups) {
-      const block = new RegExp(`<!-- BEGIN settings:${group} -->\\n([\\s\\S]*?)<!-- END settings:${group} -->`).exec(doc);
-      assert.ok(block, `no generated block for "${group}"`);
+      const begin = doc.indexOf(`<!-- BEGIN settings:${group} -->\n`);
+      const end = doc.indexOf(`<!-- END settings:${group} -->`);
+      assert.ok(begin >= 0 && end > begin, `no generated block for "${group}"`);
+      const block = doc.slice(begin, end);
       for (const [key, def] of SETTING_ENTRIES) {
-        assert.equal(block[1]!.includes(`| \`${key}\` |`), def.group === group, `${key} in "${group}"`);
+        assert.equal(block.includes(`| \`${key}\` |`), def.group === group, `${key} in "${group}"`);
       }
     }
   });

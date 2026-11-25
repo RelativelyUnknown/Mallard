@@ -8,7 +8,7 @@ export interface AlertConfigPanelHandle {
 export function mountAlertConfigPanel(el: HTMLElement): AlertConfigPanelHandle {
   el.innerHTML = `
     <div class="wv-config-card">
-      <button class="wv-btn" id="open-config-btn" title="Open config.json in VS Code editor">
+      <button class="wv-btn" id="open-config-btn" title="Open Mallard's alert settings in the VS Code Settings editor">
         <i class="codicon codicon-edit"></i> Edit alert rules
       </button>
       <span id="rule-count" class="wv-rule-count"></span>
@@ -20,7 +20,9 @@ export function mountAlertConfigPanel(el: HTMLElement): AlertConfigPanelHandle {
 
   return {
     update(config: UserConfig) {
-      const n = config.rules?.length ?? 0;
+      // The alert rules are the `mallard.alerts.rules` setting (flat rules); the
+      // old rules language is only counted while an older config still carries it.
+      const n = config.flatRules?.length ?? config.rules?.length ?? 0;
       el.querySelector('#rule-count')!.textContent =
         n === 0 ? 'No rules configured' : `${n} rule${n === 1 ? '' : 's'} configured`;
     },

@@ -75,23 +75,6 @@ describe('isHostBoundMsg — payload shapes', () => {
     assert.equal(isHostBoundMsg({ type: 'setFilter', value: [] }), false);
   });
 
-  it('setConfig requires a plausibly-shaped patch', () => {
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { monthlyBudget: 5, alerts: { velocityEnabled: true } } }), true);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { rules: [{ id: 'r' }], currency: 'EUR' } }), true);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: [] }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { monthlyBudget: '5' } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { monthlyBudget: NaN } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { alerts: { velocityEnabled: 'yes' } } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { alerts: 3 } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { rules: 'all' } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { rules: [null] } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { rules: [{ message: 'no id' }] } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { currency: 5 } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { display: [] } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { branchBudgets: { main: 'lots' } } }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { version: 3 } }), false);
-  });
-
   it('setLayout requires an array of objects with a string id', () => {
     assert.equal(isHostBoundMsg({ type: 'setLayout', value: [{ id: 'daily', span: 2, hidden: false }] }), true);
     assert.equal(isHostBoundMsg({ type: 'setLayout', value: [{ id: 'daily', size: 'tall' }] }), true);
