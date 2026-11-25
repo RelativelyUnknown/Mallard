@@ -10,7 +10,7 @@
  */
 import { UsageService } from '../../src/extension-backend/app/UsageService';
 import type { AlertService } from '../../src/extension-backend/app/AlertService';
-import type { UserConfigStore } from '../../src/extension-backend/app/UserConfigStore';
+import type { IConfigService } from '../../src/extension-backend/app/ConfigService';
 import type { PricingService } from '../../src/extension-backend/pricing/PricingService';
 import type { CurrencyService } from '../../src/extension-backend/pricing/CurrencyService';
 import type { IngestService } from '../../src/extension-backend/ingest/IngestService';
@@ -125,7 +125,7 @@ async function recordSnapshots(times: number[]): Promise<SnapshotData[]> {
     reader,
     { pricePerCredit: 0.04 } as unknown as PricingService,
     { getStatus: () => ({ kind: 'ok' as const }), dispose() {} } as unknown as IngestService,
-    { get: () => ALERT_CONFIG, onDidChange: () => ({ dispose() {} }) } as unknown as UserConfigStore,
+    { get: () => ALERT_CONFIG, onDidChange: () => ({ dispose() {} }) } as unknown as IConfigService,
     { currentRates: () => ({}) } as unknown as CurrencyService,
     undefined,
     { showWarningMessage: async () => undefined, executeCommand: async () => undefined } as never,
