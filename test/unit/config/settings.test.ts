@@ -233,7 +233,7 @@ describe('settings table — alerts.rules (flat rules, validated per entry)', ()
     assert.deepEqual(out.map((r) => r.id), ['first', 'last']);
     assert.equal(reports.length, bad.length);
     bad.forEach(([, why], i) => {
-      assert.ok(reports[i]!.startsWith(`entry ${i + 2} ignored: `), reports[i]);
+      assert.ok(reports[i]!.startsWith(`entry ${i + 2} ignored: `), reports[i]!);
       assert.match(reports[i]!, why);
     });
   });

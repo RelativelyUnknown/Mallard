@@ -177,7 +177,7 @@ describe('configureExportTargets', () => {
       actions[0]) as never; // accept "Set Credentials…" (and the save toast)
 
     await configureExportTargets(secrets as never, cfg);
-    assert.deepEqual(cfg.get().export?.mqttTargets, [{ id: 'broker', name: 'Broker', url: 'wss://b.example.com/mqtt' }]);
+    assert.deepEqual(cfg.get().export?.mqttTargets, [{ id: 'broker', name: 'broker', url: 'wss://b.example.com/mqtt' }]);
     assert.equal(secrets.values.get(`${SECRET_KEYS.mqttPassword}:broker`), 'connect-pw');
   });
 

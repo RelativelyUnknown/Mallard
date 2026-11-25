@@ -130,7 +130,9 @@ describe('buildContainer', () => {
       for (const cb of changeCbs) cb(changed('mallard.palette'));
       await new Promise((r) => setImmediate(r));
       assert.equal(built, 3);
-      void container;
+      // Every settings event also recomputes the snapshot (a database read):
+      // let those finish before the container is torn down.
+      await container.usage.setFilter({});
     } finally {
       disposeAll(context);
       await removeDir(dir);
@@ -155,6 +157,7 @@ describe('buildContainer', () => {
       for (const cb of changeCbs) cb(changed('mallard.pricingManifestUrl'));
       for (const cb of changeCbs) cb(changed('mallard.palette'));
       assert.deepEqual(urls, ['https://custom.example/manifest.json'], 'only the real change is applied');
+      await container.usage.setFilter({}); // settle the recomputes the events triggered
     } finally {
       disposeAll(context);
       await removeDir(dir);
