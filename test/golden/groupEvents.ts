@@ -18,6 +18,7 @@ import type { SnapshotGroups } from '../../src/extension-backend/domain/snapshot
 import { UNATTRIBUTED_REPO } from '../../src/extension-backend/domain/aggregate';
 import type { RepoAttribution, SourceKind, Surface } from '../../src/extension-backend/domain/types';
 import type { RecordFilter } from '../../src/extension-backend/store/EventRepository';
+import { dayStartOffset, startOf } from '../../src/extension-backend/util/time';
 import type { NormalizedEvent } from './pipeline';
 
 /** Width of the UTC time bucket a group covers. */
@@ -107,4 +108,70 @@ export function toRawEvent(e: NormalizedEvent): RawEvent {
     cacheCreationTokens: e.cacheCreationTokens ?? 0,
     thinkingTokens: e.thinkingTokens ?? 0,
   };
+}
+
+// ── Rollup ────────────────────────────────────────────────────────────────────
+
+export interface RolledUp {
+  /** Raw rows at or after the cutoff, then the rolled rows. */
+  rows: RawEvent[];
+  rolled: RawEvent[];
+  /** The raw events each rolled row (by id) stands for. */
+  members: Map<string, RawEvent[]>;
+  cutoff: number;
+}
+
+/** Local `YYYY-MM-DD` of an epoch ms (call under the zone being tested). */
+export function localDate(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** SUM() that keeps NULL when every value is NULL. */
+function sumOrNull(values: Array<number | null>): number | null {
+  return values.every((v) => v === null) ? null : values.reduce<number>((a, v) => a + (v ?? 0), 0);
+}
+
+/**
+ * Twin of the planned store rollup: raw events older than the local midnight
+ * `retentionDays` before `now` collapse into one row per local day, model,
+ * surface, source and repo label (id `roll:<date>:<model>:<repo>:<surface>:<source>`).
+ * A rolled row sits at local midnight, sums `requests` and every token column,
+ * keeps `heuristic` attribution if any member had it, and drops branch and
+ * language. Call under the zone being tested.
+ */
+export function rollUpEvents(events: readonly RawEvent[], now: number, retentionDays: number): RolledUp {
+  const cutoff = dayStartOffset(now, -retentionDays);
+  const rows = events.filter((e) => e.ts >= cutoff);
+  const members = new Map<string, RawEvent[]>();
+  for (const e of events) {
+    if (e.ts >= cutoff) continue;
+    const id = `roll:${localDate(e.ts)}:${e.modelId}:${e.repo ?? UNATTRIBUTED_REPO}:${e.surface}:${e.source}`;
+    const list = members.get(id);
+    if (list) list.push(e);
+    else members.set(id, [e]);
+  }
+  const rolled = [...members.entries()].map(([id, list]): RawEvent => {
+    const first = list[0]!;
+    const attributions = list.map((e) => e.attribution);
+    return {
+      id,
+      ts: startOf(first.ts, 'day'),
+      modelId: first.modelId,
+      surface: first.surface,
+      source: first.source,
+      repo: first.repo,
+      branch: null,
+      attribution: attributions.includes('heuristic') ? 'heuristic' : attributions.includes('authoritative') ? 'authoritative' : null,
+      language: null,
+      requests: list.reduce((a, e) => a + e.requests, 0),
+      promptTokens: sumOrNull(list.map((e) => e.promptTokens)),
+      completionTokens: sumOrNull(list.map((e) => e.completionTokens)),
+      cacheReadTokens: list.reduce((a, e) => a + e.cacheReadTokens, 0),
+      cacheCreationTokens: list.reduce((a, e) => a + e.cacheCreationTokens, 0),
+      thinkingTokens: list.reduce((a, e) => a + e.thinkingTokens, 0),
+    };
+  }).sort((a, b) => a.ts - b.ts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return { rows: [...rows, ...rolled], rolled, members, cutoff };
 }

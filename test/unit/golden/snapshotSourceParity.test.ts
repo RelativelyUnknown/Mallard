@@ -1,15 +1,13 @@
 import { strict as assert } from 'assert';
-import { existsSync, readFileSync } from 'fs';
-import * as path from 'path';
-import type { PricingSnapshot, RawEvent } from '../../../src/extension-backend/domain/contracts';
-import type { PricingManifest, TokenPrices } from '../../../src/extension-backend/domain/pricing';
+import type { PricingSnapshot } from '../../../src/extension-backend/domain/contracts';
 import { priceUsage } from '../../../src/extension-backend/domain/pricing';
 import { buildSnapshotSource } from '../../../src/extension-backend/domain/snapshotSource';
 import type { SnapshotSourceData } from '../../../src/extension-backend/domain/snapshotSource';
 import type { RecordFilter } from '../../../src/extension-backend/store/EventRepository';
-import { groupsFor, toRawEvent } from '../../golden/groupEvents';
+import { FROZEN, FROZEN_MANIFEST as MANIFEST, FROZEN_TOKEN_PRICES as TOKEN_PRICES, loadExpectedSync, loadGoldenEvents } from '../../golden/frozen';
+import { groupsFor } from '../../golden/groupEvents';
 import type { NormalizedEvent } from '../../golden/pipeline';
-import { canon, expectedPath } from '../../golden/support/canon';
+import { canon } from '../../golden/support/canon';
 import { diffGolden } from '../../golden/support/diff';
 import { GOLDEN_TZS, withTzSync } from '../../golden/support/time';
 
@@ -25,21 +23,6 @@ import { GOLDEN_TZS, withTzSync } from '../../golden/support/time';
  * test/golden/fixtures/pricing/ (D1: equal under frozen pricing).
  */
 
-const PRICING_DIR = path.join(__dirname, '..', '..', 'golden', 'fixtures', 'pricing');
-const MANIFEST = JSON.parse(readFileSync(path.join(PRICING_DIR, 'manifest.json'), 'utf8')) as PricingManifest;
-const TOKEN_PRICES = JSON.parse(readFileSync(path.join(PRICING_DIR, 'token-prices.json'), 'utf8')) as TokenPrices;
-
-const FROZEN: PricingSnapshot = {
-  manifest: MANIFEST,
-  tokenPrices: TOKEN_PRICES,
-  pricePerCredit: MANIFEST.pricePerCredit,
-  version: 'golden-frozen',
-};
-
-interface RecordedEvents {
-  events: NormalizedEvent[];
-}
-
 interface SnapshotRecord {
   label: string;
   nowLabel: string;
@@ -48,19 +31,8 @@ interface SnapshotRecord {
   data: SnapshotSourceData | { reduced: string; totals: SnapshotSourceData['totals']; estimatedEventCount: number; daily: { days: number; first: number | null; last: number | null } };
 }
 
-/** A recorded golden: the zone-specific file when the recorder wrote one, else the zone-independent one. */
-function loadExpectedSync(name: string, tz: string): unknown {
-  const file = existsSync(expectedPath(name, tz)) ? expectedPath(name, tz) : expectedPath(name);
-  return JSON.parse(readFileSync(file, 'utf8')) as unknown;
-}
-
-function loadEvents(tz: string): { recorded: NormalizedEvent[]; raw: RawEvent[] } {
-  const { events } = loadExpectedSync('events', tz) as RecordedEvents;
-  return { recorded: events, raw: events.map(toRawEvent) };
-}
-
 describe('golden parity — priceUsage reproduces the recorded event prices (D1, D17)', () => {
-  const { recorded, raw } = loadEvents('UTC');
+  const { recorded, raw } = loadGoldenEvents('UTC');
 
   it('has the fixture events, with cache/thinking tokens present on the mapped events (D2)', () => {
     assert.equal(recorded.length, 162);
@@ -125,9 +97,21 @@ function near(actual: number, expected: number): void {
   assert.ok(Math.abs(actual - expected) <= 1e-12 * Math.max(1, Math.abs(expected)), `${actual} vs ${expected}`);
 }
 
+describe('golden parity — credits per branch (the branch-cap alert input)', () => {
+  it('summing the priced credits of the events of each branch reproduces branches.json', () => {
+    const { raw } = loadGoldenEvents('UTC');
+    const recorded = loadExpectedSync('branches', 'UTC') as Record<string, number>;
+    assert.ok(Object.keys(recorded).length >= 4);
+    for (const [branch, credits] of Object.entries(recorded)) {
+      const sum = raw.filter((e) => e.branch === branch).reduce((a, e) => a + priceUsage(e, FROZEN).credits, 0);
+      assert.deepEqual(canon(sum), canon(credits), branch);
+    }
+  });
+});
+
 for (const tz of GOLDEN_TZS) {
   describe(`golden parity — buildSnapshotSource vs snapshots.${tz}`, () => {
-    const { raw } = loadEvents(tz);
+    const { raw } = loadGoldenEvents(tz);
     const records = loadExpectedSync('snapshots', tz) as SnapshotRecord[];
 
     it('covers the whole recorded matrix (19 filters at main, 4 at each of 4 edge nows)', () => {
