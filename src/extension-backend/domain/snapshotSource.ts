@@ -6,7 +6,7 @@
  * time and derives local days, hours and weekdays in TypeScript.
  */
 import type { AggregateGroup, PricingSnapshot } from './contracts';
-import { priceUsage } from './pricing';
+import { createPricer } from './pricing';
 import { COST_CATEGORIES, type CostCategory } from './types';
 import { UNATTRIBUTED_REPO } from './aggregate';
 import { nextBucketStart, startOf } from '../util/time';
@@ -67,22 +67,27 @@ export interface SnapshotGroups {
 
 interface Totals { credits: number; cost: number; tokens: number; eventCount: number }
 
+interface DayAcc extends Totals {
+  cat: Record<CostCategory, number>;
+}
+
 /** Local-calendar facts of one 15-minute UTC bucket, derived once however many groups share it. */
 interface LocalBucket {
-  dayStart: number;
+  day: DayAcc;
   hour: number;
   weekday: number;
   inToday: boolean;
   inMonth: boolean;
 }
 
-interface DayAcc extends Totals {
-  cat: Record<CostCategory, number>;
-}
-
 interface Acc extends Totals {
   /** Cost that came from rows whose repo attribution is a heuristic guess. */
   heuristicCost: number;
+}
+
+interface ModelAcc extends Acc {
+  /** The model's credit-bearing rows per surface: the sankey links. */
+  surfaces: Map<string, { count: number; credits: number }>;
 }
 
 const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
@@ -108,8 +113,17 @@ function accFor<K, V>(map: Map<K, V>, key: K, make: () => V): V {
   return v;
 }
 
+/** `acc` of `key`, adding `credits`, `cost`, `tokens`, `count` and the heuristic share to it. */
+function addTo(map: Map<string, Acc>, key: string, credits: number, cost: number, tokens: number, count: number, heuristic: number): void {
+  const acc = accFor(map, key, emptyAcc);
+  add(acc, credits, cost, tokens, count);
+  acc.heuristicCost += heuristic;
+}
+
 const emptyTotals = (): Totals => ({ credits: 0, cost: 0, tokens: 0, eventCount: 0 });
 const emptyAcc = (): Acc => ({ ...emptyTotals(), heuristicCost: 0 });
+const emptyModelAcc = (): ModelAcc => ({ ...emptyAcc(), surfaces: new Map() });
+const emptyDay = (): DayAcc => ({ ...emptyTotals(), cat: emptyCats() });
 const emptyCats = (): Record<CostCategory, number> =>
   ({ input: 0, output: 0, tool: 0, thinking: 0, cache_creation: 0, cache_read: 0, unknown: 0 });
 
@@ -151,14 +165,14 @@ export function buildSnapshotSource(input: SnapshotGroups, now: number, pricing:
   const dayStart = startOf(now, 'day');
   const dayEnd = nextBucketStart(now, 'day');
 
+  const price = createPricer(pricing);
   const all = emptyTotals();
   const mtd = emptyTotals();
   const today = emptyTotals();
   const daily = new Map<number, DayAcc>();
-  const models = new Map<string, Acc>();
+  const models = new Map<string, ModelAcc>();
   const repos = new Map<string, Acc>();
   const languages = new Map<string, Acc>();
-  const sankey = new Map<string, { model: string; surface: string; count: number; credits: number }>();
   const hourCredits = new Array<number>(24).fill(0);
   const hourSeen = new Array<boolean>(24).fill(false);
   const weekday = new Array<number>(7).fill(0);
@@ -169,7 +183,7 @@ export function buildSnapshotSource(input: SnapshotGroups, now: number, pricing:
     if (local === undefined) {
       const date = new Date(g.bucketStartMs);
       local = {
-        dayStart: startOf(g.bucketStartMs, 'day'),
+        day: accFor(daily, startOf(g.bucketStartMs, 'day'), emptyDay),
         hour: date.getHours(),
         weekday: date.getDay(),
         inToday: g.bucketStartMs >= dayStart && g.bucketStartMs < dayEnd,
@@ -178,32 +192,29 @@ export function buildSnapshotSource(input: SnapshotGroups, now: number, pricing:
       locals.set(g.bucketStartMs, local);
     }
 
-    const { credits, cost, costByCategory } = priceUsage(g, pricing);
+    const { credits, cost, costByCategory } = price(g);
     const tokens = g.promptTokens + g.completionTokens;
     const count = g.requests;
+    const heuristic = g.attribution === 'heuristic' ? cost : 0;
 
     add(all, credits, cost, tokens, count);
     if (local.inMonth) add(mtd, credits, cost, tokens, count);
     if (local.inToday) add(today, credits, cost, tokens, count);
+    add(local.day, credits, cost, tokens, count);
+    for (const category in costByCategory) local.day.cat[category as CostCategory] += costByCategory[category as CostCategory]!;
 
-    const day = accFor<number, DayAcc>(daily, local.dayStart, () => ({ ...emptyTotals(), cat: emptyCats() }));
-    add(day, credits, cost, tokens, count);
-    for (const [category, value] of Object.entries(costByCategory ?? {})) day.cat[category as CostCategory] += value;
-
-    const heuristic = g.attribution === 'heuristic' ? cost : 0;
-    const keyed: Array<[Map<string, Acc>, string]> = [
-      [models, g.modelId],
-      [repos, g.repo ?? UNATTRIBUTED_REPO],
-      [languages, g.language ?? 'unknown'],
-    ];
-    for (const [map, key] of keyed) {
-      const acc = accFor(map, key, emptyAcc);
-      add(acc, credits, cost, tokens, count);
-      acc.heuristicCost += heuristic;
-    }
+    const model = accFor(models, g.modelId, emptyModelAcc);
+    add(model, credits, cost, tokens, count);
+    model.heuristicCost += heuristic;
+    addTo(repos, g.repo ?? UNATTRIBUTED_REPO, credits, cost, tokens, count, heuristic);
+    addTo(languages, g.language ?? 'unknown', credits, cost, tokens, count, heuristic);
 
     if (credits > 0) {
-      const link = accFor(sankey, `${g.modelId}\x00${g.surface}`, () => ({ model: g.modelId, surface: g.surface, count: 0, credits: 0 }));
+      let link = model.surfaces.get(g.surface);
+      if (link === undefined) {
+        link = { count: 0, credits: 0 };
+        model.surfaces.set(g.surface, link);
+      }
       link.count += count;
       link.credits += credits;
     }
@@ -264,7 +275,9 @@ export function buildSnapshotSource(input: SnapshotGroups, now: number, pricing:
       .sort(byCreditsThenName((l) => l.language)),
     hourly: hourCredits.flatMap((c, hourLocal) => (hourSeen[hourLocal] ? [{ hourLocal, credits: c }] : [])),
     categories: COST_CATEGORIES.filter((c) => catTotals[c] > 0).map((category) => ({ category, cost: catTotals[category] })),
-    sankey: [...sankey.values()].sort((a, b) => byName(a.model, b.model) || byName(a.surface, b.surface)),
+    sankey: [...models.entries()]
+      .flatMap(([model, m]) => [...m.surfaces.entries()].map(([surface, link]) => ({ model, surface, count: link.count, credits: link.credits })))
+      .sort((a, b) => byName(a.model, b.model) || byName(a.surface, b.surface)),
     dims: { models: sorted(dimModels), surfaces: sorted(dimSurfaces), sources: sorted(dimSources), repos: sorted(dimRepos) },
     weekday,
   };

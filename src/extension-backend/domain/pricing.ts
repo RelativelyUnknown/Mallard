@@ -263,7 +263,11 @@ export function priceTokens(
   prices: TokenPrices | undefined,
 ): TokenCost | undefined {
   if (!prices) return undefined;
-  const p = resolveTokenPrice(modelId, prices);
+  return costAtPrice(resolveTokenPrice(modelId, prices), usage);
+}
+
+/** {@link priceTokens} for a price that is already resolved (undefined: the model has none). */
+function costAtPrice(p: ModelTokenPrice | undefined, usage: TokenUsage): TokenCost | undefined {
   if (!p) return undefined;
 
   const cacheRead = p.cacheRead ?? p.input;
@@ -337,6 +341,13 @@ export function hasKnownTokens(u: Pick<PricedUsage, 'tokensKnown' | 'promptToken
   return u.tokensKnown ?? (u.promptTokens !== null || u.completionTokens !== null);
 }
 
+/** Everything about a model that does not depend on the row: looked up once per model, not once per row. */
+interface ModelPricing {
+  perRequest: { credits: number; cost: number };
+  feed: ModelTokenPrice | undefined;
+  list: ModelTokenPrice | undefined;
+}
+
 /**
  * Price a stored row, or an aggregate group of rows, with the current prices.
  * It reproduces what the connectors used to compute once at ingest, so
@@ -360,39 +371,59 @@ export function hasKnownTokens(u: Pick<PricedUsage, 'tokensKnown' | 'promptToken
  *    a Claude row; `tokensKnown` plays no part.
  */
 export function priceUsage(u: PricedUsage, snapshot: PricingSnapshot): UsageCost {
-  const perRequest = priceRequest(u.modelId, {
-    pricePerCredit: snapshot.pricePerCredit,
-    currency: 'USD',
-    manifest: snapshot.manifest,
-  });
-  const credits = perRequest.credits * u.requests;
+  return createPricer(snapshot)(u);
+}
 
-  if (u.source === 'claude-code') {
-    const tokens: TokenUsage = {
-      prompt: u.promptTokens ?? 0,
-      completion: u.completionTokens ?? 0,
-      cacheCreation: u.cacheCreationTokens,
-      cacheRead: u.cacheReadTokens,
-      thinking: u.thinkingTokens,
-    };
-    const tokenCost =
-      priceTokens(u.modelId, tokens, snapshot.tokenPrices) ??
-      priceTokens(u.modelId, tokens, CLAUDE_FALLBACK_TOKEN_PRICES);
-    return {
-      credits,
-      cost: tokenCost?.total ?? 0,
-      ...(tokenCost ? { costByCategory: tokenCost.byCategory } : {}),
-    };
-  }
+/**
+ * {@link priceUsage} bound to one snapshot, remembering each model's lookups
+ * (multiplier, feed price, bundled price) so pricing many groups of a few
+ * dozen models does not rescan the price tables per group. The snapshot must
+ * not be mutated while the pricer is in use.
+ */
+export function createPricer(snapshot: PricingSnapshot): (u: PricedUsage) => UsageCost {
+  const models = new Map<string, ModelPricing>();
+  const modelPricing = (modelId: string): ModelPricing => {
+    let m = models.get(modelId);
+    if (m === undefined) {
+      m = {
+        perRequest: priceRequest(modelId, { pricePerCredit: snapshot.pricePerCredit, currency: 'USD', manifest: snapshot.manifest }),
+        feed: snapshot.tokenPrices ? resolveTokenPrice(modelId, snapshot.tokenPrices) : undefined,
+        list: resolveTokenPrice(modelId, CLAUDE_FALLBACK_TOKEN_PRICES),
+      };
+      models.set(modelId, m);
+    }
+    return m;
+  };
 
-  const known = hasKnownTokens(u);
-  const prompt = known ? (u.promptTokens ?? 0) : 0;
-  const completion = known ? (u.completionTokens ?? 0) : 0;
-  const tokenCost = priceTokens(u.modelId, { prompt, completion }, snapshot.tokenPrices);
-  const cost = tokenCost?.total ?? perRequest.cost * u.requests;
-  const totalTokens = prompt + completion;
-  const costByCategory =
-    tokenCost?.byCategory ??
-    (cost > 0 && totalTokens > 0 ? splitCostSimple(cost, prompt, totalTokens) : undefined);
-  return { credits, cost, ...(costByCategory ? { costByCategory } : {}) };
+  return (u) => {
+    const { perRequest, feed, list } = modelPricing(u.modelId);
+    const credits = perRequest.credits * u.requests;
+
+    if (u.source === 'claude-code') {
+      const tokens: TokenUsage = {
+        prompt: u.promptTokens ?? 0,
+        completion: u.completionTokens ?? 0,
+        cacheCreation: u.cacheCreationTokens,
+        cacheRead: u.cacheReadTokens,
+        thinking: u.thinkingTokens,
+      };
+      const tokenCost = costAtPrice(feed, tokens) ?? costAtPrice(list, tokens);
+      return {
+        credits,
+        cost: tokenCost?.total ?? 0,
+        ...(tokenCost ? { costByCategory: tokenCost.byCategory } : {}),
+      };
+    }
+
+    const known = hasKnownTokens(u);
+    const prompt = known ? (u.promptTokens ?? 0) : 0;
+    const completion = known ? (u.completionTokens ?? 0) : 0;
+    const tokenCost = costAtPrice(feed, { prompt, completion });
+    const cost = tokenCost?.total ?? perRequest.cost * u.requests;
+    const totalTokens = prompt + completion;
+    const costByCategory =
+      tokenCost?.byCategory ??
+      (cost > 0 && totalTokens > 0 ? splitCostSimple(cost, prompt, totalTokens) : undefined);
+    return { credits, cost, ...(costByCategory ? { costByCategory } : {}) };
+  };
 }

@@ -2,6 +2,7 @@ import { strict as assert } from 'assert';
 import type { AggregateGroup, PricingSnapshot, RawEvent } from '../../src/extension-backend/domain/contracts';
 import {
   CLAUDE_FALLBACK_TOKEN_PRICES,
+  createPricer,
   hasKnownTokens,
   priceUsage,
 } from '../../src/extension-backend/domain/pricing';
@@ -331,5 +332,42 @@ describe('priceUsage — a group prices like the sum of its rows (pricing is lin
     const grouped = priceUsage(usage({ requests: 2, promptTokens: 100, completionTokens: 20, tokensKnown: true }), SNAPSHOT).cost;
     const separate = priceUsage(usage({ promptTokens: 100, completionTokens: 20 }), SNAPSHOT).cost + alone;
     assert.ok(grouped < separate, 'the 0/0 row adds nothing once it shares a group with a token-bearing row');
+  });
+});
+
+describe('createPricer — priceUsage bound to a snapshot', () => {
+  const rows: PricedUsage[] = [
+    usage({ promptTokens: 1000, completionTokens: 200 }),
+    usage({ promptTokens: null, completionTokens: null, requests: 3 }),
+    usage({ modelId: 'mystery-model-x', promptTokens: 30, completionTokens: 10 }),
+    claude({ promptTokens: 2000, completionTokens: 500, cacheReadTokens: 4000 }),
+    claude({ modelId: 'claude-opus-4-5-20251101', promptTokens: 10 }),
+    claude({ modelId: 'claude-fable-9', promptTokens: 10 }),
+  ];
+
+  it('prices every row exactly like priceUsage, with and without a feed', () => {
+    for (const snapshot of [SNAPSHOT, NO_FEED]) {
+      const price = createPricer(snapshot);
+      for (const row of rows) assert.deepEqual(price(row), priceUsage(row, snapshot));
+    }
+  });
+
+  it('looks each model up in the price tables once, however many rows it prices', () => {
+    let scans = 0;
+    const counted = new Proxy(SNAPSHOT.tokenPrices!, {
+      ownKeys(target) {
+        scans++;
+        return Reflect.ownKeys(target);
+      },
+    });
+    const price = createPricer({ ...SNAPSHOT, tokenPrices: counted });
+    price(rows[0]!);
+    const afterFirst = scans;
+    assert.ok(afterFirst > 0, 'the first row scans the feed');
+    for (let i = 0; i < 50; i++) price(rows[0]!);
+    price(rows[1]!); // same model, other tokens
+    assert.equal(scans, afterFirst);
+    price(rows[2]!); // a new model scans again
+    assert.ok(scans > afterFirst);
   });
 });
