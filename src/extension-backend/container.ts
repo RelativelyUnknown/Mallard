@@ -10,9 +10,10 @@
  * fixes the disposal order on shutdown.
  */
 import * as vscode from 'vscode';
-import { readConfig, readEnabledConnectors } from './config';
+import { readConfig } from './config';
 import type { UsageService } from './app/UsageService';
-import type { UserConfigStore } from './app/UserConfigStore';
+import type { ConfigService } from './app/ConfigService';
+import type { ImportResult } from './app/ConfigImporter';
 import type { LayoutStore } from './app/LayoutStore';
 import type { RestrictionEngine } from './app/RestrictionEngine';
 import { ConnectorSetupGate } from './ingest/ConnectorSetupGate';
@@ -32,7 +33,9 @@ import type { WiringScope } from './wiring/scope';
 export interface Container {
   usage: UsageService;
   store: EventStore;
-  userConfig: UserConfigStore;
+  userConfig: ConfigService;
+  /** What the one-time `config.json` import did at this activation. */
+  imported: ImportResult;
   layout: LayoutStore;
   pricing: PricingService;
   restriction: RestrictionEngine;
@@ -59,9 +62,9 @@ async function assembleContainer(scope: WiringScope): Promise<Container> {
   const { pricing, currency, store, ingest, activeConnectors } = await wireStore(scope, {
     cfg,
     bundledManifest,
-    enabledConnectors: new Set(readEnabledConnectors()),
+    enabledConnectors: new Set(cfg.enabledConnectors),
   });
-  const { userConfig, layout, githubSession, github } = wireConfig(scope);
+  const { userConfig, layout, githubSession, github, imported } = await wireConfig(scope, { pricing });
   const { exporter } = await wireExport(scope, { cfg, userConfig, store });
   const { alerts } = wireAlerts(scope, { userConfig });
   const { usage, refreshUsage } = wireUsage(scope, {
@@ -92,5 +95,5 @@ async function assembleContainer(scope: WiringScope): Promise<Container> {
     setupGate,
   );
 
-  return { usage, store, userConfig, layout, pricing, restriction, ingest, setupGate };
+  return { usage, store, userConfig, imported, layout, pricing, restriction, ingest, setupGate };
 }

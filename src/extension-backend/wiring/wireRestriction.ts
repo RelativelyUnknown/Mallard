@@ -7,7 +7,7 @@
  */
 import { RestrictionEngine } from '../app/RestrictionEngine';
 import type { UsageService } from '../app/UsageService';
-import type { UserConfigStore } from '../app/UserConfigStore';
+import type { IConfigService } from '../app/ConfigService';
 import type { SnapshotData, UserConfig } from '../domain/types';
 import { opt } from '../util/lang';
 import { defaultLogger, Logger } from '../util/logger';
@@ -19,7 +19,7 @@ export interface RestrictionWiring {
 
 export interface RestrictionWiringDeps {
   usage: Pick<UsageService, 'onDidComputeUnfiltered'>;
-  userConfig: Pick<UserConfigStore, 'get'>;
+  userConfig: Pick<IConfigService, 'get'>;
   logger?: Logger;
 }
 

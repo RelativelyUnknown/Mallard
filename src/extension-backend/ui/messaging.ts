@@ -35,7 +35,6 @@ export type HostBoundMsg =
   | { type: 'ready' }
   | { type: 'refresh' }
   | { type: 'setFilter'; value: Filter }
-  | { type: 'setConfig'; value: Partial<UserConfig> }
   | { type: 'setLayout'; value: DashboardLayout }
   | { type: 'openConfig' }
   | { type: 'command'; id: CommandId }
@@ -56,7 +55,6 @@ const HOST_BOUND_TYPE_FLAGS: Record<HostBoundMsg['type'], true> = {
   ready: true,
   refresh: true,
   setFilter: true,
-  setConfig: true,
   setLayout: true,
   openConfig: true,
   command: true,
@@ -126,36 +124,6 @@ export function parseFilter(value: unknown): Filter | undefined {
   return out;
 }
 
-/** Shape check for the config patch the dashboard may send (deep validation happens in mergeConfig/zod). */
-function isConfigPatch(v: unknown): v is Partial<UserConfig> {
-  if (!isPlainObject(v)) return false;
-  for (const key of ['monthlyBudget', 'includedCredits', 'dailyCreditAlert'] as const) {
-    if (v[key] !== undefined && !isFiniteNumber(v[key])) return false;
-  }
-  if (v.alerts !== undefined) {
-    const a = v.alerts;
-    if (!isPlainObject(a)) return false;
-    if (a.velocityEnabled !== undefined && typeof a.velocityEnabled !== 'boolean') return false;
-    if (a.velocityCreditsPerHour !== undefined && !isFiniteNumber(a.velocityCreditsPerHour)) return false;
-  }
-  if (v.currency !== undefined && typeof v.currency !== 'string') return false;
-  if (v.version !== undefined && v.version !== 1 && v.version !== 2) return false;
-  for (const key of ['rules', 'groups'] as const) {
-    const list = v[key];
-    if (list !== undefined && !(Array.isArray(list) && list.every((e) => isPlainObject(e) && typeof e.id === 'string'))) {
-      return false;
-    }
-  }
-  for (const key of ['vars', 'dashboard', 'display', 'githubBilling', 'export', 'budget'] as const) {
-    if (v[key] !== undefined && !isPlainObject(v[key])) return false;
-  }
-  if (v.branchBudgets !== undefined) {
-    const b = v.branchBudgets;
-    if (!isPlainObject(b) || !Object.values(b).every(isFiniteNumber)) return false;
-  }
-  return true;
-}
-
 /** A layout is an array of panel objects, each with a string id (and well-typed optional fields). */
 function isLayout(v: unknown): v is DashboardLayout {
   return (
@@ -181,8 +149,6 @@ export function isHostBoundMsg(m: unknown): m is HostBoundMsg {
       return true;
     case 'setFilter':
       return parseFilter(m.value) !== undefined;
-    case 'setConfig':
-      return isConfigPatch(m.value);
     case 'setLayout':
       return isLayout(m.value);
     case 'restrictSnooze':

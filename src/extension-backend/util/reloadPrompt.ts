@@ -5,13 +5,9 @@
  * the user wondering why nothing happened.
  */
 import * as vscode from 'vscode';
-import { onSettingsChanged } from './vscodeSettings';
-
-/** Settings that only take effect at activation. */
-export const RELOAD_REQUIRED_CONFIG_KEYS = [
-  'mallard.enabledConnectors',
-  'mallard.dataRetentionDays',
-] as const;
+import { watchValue } from '../app/ConfigService';
+import { readSettingValues } from '../config';
+import { RELOAD_REQUIRED_KEYS } from '../config/settings';
 
 /** Offer a window reload; applies immediately if the user accepts. */
 export async function promptReloadWindow(reason: string): Promise<void> {
@@ -25,9 +21,18 @@ export async function promptReloadWindow(reason: string): Promise<void> {
   }
 }
 
-/** Prompt for a reload whenever an activation-time setting changes. */
-export function watchReloadRequiredSettings(): vscode.Disposable {
-  return onSettingsChanged(RELOAD_REQUIRED_CONFIG_KEYS, () =>
+/**
+ * Prompt for a reload whenever the value of an activation-time setting (the
+ * table's `reload` entries) changes. Driven by the one configuration event.
+ */
+export function watchReloadRequiredSettings(
+  onDidChange: vscode.Event<void>,
+  read: () => unknown = () => {
+    const values = readSettingValues();
+    return RELOAD_REQUIRED_KEYS.map((key) => values[key]);
+  },
+): vscode.Disposable {
+  return watchValue(onDidChange, read, () =>
     void promptReloadWindow('A Mallard setting that applies at startup changed.'),
   );
 }

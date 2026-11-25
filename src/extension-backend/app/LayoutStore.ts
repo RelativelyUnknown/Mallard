@@ -13,7 +13,7 @@ import * as vscode from 'vscode';
 import { DashboardLayout } from '../domain/types';
 import { configPanelsToLayout, normalizeLayout } from '../domain/layout';
 import { defaultLogger, Logger } from '../util/logger';
-import { UserConfigStore } from './UserConfigStore';
+import type { IConfigService } from './ConfigService';
 
 /** globalState key holding the v1 layout (an array of {id, span, hidden, size}). */
 export const LAYOUT_STATE_KEY = 'mallard.layout.v1';
@@ -30,7 +30,7 @@ export class LayoutStore implements vscode.Disposable {
   private seed: DashboardLayout | undefined;
 
   constructor(
-    private readonly userConfig: UserConfigStore,
+    private readonly userConfig: Pick<IConfigService, 'get' | 'onDidChange'>,
     private readonly state: vscode.Memento,
     private readonly logger: Logger = defaultLogger,
   ) {

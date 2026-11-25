@@ -4,6 +4,7 @@
  */
 import { UserConfig } from '../domain/types';
 import { deleteQueueFiles } from '../export/ExportQueue';
+import { deleteLegacyConfigFiles } from './ConfigImporter';
 import { ALL_SECRET_KEYS, exportTargetSlots } from './credentials';
 
 export interface WipeDeps {
@@ -18,10 +19,10 @@ export interface WipeDeps {
 }
 
 export async function wipeAllData(deps: WipeDeps): Promise<void> {
-  // The per-target secret keys are derived from the target names in
-  // config.json, so they have to be worked out BEFORE the config is reset —
-  // afterwards the targets are gone and their credentials would be orphaned in
-  // the OS keychain for good.
+  // The per-target secret keys are derived from the target ids in the
+  // `mallard.export.*Targets` settings, so they have to be worked out BEFORE the
+  // settings are reset — afterwards the targets are gone and their credentials
+  // would be orphaned in the OS keychain for good.
   const targetSecretKeys = exportTargetSlots(deps.userConfig.get().export).map((s) => s.key);
 
   await deps.store.clear();
@@ -37,4 +38,7 @@ export async function wipeAllData(deps: WipeDeps): Promise<void> {
   }
   // Undelivered export batches (one queue file per target) hold usage data too.
   deleteQueueFiles(deps.storageDir);
+  // A pre-settings config.json, or its `.migrated` backup (which keeps the old
+  // alert rules), belongs to the data being wiped.
+  deleteLegacyConfigFiles(deps.storageDir);
 }

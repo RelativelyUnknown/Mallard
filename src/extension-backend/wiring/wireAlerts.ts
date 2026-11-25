@@ -4,7 +4,7 @@
  * injected; `UsageService.dispose()` disposes it again (a repeat is harmless).
  */
 import { AlertService } from '../app/AlertService';
-import type { UserConfigStore } from '../app/UserConfigStore';
+import type { IConfigService } from '../app/ConfigService';
 import { defaultVscodeHost, VscodeHost } from '../util/vscodeHost';
 import type { WiringScope } from './scope';
 
@@ -13,7 +13,7 @@ export interface AlertWiring {
 }
 
 export interface AlertWiringDeps {
-  userConfig: Pick<UserConfigStore, 'get'>;
+  userConfig: Pick<IConfigService, 'get'>;
   /** Where alert toasts are shown (default: the real VS Code window). */
   host?: Pick<VscodeHost, 'showWarningMessage'>;
 }

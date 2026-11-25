@@ -1,14 +1,15 @@
 /**
- * Command Palette management for the export fanout targets declared in
- * config.json (`export.webhookTargets` / `export.mqttTargets`). These worked
- * before but were configurable only by hand-editing config.json; this flow
- * lists/adds/removes targets and jumps straight into their credential slots.
- * Target changes rebuild the exporter in place (container.ts watches the
- * export block), so no window reload is needed.
+ * Command Palette management for the export fanout targets declared in the
+ * `mallard.export.webhookTargets` / `mallard.export.mqttTargets` settings. The
+ * settings can be edited by hand; this flow lists/adds/removes targets and
+ * jumps straight into their credential slots. Target changes rebuild the
+ * exporter in place (wireExport watches the settings), so no window reload is
+ * needed. Credentials are keyed by each target's stable id, not its name.
  */
 import * as vscode from 'vscode';
+import { uniqueTargetId } from '../config/settings';
 import type { ExportConfig, ExportTarget } from '../domain/types';
-import type { UserConfigStore } from './UserConfigStore';
+import type { IConfigService } from './ConfigService';
 import {
   CredentialSlot,
   mqttTargetSlots,
@@ -16,10 +17,13 @@ import {
   webhookTargetSlots,
 } from './credentials';
 
-/** Mirrors the pattern in schemas/mallard-config.schema.json (exportTarget.name). */
+/** What a new target's name may look like (it also seeds its generated id). */
 const NAME_RE = /^[A-Za-z0-9._-]{1,32}$/;
 
 type TargetKind = 'webhook' | 'mqtt';
+
+/** What this flow needs from the config service: read the targets, write a list back. */
+type TargetConfig = Pick<IConfigService, 'get' | 'update'>;
 
 interface TargetPickItem extends vscode.QuickPickItem {
   action: 'manage' | 'add-webhook' | 'add-mqtt';
@@ -27,8 +31,8 @@ interface TargetPickItem extends vscode.QuickPickItem {
   target?: ExportTarget;
 }
 
-function slotsFor(kind: TargetKind, name: string): CredentialSlot[] {
-  return kind === 'webhook' ? webhookTargetSlots([{ name }]) : mqttTargetSlots([{ name }]);
+function slotsFor(kind: TargetKind, target: ExportTarget): CredentialSlot[] {
+  return kind === 'webhook' ? webhookTargetSlots([target]) : mqttTargetSlots([target]);
 }
 
 function listKey(kind: TargetKind): 'webhookTargets' | 'mqttTargets' {
@@ -37,7 +41,7 @@ function listKey(kind: TargetKind): 'webhookTargets' | 'mqttTargets' {
 
 export async function configureExportTargets(
   secrets: vscode.SecretStorage,
-  userConfig: UserConfigStore,
+  userConfig: TargetConfig,
 ): Promise<void> {
   const exportCfg: ExportConfig = userConfig.get().export ?? {};
   const items: TargetPickItem[] = [
@@ -76,12 +80,11 @@ export async function configureExportTargets(
 async function addTarget(
   kind: TargetKind,
   secrets: vscode.SecretStorage,
-  userConfig: UserConfigStore,
+  userConfig: TargetConfig,
 ): Promise<void> {
   const exportCfg: ExportConfig = userConfig.get().export ?? {};
-  const taken = new Set(
-    [...(exportCfg.webhookTargets ?? []), ...(exportCfg.mqttTargets ?? [])].map((t) => t.name),
-  );
+  const existing = [...(exportCfg.webhookTargets ?? []), ...(exportCfg.mqttTargets ?? [])];
+  const taken = new Set(existing.map((t) => t.name));
 
   const name = await vscode.window.showInputBox({
     title: `Add ${kind} target — name`,
@@ -104,23 +107,23 @@ async function addTarget(
   if (!url) return;
 
   const key = listKey(kind);
-  await userConfig.set({
-    export: { ...exportCfg, [key]: [...(exportCfg[key] ?? []), { name, url }] },
-  });
+  const target: ExportTarget = { id: uniqueTargetId(name, new Set(existing.map((t) => t.id))), name, url };
+  // The whole list is written back: a settings array is replaced wholesale, never patched.
+  await userConfig.update({ export: { [key]: [...(exportCfg[key] ?? []), target] } });
 
   const setNow = await vscode.window.showInformationMessage(
     `Mallard: ${kind} target "${name}" added — it takes effect immediately, no reload needed. ` +
       'Set its credentials so exports can authenticate.',
     'Set Credentials…',
   );
-  if (setNow) await pickAndSetSlot(secrets, slotsFor(kind, name));
+  if (setNow) await pickAndSetSlot(secrets, slotsFor(kind, target));
 }
 
 async function manageTarget(
   kind: TargetKind,
   target: ExportTarget,
   secrets: vscode.SecretStorage,
-  userConfig: UserConfigStore,
+  userConfig: TargetConfig,
 ): Promise<void> {
   const action = await vscode.window.showQuickPick(['Set credentials…', 'Remove target'], {
     title: `${target.name} (${target.url})`,
@@ -128,20 +131,15 @@ async function manageTarget(
   if (!action) return;
 
   if (action === 'Set credentials…') {
-    await pickAndSetSlot(secrets, slotsFor(kind, target.name));
+    await pickAndSetSlot(secrets, slotsFor(kind, target));
     return;
   }
 
   const exportCfg: ExportConfig = userConfig.get().export ?? {};
   const key = listKey(kind);
-  await userConfig.set({
-    export: {
-      ...exportCfg,
-      [key]: (exportCfg[key] ?? []).filter((t) => t.name !== target.name),
-    },
-  });
+  await userConfig.update({ export: { [key]: (exportCfg[key] ?? []).filter((t) => t.id !== target.id) } });
   // Best-effort cleanup so removed targets leave no orphaned secrets behind.
-  for (const slot of slotsFor(kind, target.name)) {
+  for (const slot of slotsFor(kind, target)) {
     await secrets.delete(slot.key);
   }
   void vscode.window.showInformationMessage(

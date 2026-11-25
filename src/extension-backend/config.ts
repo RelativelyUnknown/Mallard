@@ -1,15 +1,24 @@
 import * as vscode from 'vscode';
+import { readSettings, SettingValues } from './config/settings';
 import { PaletteMode } from './domain/types';
+import { readSetting } from './util/vscodeSettings';
 
+/**
+ * The settings that are not part of `UserConfig` (see `app/ConfigService.ts`),
+ * grouped the way their consumers use them. Read fresh on each call through the
+ * same sanitisers as `ConfigService` (`config/settings.ts`), so every value is
+ * already in range.
+ */
 export interface MallardConfig {
-  copilotLogPath: string;
   /** Optional override for Copilot's OTel export file / SQLite DB path. */
   copilotOtelPath: string;
   pricingManifestUrl: string;
+  /** Ids of the usage connectors the user has enabled. */
+  enabledConnectors: string[];
   palette: PaletteMode;
-  /** Minutes between automatic log re-reads and snapshot refreshes. Default 10. */
+  /** Minutes between automatic log re-reads and snapshot refreshes. */
   refreshIntervalMinutes: number;
-  /** Days of raw per-request events to retain before rolling up. Default 90. */
+  /** Days of raw per-request events to retain before rolling up. */
   dataRetentionDays: number;
   server: {
     url: string;
@@ -22,7 +31,6 @@ export interface MallardConfig {
   };
   mqtt: {
     url: string;
-    auth: 'password' | 'certificate';
     username: string;
   };
   shared: {
@@ -34,29 +42,38 @@ export interface MallardConfig {
   };
 }
 
-/** Exporter-construction inputs: changing any of these rebuilds the exporter
- *  in place (container.ts) — no window reload needed. */
-export const EXPORT_CONFIG_KEYS = [
-  'mallard.server.url',
-  'mallard.export.transport',
-  'mallard.webhook.auth',
-  'mallard.mqtt.url',
-  'mallard.mqtt.auth',
-  'mallard.mqtt.username',
-  'mallard.shared.certificate.file',
-  'mallard.shared.certificate.keyFile',
-  'mallard.shared.certificate.caFile',
-];
+/** The `MallardConfig` view of the sanitised settings. */
+export function toMallardConfig(v: SettingValues): MallardConfig {
+  return {
+    copilotOtelPath: v['mallard.copilotOtelPath'],
+    pricingManifestUrl: v['mallard.pricingManifestUrl'],
+    enabledConnectors: v['mallard.enabledConnectors'],
+    palette: v['mallard.palette'],
+    refreshIntervalMinutes: v['mallard.refreshIntervalMinutes'],
+    dataRetentionDays: v['mallard.dataRetentionDays'],
+    server: { url: v['mallard.server.url'] },
+    export: { transport: v['mallard.export.transport'] },
+    webhook: { auth: v['mallard.webhook.auth'] },
+    mqtt: { url: v['mallard.mqtt.url'], username: v['mallard.mqtt.username'] },
+    shared: {
+      certificate: {
+        file: v['mallard.shared.certificate.file'],
+        keyFile: v['mallard.shared.certificate.keyFile'],
+        caFile: v['mallard.shared.certificate.caFile'],
+      },
+    },
+  };
+}
 
-export const RELEVANT_CONFIG_KEYS = [
-  'mallard.copilotLogPath',
-  'mallard.copilotOtelPath',
-  'mallard.pricingManifestUrl',
-  'mallard.palette',
-  'mallard.refreshIntervalMinutes',
-  'mallard.dataRetentionDays',
-  ...EXPORT_CONFIG_KEYS,
-];
+/** Every setting as it is now, through its sanitiser. Problems are not logged here (`ConfigService` does that). */
+export function readSettingValues(): SettingValues {
+  return readSettings((key) => readSetting('mallard', key.slice('mallard.'.length)), () => undefined);
+}
+
+/** The current non-`UserConfig` settings, validated. */
+export function readConfig(): MallardConfig {
+  return toMallardConfig(readSettingValues());
+}
 
 export type CopilotOtelKind = 'ndjson' | 'sqlite' | 'none';
 
@@ -77,63 +94,9 @@ export function readCopilotOtel(): CopilotOtelSource {
   const copilot = vscode.workspace.getConfiguration('github.copilot.chat');
   const exporterType = String(copilot.get('otel.exporterType', '') ?? '');
   const outfile = String(copilot.get('otel.outfile', '') ?? '');
-  const override = String(vscode.workspace.getConfiguration('mallard').get('copilotOtelPath', '') ?? '');
+  const override = readConfig().copilotOtelPath;
   const resolved = override || (exporterType === 'file' ? outfile : '');
   if (!resolved) return { kind: 'none', path: '' };
   const kind: CopilotOtelKind = /\.(sqlite|db)$/i.test(resolved) ? 'sqlite' : 'ndjson';
   return { kind, path: resolved };
-}
-
-/** Ids of the connectors the user has enabled (`mallard.enabledConnectors`; both when unset). */
-export function readEnabledConnectors(): string[] {
-  return vscode.workspace.getConfiguration('mallard').get<string[]>('enabledConnectors')
-    ?? ['copilot', 'claude-code'];
-}
-
-export function readConfig(): MallardConfig {
-  const c = vscode.workspace.getConfiguration('mallard');
-
-  const rawTransport = c.get<string>('export.transport', '');
-  const transport: MallardConfig['export']['transport'] =
-    rawTransport === 'webhook' ? 'webhook' : rawTransport === 'mqtt' ? 'mqtt' : '';
-
-  const rawWebhookAuth = c.get<string>('webhook.auth', 'apiKey');
-  const webhookAuth: MallardConfig['webhook']['auth'] =
-    rawWebhookAuth === 'bearer'
-      ? 'bearer'
-      : rawWebhookAuth === 'certificate'
-        ? 'certificate'
-        : 'apiKey';
-
-  const rawMqttAuth = c.get<string>('mqtt.auth', 'password');
-  const mqttAuth: MallardConfig['mqtt']['auth'] =
-    rawMqttAuth === 'certificate' ? 'certificate' : 'password';
-
-  return {
-    copilotLogPath: c.get('copilotLogPath', ''),
-    copilotOtelPath: c.get('copilotOtelPath', ''),
-    pricingManifestUrl: c.get('pricingManifestUrl', ''),
-    palette: c.get<string>('palette', 'swiss') === 'theme' ? 'theme' : 'swiss',
-    refreshIntervalMinutes: Math.max(1, Math.min(60, c.get('refreshIntervalMinutes', 10))),
-    dataRetentionDays: Math.max(30, Math.min(365, c.get('dataRetentionDays', 90))),
-    server: {
-      url: c.get<string>('server.url', '').trim(),
-    },
-    export: { transport },
-    webhook: {
-      auth: webhookAuth,
-    },
-    mqtt: {
-      url: c.get<string>('mqtt.url', '').trim(),
-      auth: mqttAuth,
-      username: c.get<string>('mqtt.username', ''),
-    },
-    shared: {
-      certificate: {
-        file: c.get<string>('shared.certificate.file', ''),
-        keyFile: c.get<string>('shared.certificate.keyFile', ''),
-        caFile: c.get<string>('shared.certificate.caFile', ''),
-      },
-    },
-  };
 }

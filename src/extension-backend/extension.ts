@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { RELEVANT_CONFIG_KEYS } from './config';
 import { watchReloadRequiredSettings } from './util/reloadPrompt';
 import { buildContainer, Container } from './container';
 import {
@@ -138,22 +137,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<Mallar
     { dispose: () => sidebar.dispose() },
   );
 
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (RELEVANT_CONFIG_KEYS.some((k) => e.affectsConfiguration(k))) {
-        if (e.affectsConfiguration('mallard.copilotLogPath')) {
-          usage.refresh().catch((err: unknown) =>
-            defaultLogger.error('usage', 'refresh after log path change failed', err),
-          );
-        } else {
-          usage.onConfigChanged();
-        }
-      }
-    }),
-    // Settings only read at activation (connector registry, store retention)
-    // get a "Reload Window" prompt — changing them was a silent no-op before.
-    watchReloadRequiredSettings(),
-  );
+  // Settings only read at activation (connector registry, store retention) get
+  // a "Reload Window" prompt — changing them was a silent no-op before. Every
+  // other `mallard.*` change reaches the services through `userConfig.onDidChange`.
+  context.subscriptions.push(watchReloadRequiredSettings(userConfig.onDidChange));
 
   await usage.start();
   // Runs before setupGate.start() so onboarding gets first crack at asking
@@ -287,26 +274,13 @@ function registerCommands(context: vscode.ExtensionContext, c: Container): void 
       tried.length > 0 ? `\n\nSearched:\n${tried.map((p) => '  ' + p).join('\n')}` : '';
     const pick = await vscode.window.showInformationMessage(
       'Mallard: No Copilot or Claude Code log files detected. Make sure one of them is installed ' +
-        'and has been used. Copilot\'s log directory can be overridden via the mallard.copilotLogPath ' +
-        'setting.' +
+        'and has been used. Copilot usage is read from its OpenTelemetry export: enable it with ' +
+        '"Mallard: Enable Copilot Usage Tracking", or point the mallard.copilotOtelPath setting at ' +
+        'the export file.' +
         detail,
-      'Pick Copilot log folder…',
+      'Enable Copilot tracking',
     );
-    if (pick) {
-      const uri = await vscode.window.showOpenDialog({
-        canSelectFolders: true,
-        canSelectFiles: false,
-        canSelectMany: false,
-        openLabel: 'Use this folder',
-        title: 'Select Copilot log folder',
-      });
-      if (uri && uri[0]) {
-        await vscode.workspace
-          .getConfiguration('mallard')
-          .update('copilotLogPath', uri[0].fsPath, vscode.ConfigurationTarget.Global);
-        await usage.refresh();
-      }
-    }
+    if (pick) await vscode.commands.executeCommand('mallard.enableCopilotTelemetry');
   });
 
   // One channel for every simulation run (created lazily): creating a fresh

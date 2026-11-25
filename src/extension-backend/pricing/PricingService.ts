@@ -141,7 +141,7 @@ export class PricingService {
   constructor(
     private readonly storageDir: string,
     bundled: PricingManifest,
-    private readonly remoteUrl: string = REMOTE_URL,
+    private remoteUrl: string = REMOTE_URL,
     private readonly firstFetchWaitMs: number = TOKEN_PRICES_FIRST_FETCH_WAIT_MS,
   ) {
     this.manifest = bundled;
@@ -199,6 +199,15 @@ export class PricingService {
         resolve();
       });
     });
+  }
+
+  /**
+   * Apply a changed `mallard.pricingManifestUrl` without a reload: later
+   * refreshes use the new location, and one runs now ('' turns remote refresh off).
+   */
+  setRemoteUrl(url: string): void {
+    this.remoteUrl = url;
+    void this.tryRemoteRefresh();
   }
 
   startDailyRefresh(): void {

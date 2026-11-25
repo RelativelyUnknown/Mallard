@@ -4,7 +4,7 @@
  */
 import type { AlertService } from '../app/AlertService';
 import { UsageService } from '../app/UsageService';
-import type { UserConfigStore } from '../app/UserConfigStore';
+import type { IConfigService } from '../app/ConfigService';
 import type { IBillingProvider } from '../billing/IBillingProvider';
 import type { IngestService } from '../ingest/IngestService';
 import type { CurrencyService } from '../pricing/CurrencyService';
@@ -24,7 +24,7 @@ export interface UsageWiringDeps {
   store: Pick<EventStore, 'reader'>;
   pricing: PricingService;
   ingest: IngestService;
-  userConfig: UserConfigStore;
+  userConfig: IConfigService;
   currency: CurrencyService;
   github: IBillingProvider;
   alerts: AlertService;
