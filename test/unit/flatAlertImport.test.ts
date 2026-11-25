@@ -91,7 +91,7 @@ describe('mapLegacyVar — variable paths to metrics', () => {
       const r = mapLegacyVar(path);
       assert.equal(r.ok, false, path);
       assert.match((r as { reason: string }).reason, reason, path);
-      assert.match((r as { reason: string }).reason, new RegExp(`^"${path.replace(/[$()*+.?[\\\]^{|}]/g, '\\$&')}"`), 'the reason names the path');
+      assert.ok((r as { reason: string }).reason.startsWith(`"${path}"`), 'the reason names the path');
     }
   });
 
