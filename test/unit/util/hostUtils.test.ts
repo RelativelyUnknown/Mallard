@@ -10,10 +10,11 @@ import {
   probeExtension,
 } from '../../../src/extension-backend/util/extensionDetector';
 import { defaultVscodeHost } from '../../../src/extension-backend/util/vscodeHost';
-import { LayoutStore } from '../../../src/extension-backend/app/LayoutStore';
+import { LayoutStore, LAYOUT_STATE_KEY } from '../../../src/extension-backend/app/LayoutStore';
 import { activeLanguage } from '../../../src/extension-backend/util/editor';
 import { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
 import { DASHBOARD_PANELS, DashboardLayout } from '../../../src/extension-backend/domain/types';
+import { makeMemento } from '../helpers';
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 const ext = vscode.extensions as Mutable<typeof vscode.extensions>;
@@ -93,11 +94,12 @@ describe('defaultVscodeHost', () => {
   });
 });
 
-describe('LayoutStore (config.json-backed)', () => {
+describe('LayoutStore (globalState-backed)', () => {
   async function makeStore() {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-layout-'));
     const userConfig = new UserConfigStore(dir);
-    return { dir, userConfig, store: new LayoutStore(userConfig) };
+    const state = makeMemento();
+    return { dir, userConfig, state, store: new LayoutStore(userConfig, state) };
   }
 
   it('returns the default layout when nothing is stored', async () => {
@@ -108,8 +110,8 @@ describe('LayoutStore (config.json-backed)', () => {
     userConfig.dispose();
   });
 
-  it('set() persists a normalized layout into config.json and fires onDidChange', async () => {
-    const { dir, store, userConfig } = await makeStore();
+  it('set() persists a normalized layout into globalState (not config.json) and fires onDidChange', async () => {
+    const { dir, state, store, userConfig } = await makeStore();
     const fired: DashboardLayout[] = [];
     store.onDidChange((l) => fired.push(l));
 
@@ -118,8 +120,10 @@ describe('LayoutStore (config.json-backed)', () => {
 
     assert.equal(fired.length, 1);
     assert.equal(store.get()[0]!.id, reordered[0]!.id);
+    const stored = state.get<DashboardLayout>(LAYOUT_STATE_KEY);
+    assert.equal(stored?.[0]?.id, reordered[0]!.id);
     const onDisk = JSON.parse(await fs.readFile(path.join(dir, 'config.json'), 'utf8'));
-    assert.equal(onDisk.dashboard.panels[0].id, reordered[0]!.id);
+    assert.equal(onDisk.dashboard?.panels, undefined, 'config.json dashboard.panels is never written again');
     store.dispose();
     userConfig.dispose();
   });

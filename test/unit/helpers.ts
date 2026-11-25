@@ -1,3 +1,4 @@
+import type * as vscode from 'vscode';
 import { SourceKind, Surface, UsageEvent } from '../../src/extension-backend/domain/types';
 import { VscodeHost } from '../../src/extension-backend/util/vscodeHost';
 
@@ -14,6 +15,30 @@ export function makeStubVscodeHost(): StubVscodeHost {
     commands,
     showWarningMessage: (msg) => { warnings.push(msg); return Promise.resolve(undefined); },
     executeCommand: (cmd, ...args) => { commands.push({ command: cmd, args }); return Promise.resolve(undefined); },
+  };
+}
+
+/** An in-memory `vscode.Memento` (globalState/workspaceState) that records every update. */
+export interface FakeMemento extends vscode.Memento {
+  /** The stored values; `update(key, undefined)` deletes the key, as VS Code does. */
+  data: Map<string, unknown>;
+  /** Every update call in order, including deletions (value undefined). */
+  updates: Array<{ key: string; value: unknown }>;
+}
+
+export function makeMemento(initial: Record<string, unknown> = {}): FakeMemento {
+  const data = new Map<string, unknown>(Object.entries(initial));
+  const updates: Array<{ key: string; value: unknown }> = [];
+  return {
+    data,
+    updates,
+    keys: () => [...data.keys()],
+    get: <T>(key: string, fallback?: T): T | undefined => (data.has(key) ? (data.get(key) as T) : fallback),
+    update: async (key: string, value: unknown) => {
+      updates.push({ key, value });
+      if (value === undefined) data.delete(key);
+      else data.set(key, value);
+    },
   };
 }
 

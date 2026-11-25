@@ -126,7 +126,7 @@ async function assembleContainer(
   const github = new GitHubUsageService(githubSession);
   const userConfig = new UserConfigStore(storageDir);
   started.push(() => userConfig.dispose());
-  const layout = new LayoutStore(userConfig);
+  const layout = new LayoutStore(userConfig, context.globalState);
   started.push(() => layout.dispose());
 
   // Deliver the config.json githubBilling block (mode/pat/org) and keep it

@@ -259,7 +259,11 @@ export interface UserConfig {
   budget?: { monthlyUsd: number; includedCredits: number };
   /** Per-branch credit caps keyed by branch name. Used in restriction rules. */
   branchBudgets?: Record<string, number>;
-  /** Config-driven dashboard layout (CSS grid syntax). Overrides globalState order/sizing. */
+  /**
+   * Dashboard block of config.json. Only `columns` is still live (read-only);
+   * `panels` is a legacy layout that is imported once into globalState
+   * (`mallard.layout.v1`) and never read or written again.
+   */
   dashboard?: ConfigDashboard;
   /** GitHub billing auth configuration (PAT or VS Code session). */
   githubBilling?: GitHubBillingConfig;
@@ -403,11 +407,15 @@ export interface ConfigPanelLayout {
   size?: PanelSize;
 }
 
-/** Dashboard block in config.json — sets column count and panel order/sizing. */
+/** Dashboard block in config.json. `columns` is read live; `panels` is only the one-time source for the globalState layout. */
 export interface ConfigDashboard {
   /** Number of columns in the grid (1–4). Default: 2. */
   columns?: number;
-  /** Panel declarations. Unlisted panels fall back to globalState defaults. */
+  /**
+   * Legacy panel declarations. Imported ONCE into globalState (`mallard.layout.v1`)
+   * the first time the layout is read with nothing stored there; ignored (and
+   * never rewritten) afterwards. Unlisted panels fall back to the default layout.
+   */
   panels?: ConfigPanelLayout[];
 }
 
