@@ -5,7 +5,8 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { ConfigService } from '../../../src/extension-backend/app/ConfigService';
 import type { ImportResult } from '../../../src/extension-backend/app/ConfigImporter';
-import { LAYOUT_STATE_KEY } from '../../../src/extension-backend/app/LayoutStore';
+import { LAYOUT_V1_KEY, LAYOUT_V2_KEY } from '../../../src/extension-backend/app/LayoutStore';
+import { migrateV1 } from '../../../src/extension-backend/domain/layout';
 import { GitHubSession } from '../../../src/extension-backend/billing/GitHubSession';
 import { wireConfig } from '../../../src/extension-backend/wiring/wireConfig';
 import type { GitHubBillingConfig } from '../../../src/extension-backend/domain/types';
@@ -38,7 +39,8 @@ describe('wireConfig', () => {
       return { dispose() {} };
     }) as unknown as typeof ws.onDidChangeConfiguration;
     const change = (key: string) => changeCbs.forEach((cb) => cb({ affectsConfiguration: (k) => key === k || key.startsWith(`${k}.`) }));
-    const globalState = makeMemento();
+    const v1 = [{ id: 'models', span: 3, hidden: true }];
+    const globalState = makeMemento({ [LAYOUT_V1_KEY]: v1 });
     const context = {
       subscriptions: [] as Array<{ dispose(): void }>,
       secrets: { get: async () => undefined, onDidChange: () => ({ dispose() {} }) },
@@ -47,7 +49,7 @@ describe('wireConfig', () => {
     const started: Array<() => void> = [];
     const pricingUrls: string[] = [];
     const none: ImportResult = { status: 'none', written: [], skipped: [], layoutSeeded: false, legacyRules: [], legacyGroups: [], legacyVars: {} };
-    return { values, change, globalState, context, started, pricingUrls, none, pricing: { setRemoteUrl: (u: string) => void pricingUrls.push(u) } };
+    return { values, change, globalState, context, started, pricingUrls, none, v1, pricing: { setRemoteUrl: (u: string) => void pricingUrls.push(u) } };
   }
 
   async function tmpDir() {
@@ -76,8 +78,8 @@ describe('wireConfig', () => {
       assert.equal(imported, t.none);
       assert.equal(t.context.subscriptions.length, 2, 'the billing and pricing-URL watchers');
       assert.equal(t.started.length, 3, 'session, config service and layout store each register a cleanup');
-      assert.ok(t.globalState.data.has(LAYOUT_STATE_KEY), 'the layout store is backed by the extension globalState');
-      assert.ok(layout.get().length > 0);
+      assert.deepEqual(t.globalState.get(LAYOUT_V2_KEY), migrateV1(t.v1), 'the layout store is backed by the extension globalState and migrates its v1 layout');
+      assert.equal(layout.get().panels.length, migrateV1(t.v1).panels.length);
 
       t.values['githubBilling.org'] = 'other-org';
       t.change('mallard.githubBilling.org');
@@ -124,7 +126,7 @@ describe('wireConfig', () => {
       const { imported, layout } = await wireConfig({ context: t.context, storageDir: dir, started: t.started }, { pricing: t.pricing });
       assert.equal(imported.status, 'imported');
       assert.deepEqual(written, [['monthlyBudget', 7]]);
-      assert.equal(layout.get().find((p) => p.id === 'models')?.hidden, true, 'the seeded layout is what the store serves');
+      assert.equal(layout.get().panels.find((p) => p.id === 'models')?.hidden, true, 'the seeded layout is what the store serves');
       assert.ok(await fs.stat(path.join(dir, 'config.json.migrated')));
     } finally {
       for (const d of t.context.subscriptions) d.dispose();

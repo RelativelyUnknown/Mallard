@@ -24,7 +24,7 @@ import { queueFileFor } from '../export/ExportQueue';
 import { defaultLogger, Logger } from '../util/logger';
 import { SECRET_KEYS, targetSecretKey, type SecretKey } from './credentials';
 import { FLAG_CONFIG_IMPORT_WARNED, getFlag, setFlag } from './EphemeralFlags';
-import { LAYOUT_STATE_KEY } from './LayoutStore';
+import { LAYOUT_V1_KEY } from './LayoutStore';
 
 const FILE = 'config.json';
 const BACKUP = 'config.json.migrated';
@@ -274,8 +274,8 @@ export async function importLegacyConfig(deps: ImportDeps): Promise<ImportResult
   try {
     await deps.config.update(parsed.patch);
     for (const { kind, from, to } of parsed.renamed) await carryOverTarget(deps, kind, from, to);
-    if (parsed.panels && deps.state.get(LAYOUT_STATE_KEY) === undefined) {
-      await deps.state.update(LAYOUT_STATE_KEY, configPanelsToLayout(parsed.panels, parsed.columns));
+    if (parsed.panels && deps.state.get(LAYOUT_V1_KEY) === undefined) {
+      await deps.state.update(LAYOUT_V1_KEY, configPanelsToLayout(parsed.panels));
       result.layoutSeeded = true;
     }
     result.backup = backupPath(storageDir);

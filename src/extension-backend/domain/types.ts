@@ -258,7 +258,11 @@ export interface UserConfig {
   flatRules?: FlatAlertRule[];
   /** Per-branch credit caps keyed by branch name (`mallard.branchBudgets`). */
   branchBudgets?: Record<string, number>;
-  /** Not part of the settings: only the legacy layout in an imported `config.json` used it. */
+  /**
+   * Legacy dashboard block of config.json. Not part of the settings and not read at
+   * runtime (the layout is `LayoutV2` in globalState); only the one-time importer
+   * feeds `panels` into the layout migration.
+   */
   dashboard?: ConfigDashboard;
   /** GitHub billing auth configuration (`mallard.githubBilling.*`). */
   githubBilling?: GitHubBillingConfig;
@@ -341,14 +345,9 @@ export interface RestrictionState {
   userOverrideUntil: number | null;
 }
 
-export const DEFAULT_RESTRICTION_STATE: RestrictionState = {
-  version: 1,
-  active: false,
-  ruleId: '',
-  reasonMessage: '',
-  firedAt: 0,
-  userOverrideUntil: null,
-};
+// One line on purpose: the last runtime statement of this module must not end on a bare `};`, or tsx's
+// end-of-file coverage hint lands on a line nothing executes (the old default layout array carried a c8 marker for this).
+export const DEFAULT_RESTRICTION_STATE: RestrictionState = { version: 1, active: false, ruleId: '', reasonMessage: '', firedAt: 0, userOverrideUntil: null };
 
 /**
  * Chart colour palette mode (the `mallard.palette` setting):
@@ -360,24 +359,11 @@ export const DEFAULT_RESTRICTION_STATE: RestrictionState = {
 export type PaletteMode = 'swiss' | 'theme';
 
 /**
- * Persisted dashboard layout. Each analysis panel has a position (array order),
- * a width span (number of grid columns it occupies, 1..MAX_PANEL_SPAN, clamped
- * at render time to the configured column count), and a visibility flag. Edited
- * in the dashboard's edit mode and stored in globalState.
+ * Height tier of a panel in the legacy v1 dashboard layout (and in config.json's
+ * `dashboard.panels`). The current layout (`LayoutV2`, domain/layout.ts) stores
+ * grid rows instead; the tiers only survive as migration input.
  */
 export type PanelSize = 'compact' | 'normal' | 'tall';
-
-/** Widest a panel may span — matches the maximum configurable column count. */
-export const MAX_PANEL_SPAN = 4;
-
-export interface DashboardPanelLayout {
-  id: string;
-  span: number;
-  hidden: boolean;
-  size?: PanelSize;
-}
-
-export type DashboardLayout = DashboardPanelLayout[];
 
 /**
  * Dashboard panel entry from config.json, using CSS grid shorthand syntax so
@@ -394,53 +380,17 @@ export interface ConfigPanelLayout {
   size?: PanelSize;
 }
 
-/** Dashboard block in config.json. `columns` is read live; `panels` is only the one-time source for the globalState layout. */
+/**
+ * Legacy dashboard block of config.json. Nothing reads it at runtime any more:
+ * the grid is a fixed 4 columns and the layout lives in globalState
+ * (`mallard.layout.v2`). `panels` is only the source for the one-time importer.
+ */
 export interface ConfigDashboard {
-  /** Number of columns in the grid (1–4). Default: 2. */
+  /** Retired: the grid column count is fixed. */
   columns?: number;
-  /**
-   * Legacy panel declarations. Imported ONCE into globalState (`mallard.layout.v1`)
-   * the first time the layout is read with nothing stored there; ignored (and
-   * never rewritten) afterwards. Unlisted panels fall back to the default layout.
-   */
+  /** Legacy panel declarations, imported once into the layout (never rewritten). */
   panels?: ConfigPanelLayout[];
 }
-
-/** The analysis panels that can be reordered, resized, and hidden. */
-export const DASHBOARD_PANELS = [
-  'daily',
-  'heatmap',
-  'models',
-  'sankey',
-  'category',
-  'cumulative',
-  'weekday',
-  'hourly',
-  'repos',
-  'categoryTrend',
-  'tokens',
-  'billing',
-  'languages',
-] as const;
-
-export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = [
-  { id: 'daily', span: 2, hidden: false, size: 'normal' },
-  { id: 'heatmap', span: 2, hidden: false, size: 'normal' },
-  { id: 'models', span: 1, hidden: false, size: 'normal' },
-  { id: 'sankey', span: 1, hidden: false, size: 'normal' },
-  { id: 'category', span: 1, hidden: false, size: 'normal' },
-  { id: 'cumulative', span: 1, hidden: false, size: 'normal' },
-  { id: 'weekday', span: 1, hidden: false, size: 'normal' },
-  { id: 'hourly', span: 1, hidden: false, size: 'normal' },
-  // Extra charts: part of the panel set but hidden until added via the
-  // dashboard's "Add chart" picker.
-  { id: 'repos', span: 1, hidden: true, size: 'normal' },
-  { id: 'categoryTrend', span: 2, hidden: true, size: 'normal' },
-  { id: 'tokens', span: 1, hidden: true, size: 'normal' },
-  { id: 'billing', span: 1, hidden: true, size: 'normal' },
-  { id: 'languages', span: 1, hidden: true, size: 'normal' },
-/* c8 ignore next */
-];
 
 /** Active filter applied to build the current snapshot. */
 export interface Filter {

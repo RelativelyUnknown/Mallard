@@ -52,7 +52,7 @@ export async function wireConfig(scope: WiringScope, deps: ConfigWiringDeps): Pr
     secrets: context.secrets,
   });
 
-  const layout = new LayoutStore(userConfig, context.globalState);
+  const layout = new LayoutStore(context.globalState);
   started.push(() => layout.dispose());
 
   githubSession.configure(userConfig.get().githubBilling);

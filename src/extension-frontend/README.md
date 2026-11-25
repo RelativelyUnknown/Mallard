@@ -15,7 +15,13 @@ extension-frontend/
 ├── store.ts       Zustand store for snapshot/config/layout/filter state
 ├── theme.ts       palette resolution (swiss vs. VS Code theme), forced light/dark scheme
 ├── color.ts       duotone colour ramp helpers
-├── layout.ts      drag/resize/dock logic for the charts grid
+├── dashboardGrid.ts  the analysis grid: layout state, edit mode, hide/show, persistence, announcements
+├── gridEngine.ts  GridEngine interface + sanitizeRects (no gridstack import)
+├── gridstackEngine.ts  the gridstack adapter (the only file that imports gridstack)
+├── gridConstants.ts  columns, 24 px rows, tier rows, the engine option set
+├── keyboard.ts    lift-mode keyboard layer (Space lifts, arrows move, R resizes, Space drops, Esc cancels)
+├── panels.ts      panel markup as gridstack widgets
+├── resizeFrame.ts ResizeObserver -> rAF helper that keeps each chart sized to its panel
 ├── addChartMenu.ts  keyboard-accessible "Add chart" picker
 ├── filterSync.ts  keeps the local filter in step with the host's (hydration, relative date presets)
 ├── escapeHtml.ts  the one HTML-escape helper (chart tooltips, banners, sidebar)

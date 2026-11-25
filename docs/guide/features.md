@@ -29,11 +29,32 @@ Four more charts sit behind the **Add chart** button, hidden until you want them
 - **GitHub billing items** — net amount per model/SKU from the billing API (needs sign-in).
 - **≈ By language** — spend per programming language, detected from the active editor the same way the repo heuristic works (live events only, never backfill). The `≈` in the title is deliberate: treat it as directional.
 
-Added charts behave like the stock ones: drag, resize, hide, all persisted with the layout.
+Added charts behave like the stock ones: drag, resize and hide them like any other panel.
 
 ## Layout
 
-Use **Resize** and **Move** to drag, resize, or hide panels. Your arrangement is saved automatically in VS Code's extension storage. **Reset layout** restores defaults.
+The analysis charts sit on a freeform grid (four columns wide). Press **Edit layout** to change it, and **Edit layout** again when you are done. While editing:
+
+- **Mouse or touch**: drag a panel by its header to move it, and drag its edge or bottom-right corner to resize it. Panels never overlap; neighbours make room.
+- **Hide**: the eye button on a panel's header removes it from the grid. **Add chart** lists hidden panels and brings one back.
+- **Reset layout** restores the default arrangement.
+
+Your arrangement is saved automatically in VS Code's own storage for the extension (not in the settings) and survives restarts. In a narrow window (700 px or less) the grid collapses to one column; editing is switched off there, and your wide layout is left untouched.
+
+### Moving and resizing with the keyboard
+
+Every panel has a **move handle** (a grip button in its header) that is reachable with Tab while editing. A screen reader announces each step.
+
+| Key | Does |
+| --- | --- |
+| `Space` or `Enter` on the move handle | **Lift** the panel |
+| Arrow keys | Move the lifted panel one column left or right, or past the nearest panel above or below |
+| `R` | Switch between moving and **resizing** |
+| Arrow keys while resizing | `Right` / `Left` make it one column wider / narrower; `Down` / `Up` make it one height step taller / shorter (compact, normal, tall) |
+| `Space` or `Enter` | **Drop** the panel where it is, saving the change |
+| `Escape` | **Cancel**: every panel goes back to where it was when you lifted |
+
+Moving focus away from the move handle drops the panel. Announcements give the column and an ordinal row band (for example "Models moved to column 3, row band 1"), and name any panel that had to make room.
 
 ## Budget and alerts
 

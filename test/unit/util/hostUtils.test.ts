@@ -7,10 +7,11 @@ import {
   probeExtension,
 } from '../../../src/extension-backend/util/extensionDetector';
 import { defaultVscodeHost } from '../../../src/extension-backend/util/vscodeHost';
-import { LayoutStore, LAYOUT_STATE_KEY } from '../../../src/extension-backend/app/LayoutStore';
+import { LayoutStore, LAYOUT_V2_KEY } from '../../../src/extension-backend/app/LayoutStore';
 import { activeLanguage } from '../../../src/extension-backend/util/editor';
-import { DASHBOARD_PANELS, DashboardLayout } from '../../../src/extension-backend/domain/types';
-import { makeFakeConfig, makeMemento } from '../helpers';
+import { PANEL_IDS } from '../../../src/extension-backend/domain/layout';
+import type { LayoutV2 } from '../../../src/extension-backend/domain/contracts';
+import { makeMemento } from '../helpers';
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 const ext = vscode.extensions as Mutable<typeof vscode.extensions>;
@@ -91,54 +92,38 @@ describe('defaultVscodeHost', () => {
 });
 
 describe('LayoutStore (globalState-backed)', () => {
-  async function makeStore() {
-    const userConfig = makeFakeConfig();
+  function makeStore() {
     const state = makeMemento();
-    return { userConfig, state, store: new LayoutStore(userConfig, state) };
+    return { state, store: new LayoutStore(state) };
   }
 
-  it('returns the default layout when nothing is stored', async () => {
-    const { store, userConfig } = await makeStore();
-    const layout = store.get();
-    assert.equal(layout.length, DASHBOARD_PANELS.length);
+  it('returns the default layout when nothing is stored', () => {
+    const { store } = makeStore();
+    assert.equal(store.get().panels.length, PANEL_IDS.length);
     store.dispose();
-    userConfig.dispose();
   });
 
-  it('set() persists a normalized layout into globalState (not settings) and fires onDidChange', async () => {
-    const { state, store, userConfig } = await makeStore();
-    const fired: DashboardLayout[] = [];
+  it('set() persists a layout into globalState (the v2 key) and fires onDidChange', async () => {
+    const { state, store } = makeStore();
+    const fired: LayoutV2[] = [];
     store.onDidChange((l) => fired.push(l));
 
-    const reordered = [...store.get()].reverse();
+    const reordered = { ...store.get(), panels: [...store.get().panels].reverse() };
     await store.set(reordered);
 
     assert.equal(fired.length, 1);
-    assert.equal(store.get()[0]!.id, reordered[0]!.id);
-    const stored = state.get<DashboardLayout>(LAYOUT_STATE_KEY);
-    assert.equal(stored?.[0]?.id, reordered[0]!.id);
-    assert.deepEqual(userConfig.updates, [], 'the layout is never written to the configuration');
+    assert.equal(store.get().panels[0]!.id, reordered.panels[0]!.id);
+    const stored = state.get<LayoutV2>(LAYOUT_V2_KEY);
+    assert.equal(stored?.panels[0]?.id, reordered.panels[0]!.id);
     store.dispose();
-    userConfig.dispose();
   });
 
   it('reset() restores the default layout', async () => {
-    const { store, userConfig } = await makeStore();
-    await store.set([...store.get()].reverse());
+    const { store } = makeStore();
+    await store.set({ ...store.get(), panels: [...store.get().panels].reverse() });
     await store.reset();
-    assert.deepEqual(store.get().map((p) => p.id), [...DASHBOARD_PANELS]);
+    assert.deepEqual(store.get().panels.map((p) => p.id), [...PANEL_IDS]);
     store.dispose();
-    userConfig.dispose();
-  });
-
-  it('does not re-fire onDidChange for config edits that leave the layout unchanged', async () => {
-    const { store, userConfig } = await makeStore();
-    const fired: DashboardLayout[] = [];
-    store.onDidChange((l) => fired.push(l));
-    await userConfig.set({ monthlyBudget: 42 });
-    assert.equal(fired.length, 0);
-    store.dispose();
-    userConfig.dispose();
   });
 });
 

@@ -75,15 +75,19 @@ describe('isHostBoundMsg — payload shapes', () => {
     assert.equal(isHostBoundMsg({ type: 'setFilter', value: [] }), false);
   });
 
-  it('setLayout requires an array of objects with a string id', () => {
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [{ id: 'daily', span: 2, hidden: false }] }), true);
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [{ id: 'daily', size: 'tall' }] }), true);
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [null] }), false);
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: ['daily'] }), false);
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [{ span: 2 }] }), false);
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [{ id: 7 }] }), false);
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [{ id: 'daily', span: 'wide' }] }), false);
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [{ id: 'daily', hidden: 'yes' }] }), false);
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [[]] }), false);
+  it('setLayout requires a strict version-2 layout: unique ids, integer rects inside the grid, a boolean hidden', () => {
+    const panel = { id: 'daily', x: 0, y: 0, w: 2, h: 13, hidden: false };
+    const send = (value: unknown) => isHostBoundMsg({ type: 'setLayout', value });
+    assert.equal(send({ version: 2, panels: [panel] }), true);
+    assert.equal(send({ version: 2, panels: [{ ...panel, x: 2 }] }), true);
+    assert.equal(send({ version: 1, panels: [panel] }), false);
+    assert.equal(send([panel]), false);
+    assert.equal(send({ version: 2, panels: [null] }), false);
+    assert.equal(send({ version: 2, panels: ['daily'] }), false);
+    assert.equal(send({ version: 2, panels: [{ ...panel, id: 7 }] }), false);
+    assert.equal(send({ version: 2, panels: [{ ...panel, w: 'wide' }] }), false);
+    assert.equal(send({ version: 2, panels: [{ ...panel, x: 3 }] }), false, 'x + w beyond the 4th column');
+    assert.equal(send({ version: 2, panels: [{ ...panel, hidden: 'yes' }] }), false);
+    assert.equal(send({ version: 2, panels: [panel, panel] }), false, 'duplicate id');
   });
 });

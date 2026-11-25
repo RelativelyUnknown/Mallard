@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Changed
+
+- **Freeform dashboard layout**: the analysis charts now sit on a four-column
+  grid (gridstack) instead of the preset-width, three-height-tier layout. Drag a
+  panel by its header, resize it from an edge or corner, and panels make room for
+  each other. **Edit layout** replaces the separate **Resize** and **Move**
+  buttons. Hidden and empty panels leave the grid instead of leaving gaps, and a
+  window narrower than 700 px shows one column without touching your layout.
+- **Keyboard layout editing**: focus a panel's move handle, press `Space` or
+  `Enter` to lift it, arrow keys to move it, `R` to switch to resizing, `Space`
+  to drop and `Escape` to cancel; every step is announced to screen readers.
+  This replaces `Alt`+arrow reordering, which clashed with VS Code's own
+  `Alt`+`Left`/`Right` navigation.
+- **Layout storage**: the layout is saved as grid rectangles under
+  `mallard.layout.v2` in extension storage. The previous layout is migrated once
+  and left in place, so a downgrade still finds it. The `dashboard.columns`
+  option and the `gridColumn`/`gridRow` fields are no longer used.
+
 ### Added
 
 - **Event streaming (wire protocol v1)**: metric export is now a true stream.

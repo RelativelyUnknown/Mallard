@@ -12,7 +12,7 @@ import {
   vscodeImportUi,
 } from '../../../src/extension-backend/app/ConfigImporter';
 import { FLAG_CONFIG_IMPORT_WARNED } from '../../../src/extension-backend/app/EphemeralFlags';
-import { LAYOUT_STATE_KEY } from '../../../src/extension-backend/app/LayoutStore';
+import { LAYOUT_V1_KEY } from '../../../src/extension-backend/app/LayoutStore';
 import { SECRET_KEYS, targetSecretKey } from '../../../src/extension-backend/app/credentials';
 import { queueFileFor } from '../../../src/extension-backend/export/ExportQueue';
 import type { UserConfig } from '../../../src/extension-backend/domain/types';
@@ -131,7 +131,7 @@ describe('importLegacyConfig — a full config', () => {
     assert.deepEqual(kept.rules, FULL.rules, 'the backup is the untouched original, rules included');
 
     assert.equal(r.layoutSeeded, true);
-    const layout = h.state.get<Array<{ id: string; span: number; hidden: boolean; size: string }>>(LAYOUT_STATE_KEY)!;
+    const layout = h.state.get<Array<{ id: string; span: number; hidden: boolean; size: string }>>(LAYOUT_V1_KEY)!;
     assert.deepEqual(layout.slice(0, 2).map((p) => [p.id, p.span, p.hidden, p.size]), [['models', 2, true, 'normal'], ['daily', 2, false, 'tall']]);
 
     assert.equal(h.messages.info.length, 1, 'exactly one message');
@@ -173,11 +173,11 @@ describe('importLegacyConfig — the layout', () => {
 
   it('never overwrites a layout that is already stored', async () => {
     const h = harness();
-    await h.state.update(LAYOUT_STATE_KEY, [{ id: 'daily', span: 1, hidden: false }]);
+    await h.state.update(LAYOUT_V1_KEY, [{ id: 'daily', span: 1, hidden: false }]);
     h.write(withPanels);
     const r = await importLegacyConfig(h.deps);
     assert.equal(r.layoutSeeded, false);
-    assert.deepEqual(h.state.get(LAYOUT_STATE_KEY), [{ id: 'daily', span: 1, hidden: false }]);
+    assert.deepEqual(h.state.get(LAYOUT_V1_KEY), [{ id: 'daily', span: 1, hidden: false }]);
     assert.deepEqual(h.messages.info, [], 'a layout that was not touched is nothing to report');
   });
 
@@ -187,17 +187,17 @@ describe('importLegacyConfig — the layout', () => {
       h.write({ monthlyBudget: 1, dashboard });
       const r = await importLegacyConfig(h.deps);
       assert.equal(r.layoutSeeded, false);
-      assert.equal(h.state.get(LAYOUT_STATE_KEY), undefined);
+      assert.equal(h.state.get(LAYOUT_V1_KEY), undefined);
     }
   });
 
-  it('passes the column count so wide spans are clamped as before, and skips invalid panel entries', async () => {
+  it('ignores the retired dashboard.columns option (the grid is always four columns wide), and skips invalid panel entries', async () => {
     const h = harness();
     h.write({ dashboard: { columns: 2, panels: [{ id: 'models', gridColumn: 'span 4' }, { hidden: true }, 'junk'] } });
     const r = await importLegacyConfig(h.deps);
     assert.deepEqual(r.skipped, ['dashboard.panels[1]', 'dashboard.panels[2]']);
-    const layout = h.state.get<Array<{ id: string; span: number }>>(LAYOUT_STATE_KEY)!;
-    assert.equal(layout.find((p) => p.id === 'models')!.span, 2);
+    const layout = h.state.get<Array<{ id: string; span: number }>>(LAYOUT_V1_KEY)!;
+    assert.equal(layout.find((p) => p.id === 'models')!.span, 4, 'not clamped to the old columns value');
   });
 });
 

@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { defaultLayout } from '../../src/extension-backend/domain/layout';
 import { isHostBoundMsg, isWebviewBoundMsg } from '../../src/extension-backend/ui/messaging';
 
 describe('isHostBoundMsg', () => {
@@ -24,11 +25,13 @@ describe('isHostBoundMsg', () => {
     assert.equal(isHostBoundMsg({ type: 'setConfig' }), false);
   });
 
-  it('accepts "setLayout" with array value', () => {
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [] }), true);
+  it('accepts "setLayout" with a version-2 layout', () => {
+    assert.equal(isHostBoundMsg({ type: 'setLayout', value: defaultLayout() }), true);
+    assert.equal(isHostBoundMsg({ type: 'setLayout', value: { version: 2, panels: [] } }), true);
   });
-  it('rejects "setLayout" with non-array value', () => {
+  it('rejects "setLayout" with anything else (the old array shape included)', () => {
     assert.equal(isHostBoundMsg({ type: 'setLayout', value: {} }), false);
+    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [] }), false);
   });
 
   it('accepts "restrictSnooze" with valid minutes', () => {
@@ -92,11 +95,12 @@ describe('isWebviewBoundMsg', () => {
     assert.equal(isWebviewBoundMsg({ type: 'config' }), false);
   });
 
-  it('accepts "layout" with array value', () => {
-    assert.equal(isWebviewBoundMsg({ type: 'layout', value: [] }), true);
+  it('accepts "layout" with a version-2 layout', () => {
+    assert.equal(isWebviewBoundMsg({ type: 'layout', value: defaultLayout() }), true);
   });
-  it('rejects "layout" with non-array value', () => {
+  it('rejects "layout" with anything else (the old array shape included)', () => {
     assert.equal(isWebviewBoundMsg({ type: 'layout', value: {} }), false);
+    assert.equal(isWebviewBoundMsg({ type: 'layout', value: [] }), false);
   });
 
   it('accepts "restriction" with object value', () => {

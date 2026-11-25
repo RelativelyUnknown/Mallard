@@ -40,6 +40,13 @@ a {
   text-decoration: none;
 }
 
+/* The hidden attribute must always win: component rules such as `.wv-btn` or `.wv-add-chart-menu` set
+   `display`, which would otherwise override the browser's own [hidden] rule (an always-visible "Reset layout"
+   button and an empty menu box). */
+[hidden] {
+  display: none !important;
+}
+
 :focus-visible {
   outline: 2px solid var(--vscode-focusBorder, #007fd4);
   outline-offset: 2px;

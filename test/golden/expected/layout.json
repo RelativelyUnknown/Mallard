@@ -1,63 +1,69 @@
 {
   "configPanelsToLayout": [
     {
-      "columns": null,
       "label": "undefined panels",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      },
       "panels": null
     },
     {
-      "columns": null,
       "label": "empty panels",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      },
       "panels": []
     },
     {
-      "columns": null,
       "label": "gridColumn spans",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":1},
-        {"hidden":false,"id":"models","size":"normal","span":2},
-        {"hidden":false,"id":"sankey","size":"normal","span":3},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":1,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":2,"x":1,"y":0},
+          {"h":13,"hidden":false,"id":"sankey","w":3,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":3,"y":0},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":2,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":1,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":0,"y":52},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":1,"y":52}
+        ],
+        "version": 2
+      },
       "panels": [
         {"gridColumn":"span 1","id":"daily"},
         {"gridColumn":"span 2","id":"models"},
@@ -65,43 +71,47 @@
       ]
     },
     {
-      "columns": null,
       "label": "gridColumn out of range clamps",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":4},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":4,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":1,"y":26},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":2,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":1,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":0,"y":52},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":1,"y":52}
+        ],
+        "version": 2
+      },
       "panels": [{"gridColumn":"span 9","id":"daily"},{"gridColumn":"span 0","id":"models"}]
     },
     {
-      "columns": null,
       "label": "gridColumn malformed defaults to 1",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":1},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":1,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":1,"y":0},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"category","w":2,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":0},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      },
       "panels": [
         {"gridColumn":"span","id":"daily"},
         {"gridColumn":"2","id":"models"},
@@ -110,24 +120,26 @@
       ]
     },
     {
-      "columns": null,
       "label": "missing gridColumn takes the panel default",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":false,"id":"unknown-panel","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"categoryTrend","w":2,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"unknown-panel","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":1,"y":26},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":2,"y":26},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":3,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":1,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":0,"y":52}
+        ],
+        "version": 2
+      },
       "panels": [
         {"id":"daily"},
         {"id":"heatmap"},
@@ -137,23 +149,25 @@
       ]
     },
     {
-      "columns": null,
       "label": "hidden and size",
-      "output": [
-        {"hidden":true,"id":"daily","size":"tall","span":2},
-        {"hidden":false,"id":"models","size":"compact","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
+      "output": {
+        "panels": [
+          {"h":21,"hidden":true,"id":"daily","w":2,"x":0,"y":26},
+          {"h":7,"hidden":false,"id":"models","w":1,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":0,"y":7},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":3,"y":13},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":0,"y":47},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":1,"y":47}
+        ],
+        "version": 2
+      },
       "panels": [
         {"hidden":true,"id":"daily","size":"tall"},
         {"id":"models","size":"compact"},
@@ -161,106 +175,73 @@
       ]
     },
     {
-      "columns": null,
       "label": "gridRow is ignored",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      },
       "panels": [{"gridColumn":"span 2","gridRow":"span 3","id":"daily"}]
     },
     {
-      "columns": null,
       "label": "duplicates and unknown ids",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"zz-new","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"zz-new","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":1,"y":26},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":2,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":1,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":0,"y":52},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":1,"y":52}
+        ],
+        "version": 2
+      },
       "panels": [
         {"gridColumn":"span 2","id":"daily"},
         {"gridColumn":"span 1","id":"daily"},
         {"gridColumn":"span 2","id":"zz-new"}
       ]
-    },
-    {
-      "columns": 2,
-      "label": "columns clamps spans",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
-      "panels": [{"gridColumn":"span 4","id":"daily"},{"gridColumn":"span 3","id":"heatmap"}]
-    },
-    {
-      "columns": 1,
-      "label": "columns=1 default spans",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":1},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":1},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
-      "panels": []
     }
   ],
-  "defaultLayout": [
-    {"hidden":false,"id":"daily","size":"normal","span":2},
-    {"hidden":false,"id":"heatmap","size":"normal","span":2},
-    {"hidden":false,"id":"models","size":"normal","span":1},
-    {"hidden":false,"id":"sankey","size":"normal","span":1},
-    {"hidden":false,"id":"category","size":"normal","span":1},
-    {"hidden":false,"id":"cumulative","size":"normal","span":1},
-    {"hidden":false,"id":"weekday","size":"normal","span":1},
-    {"hidden":false,"id":"hourly","size":"normal","span":1},
-    {"hidden":true,"id":"repos","size":"normal","span":1},
-    {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-    {"hidden":true,"id":"tokens","size":"normal","span":1},
-    {"hidden":true,"id":"billing","size":"normal","span":1},
-    {"hidden":true,"id":"languages","size":"normal","span":1}
-  ],
+  "defaultLayout": {
+    "panels": [
+      {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+      {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+      {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+      {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+      {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+      {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+      {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+      {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+      {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+      {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+      {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+      {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+      {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+    ],
+    "version": 2
+  },
   "gridColumnToSpan": [
     {"input":"","output":1},
     {"input":"span 1","output":1},
@@ -274,302 +255,185 @@
     {"input":"span 2.5","output":1},
     {"input":null,"output":1}
   ],
-  "layoutToConfigPanels": [
+  "migrateV1": [
     {
-      "label": "defaults serialise to ids only",
-      "layout": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":false,"id":"repos","size":"normal","span":1},
-        {"hidden":false,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":false,"id":"tokens","size":"normal","span":1},
-        {"hidden":false,"id":"billing","size":"normal","span":1},
-        {"hidden":false,"id":"languages","size":"normal","span":1}
-      ],
-      "output": [
-        {"id":"daily"},
-        {"id":"heatmap"},
-        {"id":"models"},
-        {"id":"sankey"},
-        {"id":"category"},
-        {"id":"cumulative"},
-        {"id":"weekday"},
-        {"id":"hourly"},
-        {"id":"repos"},
-        {"id":"categoryTrend"},
-        {"id":"tokens"},
-        {"id":"billing"},
-        {"id":"languages"}
-      ]
-    },
-    {
-      "label": "default layout as shipped",
-      "layout": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ],
-      "output": [
-        {"id":"daily"},
-        {"id":"heatmap"},
-        {"id":"models"},
-        {"id":"sankey"},
-        {"id":"category"},
-        {"id":"cumulative"},
-        {"id":"weekday"},
-        {"id":"hourly"},
-        {"hidden":true,"id":"repos"},
-        {"hidden":true,"id":"categoryTrend"},
-        {"hidden":true,"id":"tokens"},
-        {"hidden":true,"id":"billing"},
-        {"hidden":true,"id":"languages"}
-      ]
-    },
-    {
-      "label": "changed spans, hidden and sizes",
-      "layout": [
-        {"hidden":false,"id":"daily","size":"tall","span":1},
-        {"hidden":true,"id":"models","size":"normal","span":3},
-        {"hidden":false,"id":"sankey","size":"compact","span":1}
-      ],
-      "output": [
-        {"gridColumn":"span 1","id":"daily","size":"tall"},
-        {"gridColumn":"span 3","hidden":true,"id":"models"},
-        {"id":"sankey","size":"compact"},
-        {"id":"heatmap"},
-        {"id":"category"},
-        {"id":"cumulative"},
-        {"id":"weekday"},
-        {"id":"hourly"},
-        {"hidden":true,"id":"repos"},
-        {"hidden":true,"id":"categoryTrend"},
-        {"hidden":true,"id":"tokens"},
-        {"hidden":true,"id":"billing"},
-        {"hidden":true,"id":"languages"}
-      ]
-    },
-    {
-      "label": "unknown ids round-trip",
-      "layout": [
-        {"hidden":true,"id":"future-panel","size":"normal","span":2},
-        {"hidden":false,"id":"daily","size":"normal","span":2}
-      ],
-      "output": [
-        {"gridColumn":"span 2","hidden":true,"id":"future-panel"},
-        {"id":"daily"},
-        {"id":"heatmap"},
-        {"id":"models"},
-        {"id":"sankey"},
-        {"id":"category"},
-        {"id":"cumulative"},
-        {"id":"weekday"},
-        {"id":"hourly"},
-        {"hidden":true,"id":"repos"},
-        {"hidden":true,"id":"categoryTrend"},
-        {"hidden":true,"id":"tokens"},
-        {"hidden":true,"id":"billing"},
-        {"hidden":true,"id":"languages"}
-      ]
-    },
-    {
-      "label": "invalid entries are normalised first",
-      "layout": [{"hidden":1,"id":"daily","span":9},{"id":"models","size":"huge","span":0},null],
-      "output": [
-        {"gridColumn":"span 4","hidden":true,"id":"daily"},
-        {"id":"models"},
-        {"id":"heatmap"},
-        {"id":"sankey"},
-        {"id":"category"},
-        {"id":"cumulative"},
-        {"id":"weekday"},
-        {"id":"hourly"},
-        {"hidden":true,"id":"repos"},
-        {"hidden":true,"id":"categoryTrend"},
-        {"hidden":true,"id":"tokens"},
-        {"hidden":true,"id":"billing"},
-        {"hidden":true,"id":"languages"}
-      ]
-    },
-    {
-      "label": "empty layout appends every default panel",
-      "layout": [],
-      "output": [
-        {"id":"daily"},
-        {"id":"heatmap"},
-        {"id":"models"},
-        {"id":"sankey"},
-        {"id":"category"},
-        {"id":"cumulative"},
-        {"id":"weekday"},
-        {"id":"hourly"},
-        {"hidden":true,"id":"repos"},
-        {"hidden":true,"id":"categoryTrend"},
-        {"hidden":true,"id":"tokens"},
-        {"hidden":true,"id":"billing"},
-        {"hidden":true,"id":"languages"}
-      ]
-    }
-  ],
-  "normalizeLayout": [
-    {
-      "columns": null,
       "input": null,
       "label": "undefined",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": null,
+      "input": {"id":"daily","span":2},
+      "label": "not an array",
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      }
+    },
+    {
       "input": [],
       "label": "empty array",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": null,
       "input": [{"id":"models","span":1},{"id":"daily","span":2}],
       "label": "legacy: no size, no hidden",
-      "output": [
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":1,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":3,"y":0},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": null,
       "input": [{"id":"tokens","span":2},{"hidden":true,"id":"daily","span":1}],
       "label": "legacy: span only, order kept",
-      "output": [
-        {"hidden":false,"id":"tokens","size":"normal","span":2},
-        {"hidden":true,"id":"daily","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"tokens","w":2,"x":0,"y":0},
+          {"h":13,"hidden":true,"id":"daily","w":1,"x":2,"y":26},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": null,
       "input": [{"id":"daily","span":2},{"hidden":true,"id":"daily","span":1}],
       "label": "duplicates keep the first",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": null,
       "input": [{"hidden":false,"id":"future-panel","size":"tall","span":3},{"id":"daily","span":1}],
       "label": "unknown ids are preserved",
-      "output": [
-        {"hidden":false,"id":"future-panel","size":"tall","span":3},
-        {"hidden":false,"id":"daily","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":21,"hidden":false,"id":"future-panel","w":3,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"daily","w":1,"x":3,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":0,"y":21},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":2,"y":21},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":3,"y":26},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":0,"y":34},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":1,"y":34},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":2,"y":34},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":47},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":2,"y":47},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":3,"y":52},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":0,"y":60}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": null,
       "input": [null,{"id":""},{"id":7},{"span":2},"models",{"id":"weekday","span":2}],
       "label": "bad ids are dropped",
-      "output": [
-        {"hidden":false,"id":"weekday","size":"normal","span":2},
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"weekday","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":1,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":0,"y":52}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": null,
       "input": [
         {"id":"daily","span":0},
         {"id":"heatmap","span":9},
@@ -579,24 +443,26 @@
         {"id":"cumulative","span":"NaN"}
       ],
       "label": "spans clamp to 1..4 and round",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":4},
-        {"hidden":false,"id":"models","size":"normal","span":3},
-        {"hidden":false,"id":"sankey","size":"normal","span":3},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":1,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":4,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"models","w":3,"x":1,"y":0},
+          {"h":13,"hidden":false,"id":"sankey","w":3,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":3,"y":26},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":0,"y":39},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":1,"y":39},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":52},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":2,"y":52},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":3,"y":52},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":0,"y":65}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": null,
       "input": [
         {"id":"daily","size":"compact","span":2},
         {"id":"heatmap","size":"huge","span":2},
@@ -604,24 +470,26 @@
         {"id":"sankey","span":1}
       ],
       "label": "sizes: valid, invalid, missing",
-      "output": [
-        {"hidden":false,"id":"daily","size":"compact","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"tall","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":7,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":21,"hidden":false,"id":"models","w":1,"x":0,"y":7},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":7},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":1,"y":20},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":33},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":0,"y":46}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": null,
       "input": [
         {"hidden":1,"id":"daily","span":1},
         {"hidden":"yes","id":"models","span":1},
@@ -629,164 +497,26 @@
         {"hidden":null,"id":"category","span":1}
       ],
       "label": "hidden is coerced to boolean",
-      "output": [
-        {"hidden":true,"id":"daily","size":"normal","span":1},
-        {"hidden":true,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":13,"hidden":true,"id":"daily","w":1,"x":3,"y":13},
+          {"h":13,"hidden":true,"id":"models","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":1,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":2,"y":13},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":1,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":2,"y":39}
+        ],
+        "version": 2
+      }
     },
     {
-      "columns": 1,
-      "input": [{"id":"daily","span":3}],
-      "label": "columns=1 clamps spans and defaults",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":1},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":1},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "columns": 2,
-      "input": [{"id":"daily","span":4},{"id":"models","span":3}],
-      "label": "columns=2",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "columns": 3,
-      "input": [{"id":"daily","span":4}],
-      "label": "columns=3",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":3},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "columns": 0,
-      "input": [{"id":"daily","span":4}],
-      "label": "columns=0 means 1",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":1},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":1},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "columns": 9,
-      "input": [{"id":"daily","span":4}],
-      "label": "columns=9 means 4",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":4},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "columns": "NaN",
-      "input": [{"id":"daily","span":4}],
-      "label": "columns=NaN means 4",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":4},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "columns": 2.6,
-      "input": [{"id":"daily","span":4}],
-      "label": "columns=2.6 rounds to 3",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":3},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "columns": null,
       "input": [
         {"hidden":true,"id":"daily","size":"normal","span":2},
         {"hidden":true,"id":"heatmap","size":"normal","span":2},
@@ -803,133 +533,158 @@
         {"hidden":false,"id":"languages","size":"normal","span":1}
       ],
       "label": "full default round trip",
-      "output": [
-        {"hidden":true,"id":"daily","size":"normal","span":2},
-        {"hidden":true,"id":"heatmap","size":"normal","span":2},
-        {"hidden":true,"id":"models","size":"normal","span":1},
-        {"hidden":true,"id":"sankey","size":"normal","span":1},
-        {"hidden":true,"id":"category","size":"normal","span":1},
-        {"hidden":true,"id":"cumulative","size":"normal","span":1},
-        {"hidden":true,"id":"weekday","size":"normal","span":1},
-        {"hidden":true,"id":"hourly","size":"normal","span":1},
-        {"hidden":false,"id":"repos","size":"normal","span":1},
-        {"hidden":false,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":false,"id":"tokens","size":"normal","span":1},
-        {"hidden":false,"id":"billing","size":"normal","span":1},
-        {"hidden":false,"id":"languages","size":"normal","span":1}
-      ]
+      "output": {
+        "panels": [
+          {"h":13,"hidden":true,"id":"daily","w":2,"x":2,"y":13},
+          {"h":13,"hidden":true,"id":"heatmap","w":2,"x":0,"y":26},
+          {"h":13,"hidden":true,"id":"models","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"sankey","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"category","w":1,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"cumulative","w":1,"x":1,"y":39},
+          {"h":13,"hidden":true,"id":"weekday","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"hourly","w":1,"x":3,"y":39},
+          {"h":13,"hidden":false,"id":"repos","w":1,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"categoryTrend","w":2,"x":1,"y":0},
+          {"h":13,"hidden":false,"id":"tokens","w":1,"x":3,"y":0},
+          {"h":13,"hidden":false,"id":"billing","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"languages","w":1,"x":1,"y":13}
+        ],
+        "version": 2
+      }
+    },
+    {
+      "input": [
+        {"hidden":false,"id":"daily","size":"normal","span":2},
+        {"hidden":false,"id":"heatmap","size":"normal","span":2},
+        {"hidden":false,"id":"models","size":"normal","span":1},
+        {"hidden":false,"id":"sankey","size":"normal","span":1},
+        {"hidden":false,"id":"category","size":"normal","span":1},
+        {"hidden":false,"id":"cumulative","size":"normal","span":1},
+        {"hidden":false,"id":"weekday","size":"normal","span":1},
+        {"hidden":false,"id":"hourly","size":"normal","span":1},
+        {"hidden":true,"id":"repos","size":"normal","span":1},
+        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
+        {"hidden":true,"id":"tokens","size":"normal","span":1},
+        {"hidden":true,"id":"billing","size":"normal","span":1},
+        {"hidden":true,"id":"languages","size":"normal","span":1}
+      ],
+      "label": "the default layout as shipped",
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":2,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":2,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":2,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":3,"y":39}
+        ],
+        "version": 2
+      }
+    },
+    {
+      "input": [{"id":"daily","span":3},{"id":"heatmap","span":3},{"id":"models","span":1}],
+      "label": "first fit fills the gap beside a wide panel",
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":3,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"heatmap","w":3,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":3,"y":0},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":1,"y":26},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":2,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":3,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":1,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":0,"y":52},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":1,"y":52}
+        ],
+        "version": 2
+      }
+    },
+    {
+      "input": [
+        {"id":"daily","size":"tall","span":4},
+        {"id":"heatmap","size":"compact","span":4},
+        {"id":"models","span":4}
+      ],
+      "label": "full-width panels stack",
+      "output": {
+        "panels": [
+          {"h":21,"hidden":false,"id":"daily","w":4,"x":0,"y":0},
+          {"h":7,"hidden":false,"id":"heatmap","w":4,"x":0,"y":21},
+          {"h":13,"hidden":false,"id":"models","w":4,"x":0,"y":28},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":0,"y":41},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":1,"y":41},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":2,"y":41},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":3,"y":41},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":0,"y":54},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":1,"y":54},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":2,"y":54},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":0,"y":67},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":1,"y":67},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":2,"y":67}
+        ],
+        "version": 2
+      }
+    },
+    {
+      "input": [
+        {"hidden":true,"id":"daily","span":1},
+        {"id":"heatmap","span":2},
+        {"id":"models","span":1},
+        {"hidden":true,"id":"sankey","span":1}
+      ],
+      "label": "hidden panels are packed after the visible ones",
+      "output": {
+        "panels": [
+          {"h":13,"hidden":true,"id":"daily","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"heatmap","w":2,"x":0,"y":0},
+          {"h":13,"hidden":false,"id":"models","w":1,"x":2,"y":0},
+          {"h":13,"hidden":true,"id":"sankey","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":3,"y":0},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":1,"y":13},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":2,"y":13},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":1,"y":26},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":1,"y":39},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":2,"y":39}
+        ],
+        "version": 2
+      }
+    },
+    {
+      "input": [{"id":"daily","span":3},{"hidden":true,"id":"heatmap","span":1},{"id":"models","span":3}],
+      "label": "a hidden panel can use the gap the visible ones leave",
+      "output": {
+        "panels": [
+          {"h":13,"hidden":false,"id":"daily","w":3,"x":0,"y":0},
+          {"h":13,"hidden":true,"id":"heatmap","w":1,"x":3,"y":26},
+          {"h":13,"hidden":false,"id":"models","w":3,"x":0,"y":13},
+          {"h":13,"hidden":false,"id":"sankey","w":1,"x":3,"y":0},
+          {"h":13,"hidden":false,"id":"category","w":1,"x":3,"y":13},
+          {"h":13,"hidden":false,"id":"cumulative","w":1,"x":0,"y":26},
+          {"h":13,"hidden":false,"id":"weekday","w":1,"x":1,"y":26},
+          {"h":13,"hidden":false,"id":"hourly","w":1,"x":2,"y":26},
+          {"h":13,"hidden":true,"id":"repos","w":1,"x":0,"y":39},
+          {"h":13,"hidden":true,"id":"categoryTrend","w":2,"x":1,"y":39},
+          {"h":13,"hidden":true,"id":"tokens","w":1,"x":3,"y":39},
+          {"h":13,"hidden":true,"id":"billing","w":1,"x":0,"y":52},
+          {"h":13,"hidden":true,"id":"languages","w":1,"x":1,"y":52}
+        ],
+        "version": 2
+      }
     }
   ],
-  "panelIds": ["daily","heatmap","models","sankey","category","cumulative","weekday","hourly","repos","categoryTrend","tokens","billing","languages"],
-  "roundTrips": [
-    {
-      "label": "defaults serialise to ids only",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":false,"id":"repos","size":"normal","span":1},
-        {"hidden":false,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":false,"id":"tokens","size":"normal","span":1},
-        {"hidden":false,"id":"billing","size":"normal","span":1},
-        {"hidden":false,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "label": "default layout as shipped",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "label": "changed spans, hidden and sizes",
-      "output": [
-        {"hidden":false,"id":"daily","size":"tall","span":1},
-        {"hidden":true,"id":"models","size":"normal","span":3},
-        {"hidden":false,"id":"sankey","size":"compact","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "label": "unknown ids round-trip",
-      "output": [
-        {"hidden":true,"id":"future-panel","size":"normal","span":2},
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "label": "invalid entries are normalised first",
-      "output": [
-        {"hidden":true,"id":"daily","size":"normal","span":4},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    },
-    {
-      "label": "empty layout appends every default panel",
-      "output": [
-        {"hidden":false,"id":"daily","size":"normal","span":2},
-        {"hidden":false,"id":"heatmap","size":"normal","span":2},
-        {"hidden":false,"id":"models","size":"normal","span":1},
-        {"hidden":false,"id":"sankey","size":"normal","span":1},
-        {"hidden":false,"id":"category","size":"normal","span":1},
-        {"hidden":false,"id":"cumulative","size":"normal","span":1},
-        {"hidden":false,"id":"weekday","size":"normal","span":1},
-        {"hidden":false,"id":"hourly","size":"normal","span":1},
-        {"hidden":true,"id":"repos","size":"normal","span":1},
-        {"hidden":true,"id":"categoryTrend","size":"normal","span":2},
-        {"hidden":true,"id":"tokens","size":"normal","span":1},
-        {"hidden":true,"id":"billing","size":"normal","span":1},
-        {"hidden":true,"id":"languages","size":"normal","span":1}
-      ]
-    }
-  ]
+  "panelIds": ["daily","heatmap","models","sankey","category","cumulative","weekday","hourly","repos","categoryTrend","tokens","billing","languages"]
 }
