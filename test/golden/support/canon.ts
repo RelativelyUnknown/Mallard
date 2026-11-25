@@ -48,16 +48,18 @@ function isPrimitive(v: unknown): boolean {
   return v === null || typeof v !== 'object';
 }
 
-function isLeaf(v: unknown): boolean {
+/** True for a value that is a primitive, an array of primitives, or an object of such (two levels at most). */
+function isLeaf(v: unknown, depth = 0): boolean {
   if (isPrimitive(v)) return true;
   if (Array.isArray(v)) return v.every(isPrimitive);
-  return Object.values(v as object).every((x) => isPrimitive(x) || (Array.isArray(x) && x.every(isPrimitive)));
+  if (depth >= 2) return false;
+  return Object.values(v as object).every((x) => isLeaf(x, depth + 1));
 }
 
 function render(v: unknown, indent: string): string {
   const flat = JSON.stringify(v);
   if (isPrimitive(v)) return flat;
-  const limit = isLeaf(v) ? 320 : 100;
+  const limit = isLeaf(v) ? 700 : 100;
   if (flat.length + indent.length <= limit) return flat;
   const inner = `${indent}  `;
   if (Array.isArray(v)) {

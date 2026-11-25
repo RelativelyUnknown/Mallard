@@ -1,0 +1,2321 @@
+[
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.6656938092},
+        {"category":"output","cost":0.7122066908},
+        {"category":"thinking","cost":0.009},
+        {"category":"cache_creation","cost":0.021161},
+        {"category":"cache_read","cost":0.054364}
+      ],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0036,"catOutput":0.0045,"catThinking":0,"catTool":0,"cost":0.0081,"credits":1,"dayStart":1739125800000,"eventCount":1,"tokens":1500},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0014,"catOutput":0.0016,"catThinking":0,"catTool":0,"cost":0.003,"credits":0,"dayStart":1740940200000,"eventCount":1,"tokens":900},
+        {"catCacheCreation":0.00375,"catCacheRead":0.0012,"catInput":0.006,"catOutput":0.0075,"catThinking":0,"catTool":0,"cost":0.01845,"credits":1.25,"dayStart":1750357800000,"eventCount":1,"tokens":2500},
+        {"catCacheCreation":0.003125,"catCacheRead":0.0035,"catInput":0.0174,"catOutput":0.02625,"catThinking":0,"catTool":0,"cost":0.050275,"credits":21,"dayStart":1767205800000,"eventCount":2,"tokens":4950},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0374,"catOutput":0.0359,"catThinking":0,"catTool":0,"cost":0.0733,"credits":21,"dayStart":1767551400000,"eventCount":3,"tokens":12200},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.06481,"catOutput":0.02044,"catThinking":0,"catTool":0,"cost":0.32525,"credits":9.16,"dayStart":1767637800000,"eventCount":6,"tokens":7700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00025,"catOutput":0.0002,"catThinking":0,"catTool":0,"cost":0.00045,"credits":0.33,"dayStart":1767724200000,"eventCount":1,"tokens":120},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0001,"catOutput":0.00008,"catThinking":0,"catTool":0,"cost":0.00018,"credits":0.33,"dayStart":1767810600000,"eventCount":1,"tokens":48},
+        {"catCacheCreation":0.005,"catCacheRead":0.006,"catInput":0.0173,"catOutput":0.01625,"catThinking":0.009,"catTool":0,"cost":0.05355,"credits":36,"dayStart":1768156200000,"eventCount":3,"tokens":4790},
+        {"catCacheCreation":0,"catCacheRead":0.02,"catInput":0.005,"catOutput":0.0035,"catThinking":0,"catTool":0,"cost":0.0285,"credits":0.33,"dayStart":1768847400000,"eventCount":1,"tokens":5700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00081,"catOutput":0.001375,"catThinking":0,"catTool":0,"cost":0.002185,"credits":12.33,"dayStart":1768933800000,"eventCount":3,"tokens":415},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001361,"catOutput":0.001264,"catThinking":0,"catTool":0,"cost":0.002625,"credits":7.32,"dayStart":1769797800000,"eventCount":7,"tokens":832},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001114,"catOutput":0.001013,"catThinking":0,"catTool":0,"cost":0.002127,"credits":12.66,"dayStart":1769884200000,"eventCount":5,"tokens":578},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0045,"catOutput":0.006,"catThinking":0,"catTool":0,"cost":0.0105,"credits":1,"dayStart":1770057000000,"eventCount":1,"tokens":1900},
+        {"catCacheCreation":0.0002,"catCacheRead":0.000072,"catInput":0.00326,"catOutput":0.00498,"catThinking":0,"catTool":0,"cost":0.008512,"credits":6.33,"dayStart":1770661800000,"eventCount":2,"tokens":2020},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0,"catOutput":0,"catThinking":0,"catTool":0,"cost":0,"credits":1.5,"dayStart":1771007400000,"eventCount":1,"tokens":500},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0085,"catOutput":0.01,"catThinking":0,"catTool":0,"cost":0.0185,"credits":6.33,"dayStart":1772303400000,"eventCount":2,"tokens":3750},
+        {"catCacheCreation":0,"catCacheRead":0.0009,"catInput":0.0069,"catOutput":0.00999,"catThinking":0,"catTool":0,"cost":0.01779,"credits":6,"dayStart":1772389800000,"eventCount":2,"tokens":3030},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0603375,"catOutput":0.000336,"catThinking":0,"catTool":0,"cost":0.0738735,"credits":2.49,"dayStart":1772476200000,"eventCount":5,"tokens":291},
+        {"catCacheCreation":0.005625,"catCacheRead":0.00375,"catInput":0.027,"catOutput":0.0375,"catThinking":0,"catTool":0,"cost":0.073875,"credits":10,"dayStart":1772649000000,"eventCount":1,"tokens":2300},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.004382,"catOutput":0.00587,"catThinking":0,"catTool":0,"cost":0.010252,"credits":27.33,"dayStart":1772908200000,"eventCount":6,"tokens":1932},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.009855,"catOutput":0.011308,"catThinking":0,"catTool":0,"cost":0.021163,"credits":6.33,"dayStart":1773081000000,"eventCount":3,"tokens":4454},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.05015,"catOutput":0.01012,"catThinking":0,"catTool":0,"cost":0.07347,"credits":2.16,"dayStart":1773167400000,"eventCount":3,"tokens":144},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0075,"catOutput":0.0075,"catThinking":0,"catTool":0,"cost":0.015,"credits":15,"dayStart":1773253800000,"eventCount":1,"tokens":1800},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00303,"catOutput":0.004515,"catThinking":0,"catTool":0,"cost":0.007545,"credits":12,"dayStart":1773513000000,"eventCount":2,"tokens":1311},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00025,"catOutput":0.0003,"catThinking":0,"catTool":0,"cost":0.00055,"credits":0.33,"dayStart":1773599400000,"eventCount":1,"tokens":310},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0037875,"catOutput":0.00455,"catThinking":0,"catTool":0,"cost":0.0083375,"credits":13.65,"dayStart":1775241000000,"eventCount":7,"tokens":2280},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00243525,"catOutput":0.003065,"catThinking":0,"catTool":0,"cost":0.00550025,"credits":12.66,"dayStart":1790361000000,"eventCount":4,"tokens":1303},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000863,"catOutput":0.001063,"catThinking":0,"catTool":0,"cost":0.001926,"credits":0.99,"dayStart":1790965800000,"eventCount":3,"tokens":1192},
+        {"catCacheCreation":0.00075,"catCacheRead":0.002545,"catInput":0.0053375,"catOutput":0.005775,"catThinking":0,"catTool":0,"cost":0.0144075,"credits":21.33,"dayStart":1792261800000,"eventCount":4,"tokens":1928},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00435875,"catOutput":0.006147,"catThinking":0,"catTool":0,"cost":0.01050575,"credits":12.66,"dayStart":1792348200000,"eventCount":4,"tokens":2920},
+        {"catCacheCreation":0.000204,"catCacheRead":0.001635,"catInput":0.01484878462,"catOutput":0.01056761538,"catThinking":0,"catTool":0,"cost":0.0272554,"credits":2.66,"dayStart":1792434600000,"eventCount":4,"tokens":3912},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.014365,"catOutput":0.022727,"catThinking":0,"catTool":0,"cost":0.037092,"credits":36,"dayStart":1792521000000,"eventCount":4,"tokens":4904},
+        {"catCacheCreation":0.000208,"catCacheRead":0.001743,"catInput":0.0101495,"catOutput":0.01649,"catThinking":0,"catTool":0,"cost":0.0285905,"credits":12.99,"dayStart":1792607400000,"eventCount":5,"tokens":6836},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01797575,"catOutput":0.018155,"catThinking":0,"catTool":0,"cost":0.03613075,"credits":2.66,"dayStart":1792693800000,"eventCount":4,"tokens":7004},
+        {"catCacheCreation":0.000795,"catCacheRead":0.003085,"catInput":0.02295,"catOutput":0.039374,"catThinking":0,"catTool":0,"cost":0.066204,"credits":36,"dayStart":1792780200000,"eventCount":4,"tokens":7996},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0148385,"catOutput":0.025365,"catThinking":0,"catTool":0,"cost":0.0402035,"credits":12.66,"dayStart":1792866600000,"eventCount":4,"tokens":8988},
+        {"catCacheCreation":0.000216,"catCacheRead":0.001959,"catInput":0.02154934726,"catOutput":0.02624300274,"catThinking":0,"catTool":0,"cost":0.04996735,"credits":2.99,"dayStart":1792953000000,"eventCount":5,"tokens":11442},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.031535,"catOutput":0.056021,"catThinking":0,"catTool":0,"cost":0.087556,"credits":36,"dayStart":1793039400000,"eventCount":4,"tokens":11088},
+        {"catCacheCreation":0.00022,"catCacheRead":0.002067,"catInput":0.019705,"catOutput":0.0347,"catThinking":0,"catTool":0,"cost":0.056692,"credits":12.66,"dayStart":1793125800000,"eventCount":4,"tokens":12080},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01536145,"catOutput":0.030255,"catThinking":0,"catTool":0,"cost":0.04561645,"credits":2.66,"dayStart":1793212200000,"eventCount":4,"tokens":13072},
+        {"catCacheCreation":0.00084,"catCacheRead":0.003625,"catInput":0.05107767666,"catOutput":0.07879532334,"catThinking":0,"catTool":0,"cost":0.134338,"credits":37.33,"dayStart":1793298600000,"eventCount":7,"tokens":17298},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0245715,"catOutput":0.044035,"catThinking":0,"catTool":0,"cost":0.0686065,"credits":12.66,"dayStart":1793385000000,"eventCount":4,"tokens":15172},
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.02380025066,"catOutput":0.01707974934,"catThinking":0,"catTool":0,"cost":0.04088,"credits":52.65,"dayStart":1793557800000,"eventCount":13,"tokens":9543}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-3-5-sonnet-20241022","claude-3-7-sonnet-20250219","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 162,
+      "hourly": [
+        {"credits":6,"hourLocal":0},
+        {"credits":33.64,"hourLocal":1},
+        {"credits":21.33,"hourLocal":5},
+        {"credits":6.33,"hourLocal":9},
+        {"credits":12.66,"hourLocal":10},
+        {"credits":33.33,"hourLocal":11},
+        {"credits":12.99,"hourLocal":13},
+        {"credits":81.81,"hourLocal":14},
+        {"credits":147.97,"hourLocal":15},
+        {"credits":43.14,"hourLocal":16},
+        {"credits":16.83,"hourLocal":17},
+        {"credits":15.31,"hourLocal":18},
+        {"credits":17.73,"hourLocal":19},
+        {"credits":50.32,"hourLocal":20},
+        {"credits":44.66,"hourLocal":21},
+        {"credits":29.33,"hourLocal":22},
+        {"credits":0.33,"hourLocal":23}
+      ],
+      "languages": [
+        {"cost":1.7160955,"credits":546.05,"language":"unknown","tokens":217873},
+        {"cost":0.01048,"credits":27,"language":"typescript","tokens":2022},
+        {"cost":0.0013,"credits":0.33,"language":"python","tokens":2400},
+        {"cost":0.00027,"credits":0.33,"language":"rust","tokens":72},
+        {"cost":0.00068,"credits":0,"language":"go","tokens":220}
+      ],
+      "models": [
+        {"cost":0.265698,"credits":186,"modelId":"claude-sonnet-4-5-20250929","tokens":42213},
+        {"cost":0.25553,"credits":180,"modelId":"claude-opus-4-5-20251101","tokens":23550},
+        {"cost":0.10858,"credits":90,"modelId":"claude-opus-4.5","tokens":11868},
+        {"cost":0.34539,"credits":60,"modelId":"claude-sonnet-4.5","tokens":19490},
+        {"cost":0.073875,"credits":10,"modelId":"claude-opus-4-1-20250805","tokens":2300},
+        {"cost":0.0391625,"credits":7,"modelId":"gemini-2.5-pro","tokens":11870},
+        {"cost":0.063075,"credits":6.6,"modelId":"gpt-4o","tokens":8598},
+        {"cost":0.071407,"credits":6.27,"modelId":"claude-haiku-4-5-20251001","tokens":27163},
+        {"cost":0.130887,"credits":6,"modelId":"claude-sonnet-4-20250514","tokens":20450},
+        {"cost":0.01725,"credits":6,"modelId":"us.anthropic.claude-sonnet-4-5-20250929-v1:0","tokens":2850},
+        {"cost":0.18,"credits":4.5,"modelId":"mystery-model-x","tokens":682},
+        {"cost":0.006491,"credits":3.63,"modelId":"gpt-5-mini","tokens":9955},
+        {"cost":0.030888,"credits":1.98,"modelId":"claude-3-5-haiku-20241022","tokens":18420},
+        {"cost":0.0792,"credits":1.98,"modelId":"o3-mini","tokens":8310},
+        {"cost":0,"credits":1.5,"modelId":"claude-fable-9","tokens":500},
+        {"cost":0.01845,"credits":1.25,"modelId":"claude-3-7-sonnet-20250219","tokens":2500},
+        {"cost":0.0081,"credits":1,"modelId":"claude-3-5-sonnet-20241022","tokens":1500},
+        {"cost":0.034842,"credits":0,"modelId":"gpt-4.1","tokens":10368}
+      ],
+      "repos": [
+        {"cost":0.542789,"credits":230.47,"heuristicShare":0,"repo":"beta","tokens":70342},
+        {"cost":0.8611105,"credits":186.04,"heuristicShare":0,"repo":"unattributed","tokens":81883},
+        {"cost":0.318036,"credits":145.2,"heuristicShare":0,"repo":"alpha","tokens":68912},
+        {"cost":0.00689,"credits":12,"heuristicShare":1,"repo":"ide-repo","tokens":1450}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"agent"},
+        {"count":5,"credits":1.65,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":1,"credits":1,"model":"claude-3-5-sonnet-20241022","surface":"chat"},
+        {"count":1,"credits":1.25,"model":"claude-3-7-sonnet-20250219","surface":"chat"},
+        {"count":1,"credits":1.5,"model":"claude-fable-9","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":17,"credits":5.61,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":10,"model":"claude-opus-4-1-20250805","surface":"agent"},
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":9,"credits":135,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"agent"},
+        {"count":2,"credits":30,"model":"claude-opus-4.5","surface":"chat"},
+        {"count":2,"credits":30,"model":"claude-opus-4.5","surface":"edit"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"inline"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"agent"},
+        {"count":5,"credits":5,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":11,"credits":66,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":20,"credits":120,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":4,"credits":24,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":3,"credits":18,"model":"claude-sonnet-4.5","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"edit"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"inline"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"unknown"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"agent"},
+        {"count":4,"credits":4,"model":"gemini-2.5-pro","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"agent"},
+        {"count":9,"credits":2.97,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"edit"},
+        {"count":7,"credits":2.31,"model":"gpt-4o","surface":"inline"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":7,"credits":2.31,"model":"gpt-5-mini","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"gpt-5-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"unknown"},
+        {"count":3,"credits":4.5,"model":"mystery-model-x","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"agent"},
+        {"count":2,"credits":0.66,"model":"o3-mini","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"inline"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"unknown"},
+        {"count":1,"credits":6,"model":"us.anthropic.claude-sonnet-4-5-20250929-v1:0","surface":"chat"}
+      ],
+      "totals": {"all":{"cost":1.7288255,"credits":573.71,"eventCount":162,"tokens":222587},"mtd":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"today":{"cost":0.04088,"credits":52.65,"eventCount":13,"tokens":9543}},
+      "weekday": [125.3,132.63,64.3,63.48,61.98,41.24,84.78]
+    },
+    "filter": {},
+    "label": "none",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {"path":"cache","recordFilter":null}
+  },
+  {
+    "data": {
+      "categories": [{"category":"input","cost":0.02380025066},{"category":"output","cost":0.01707974934}],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.02380025066,"catOutput":0.01707974934,"catThinking":0,"catTool":0,"cost":0.04088,"credits":52.65,"dayStart":1793557800000,"eventCount":13,"tokens":9543}
+      ],
+      "dims": {"models":["claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gpt-4.1","gpt-4o","o3-mini"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit"]},
+      "estimatedEventCount": 13,
+      "hourly": [
+        {"credits":0.33,"hourLocal":1},
+        {"credits":6.33,"hourLocal":9},
+        {"credits":12.66,"hourLocal":10},
+        {"credits":33.33,"hourLocal":11}
+      ],
+      "languages": [
+        {"cost":0.00896,"credits":27,"language":"typescript","tokens":1532},
+        {"cost":0.03124,"credits":25.65,"language":"unknown","tokens":7791},
+        {"cost":0.00068,"credits":0,"language":"go","tokens":220}
+      ],
+      "models": [
+        {"cost":0.014625,"credits":30,"modelId":"claude-sonnet-4-5-20250929","tokens":3087},
+        {"cost":0.00275,"credits":15,"modelId":"claude-opus-4-5-20251101","tokens":302},
+        {"cost":0.00465,"credits":6,"modelId":"claude-sonnet-4.5","tokens":950},
+        {"cost":0.00465,"credits":0.99,"modelId":"claude-haiku-4-5-20251001","tokens":2610},
+        {"cost":0.000325,"credits":0.33,"modelId":"gpt-4o","tokens":100},
+        {"cost":0.0132,"credits":0.33,"modelId":"o3-mini","tokens":2274},
+        {"cost":0.00068,"credits":0,"modelId":"gpt-4.1","tokens":220}
+      ],
+      "repos": [
+        {"cost":0.005525,"credits":21,"heuristicShare":0,"repo":"alpha","tokens":1207},
+        {"cost":0.013335,"credits":12.99,"heuristicShare":0,"repo":"beta","tokens":4221},
+        {"cost":0.00689,"credits":12,"heuristicShare":1,"repo":"ide-repo","tokens":1450},
+        {"cost":0.01513,"credits":6.66,"heuristicShare":0,"repo":"unattributed","tokens":2665}
+      ],
+      "sankey": [
+        {"count":3,"credits":0.99,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"}
+      ],
+      "totals": {"all":{"cost":0.04088,"credits":52.65,"eventCount":13,"tokens":9543},"mtd":{"cost":0.04088,"credits":52.65,"eventCount":13,"tokens":9543},"today":{"cost":0.04088,"credits":52.65,"eventCount":13,"tokens":9543}},
+      "weekday": [0,52.65,0,0,0,0,0]
+    },
+    "filter": {"rangePreset":"today"},
+    "label": "preset-today",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1793644200000,"start":1793557800000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.1900254273},
+        {"category":"output","cost":0.3043940727},
+        {"category":"cache_creation","cost":0.001288},
+        {"category":"cache_read","cost":0.007975}
+      ],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.031535,"catOutput":0.056021,"catThinking":0,"catTool":0,"cost":0.087556,"credits":36,"dayStart":1793039400000,"eventCount":4,"tokens":11088},
+        {"catCacheCreation":0.00022,"catCacheRead":0.002067,"catInput":0.019705,"catOutput":0.0347,"catThinking":0,"catTool":0,"cost":0.056692,"credits":12.66,"dayStart":1793125800000,"eventCount":4,"tokens":12080},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01536145,"catOutput":0.030255,"catThinking":0,"catTool":0,"cost":0.04561645,"credits":2.66,"dayStart":1793212200000,"eventCount":4,"tokens":13072},
+        {"catCacheCreation":0.00084,"catCacheRead":0.003625,"catInput":0.05107767666,"catOutput":0.07879532334,"catThinking":0,"catTool":0,"cost":0.134338,"credits":37.33,"dayStart":1793298600000,"eventCount":7,"tokens":17298},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0245715,"catOutput":0.044035,"catThinking":0,"catTool":0,"cost":0.0686065,"credits":12.66,"dayStart":1793385000000,"eventCount":4,"tokens":15172},
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.02380025066,"catOutput":0.01707974934,"catThinking":0,"catTool":0,"cost":0.04088,"credits":52.65,"dayStart":1793557800000,"eventCount":13,"tokens":9543}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","o3-mini"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 45,
+      "hourly": [
+        {"credits":1.65,"hourLocal":1},
+        {"credits":6.33,"hourLocal":9},
+        {"credits":12.66,"hourLocal":10},
+        {"credits":33.33,"hourLocal":11},
+        {"credits":15.33,"hourLocal":14},
+        {"credits":53.33,"hourLocal":15},
+        {"credits":7.32,"hourLocal":16},
+        {"credits":13,"hourLocal":18},
+        {"credits":15,"hourLocal":21},
+        {"credits":29,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.4940425,"credits":159.95,"language":"unknown","tokens":94155},
+        {"cost":0.00896,"credits":27,"language":"typescript","tokens":1532},
+        {"cost":0.00068,"credits":0,"language":"go","tokens":220}
+      ],
+      "models": [
+        {"cost":0.11229,"credits":75,"modelId":"claude-opus-4-5-20251101","tokens":10697},
+        {"cost":0.135672,"credits":54,"modelId":"claude-sonnet-4-5-20250929","tokens":22107},
+        {"cost":0.03561,"credits":30,"modelId":"claude-opus-4.5","tokens":3446},
+        {"cost":0.028284,"credits":18,"modelId":"claude-sonnet-4.5","tokens":4744},
+        {"cost":0.01818625,"credits":3,"modelId":"gemini-2.5-pro","tokens":5176},
+        {"cost":0.069795,"credits":2,"modelId":"claude-sonnet-4-20250514","tokens":10840},
+        {"cost":0.024962,"credits":1.65,"modelId":"claude-haiku-4-5-20251001","tokens":12310},
+        {"cost":0.0172675,"credits":1.32,"modelId":"gpt-4o","tokens":3865},
+        {"cost":0.017588,"credits":0.66,"modelId":"claude-3-5-haiku-20241022","tokens":10460},
+        {"cost":0.00282375,"credits":0.66,"modelId":"gpt-5-mini","tokens":3910},
+        {"cost":0.0264,"credits":0.66,"modelId":"o3-mini","tokens":4142},
+        {"cost":0.014804,"credits":0,"modelId":"gpt-4.1","tokens":4210}
+      ],
+      "repos": [
+        {"cost":0.257425,"credits":86.99,"heuristicShare":0,"repo":"beta","tokens":35536},
+        {"cost":0.1396505,"credits":53.64,"heuristicShare":0,"repo":"unattributed","tokens":28614},
+        {"cost":0.099717,"credits":34.32,"heuristicShare":0,"repo":"alpha","tokens":30307},
+        {"cost":0.00689,"credits":12,"heuristicShare":1,"repo":"ide-repo","tokens":1450}
+      ],
+      "sankey": [
+        {"count":2,"credits":0.66,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":4,"credits":1.32,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":4,"credits":60,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"edit"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"inline"},
+        {"count":2,"credits":2,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":4,"credits":24,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"unknown"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"agent"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":3,"credits":0.99,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"inline"}
+      ],
+      "totals": {"all":{"cost":0.5036825,"credits":186.95,"eventCount":45,"tokens":95907},"mtd":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"today":{"cost":0.04088,"credits":52.65,"eventCount":13,"tokens":9543}},
+      "weekday": [32.99,52.65,36,12.66,2.66,37.33,12.66]
+    },
+    "filter": {"rangePreset":"7d"},
+    "label": "preset-7d",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1793644200000,"start":1793039400000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.3163985592},
+        {"category":"output","cost":0.4752376908},
+        {"category":"cache_creation","cost":0.003461},
+        {"category":"cache_read","cost":0.018942}
+      ],
+      "daily": [
+        {"catCacheCreation":0.00075,"catCacheRead":0.002545,"catInput":0.0053375,"catOutput":0.005775,"catThinking":0,"catTool":0,"cost":0.0144075,"credits":21.33,"dayStart":1792261800000,"eventCount":4,"tokens":1928},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00435875,"catOutput":0.006147,"catThinking":0,"catTool":0,"cost":0.01050575,"credits":12.66,"dayStart":1792348200000,"eventCount":4,"tokens":2920},
+        {"catCacheCreation":0.000204,"catCacheRead":0.001635,"catInput":0.01484878462,"catOutput":0.01056761538,"catThinking":0,"catTool":0,"cost":0.0272554,"credits":2.66,"dayStart":1792434600000,"eventCount":4,"tokens":3912},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.014365,"catOutput":0.022727,"catThinking":0,"catTool":0,"cost":0.037092,"credits":36,"dayStart":1792521000000,"eventCount":4,"tokens":4904},
+        {"catCacheCreation":0.000208,"catCacheRead":0.001743,"catInput":0.0101495,"catOutput":0.01649,"catThinking":0,"catTool":0,"cost":0.0285905,"credits":12.99,"dayStart":1792607400000,"eventCount":5,"tokens":6836},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01797575,"catOutput":0.018155,"catThinking":0,"catTool":0,"cost":0.03613075,"credits":2.66,"dayStart":1792693800000,"eventCount":4,"tokens":7004},
+        {"catCacheCreation":0.000795,"catCacheRead":0.003085,"catInput":0.02295,"catOutput":0.039374,"catThinking":0,"catTool":0,"cost":0.066204,"credits":36,"dayStart":1792780200000,"eventCount":4,"tokens":7996},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0148385,"catOutput":0.025365,"catThinking":0,"catTool":0,"cost":0.0402035,"credits":12.66,"dayStart":1792866600000,"eventCount":4,"tokens":8988},
+        {"catCacheCreation":0.000216,"catCacheRead":0.001959,"catInput":0.02154934726,"catOutput":0.02624300274,"catThinking":0,"catTool":0,"cost":0.04996735,"credits":2.99,"dayStart":1792953000000,"eventCount":5,"tokens":11442},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.031535,"catOutput":0.056021,"catThinking":0,"catTool":0,"cost":0.087556,"credits":36,"dayStart":1793039400000,"eventCount":4,"tokens":11088},
+        {"catCacheCreation":0.00022,"catCacheRead":0.002067,"catInput":0.019705,"catOutput":0.0347,"catThinking":0,"catTool":0,"cost":0.056692,"credits":12.66,"dayStart":1793125800000,"eventCount":4,"tokens":12080},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01536145,"catOutput":0.030255,"catThinking":0,"catTool":0,"cost":0.04561645,"credits":2.66,"dayStart":1793212200000,"eventCount":4,"tokens":13072},
+        {"catCacheCreation":0.00084,"catCacheRead":0.003625,"catInput":0.05107767666,"catOutput":0.07879532334,"catThinking":0,"catTool":0,"cost":0.134338,"credits":37.33,"dayStart":1793298600000,"eventCount":7,"tokens":17298},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0245715,"catOutput":0.044035,"catThinking":0,"catTool":0,"cost":0.0686065,"credits":12.66,"dayStart":1793385000000,"eventCount":4,"tokens":15172},
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.02380025066,"catOutput":0.01707974934,"catThinking":0,"catTool":0,"cost":0.04088,"credits":52.65,"dayStart":1793557800000,"eventCount":13,"tokens":9543}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","o3-mini"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 83,
+      "hourly": [
+        {"credits":33.64,"hourLocal":1},
+        {"credits":6.33,"hourLocal":9},
+        {"credits":12.66,"hourLocal":10},
+        {"credits":33.33,"hourLocal":11},
+        {"credits":27.99,"hourLocal":14},
+        {"credits":80.65,"hourLocal":15},
+        {"credits":7.32,"hourLocal":16},
+        {"credits":14.98,"hourLocal":18},
+        {"credits":37,"hourLocal":20},
+        {"credits":44,"hourLocal":21},
+        {"credits":29,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.80439925,"credits":299.9,"language":"unknown","tokens":150085},
+        {"cost":0.00896,"credits":27,"language":"typescript","tokens":1532},
+        {"cost":0.00068,"credits":0,"language":"go","tokens":220}
+      ],
+      "models": [
+        {"cost":0.17213,"credits":120,"modelId":"claude-opus-4-5-20251101","tokens":16127},
+        {"cost":0.20763,"credits":90,"modelId":"claude-sonnet-4-5-20250929","tokens":33537},
+        {"cost":0.05358,"credits":60,"modelId":"claude-opus-4.5","tokens":5268},
+        {"cost":0.04389,"credits":36,"modelId":"claude-sonnet-4.5","tokens":7390},
+        {"cost":0.0284125,"credits":6,"modelId":"gemini-2.5-pro","tokens":8170},
+        {"cost":0.120387,"credits":5,"modelId":"claude-sonnet-4-20250514","tokens":18550},
+        {"cost":0.037218,"credits":2.64,"modelId":"claude-haiku-4-5-20251001","tokens":18310},
+        {"cost":0.0278575,"credits":2.31,"modelId":"gpt-4o","tokens":6337},
+        {"cost":0.029576,"credits":1.65,"modelId":"claude-3-5-haiku-20241022","tokens":17600},
+        {"cost":0.00473625,"credits":1.65,"modelId":"gpt-5-mini","tokens":6730},
+        {"cost":0.066,"credits":1.65,"modelId":"o3-mini","tokens":7310},
+        {"cost":0.022622,"credits":0,"modelId":"gpt-4.1","tokens":6508}
+      ],
+      "repos": [
+        {"cost":0.409362,"credits":152.99,"heuristicShare":0,"repo":"beta","tokens":55246},
+        {"cost":0.24337325,"credits":107.61,"heuristicShare":0,"repo":"unattributed","tokens":46834},
+        {"cost":0.154414,"credits":54.3,"heuristicShare":0,"repo":"alpha","tokens":48307},
+        {"cost":0.00689,"credits":12,"heuristicShare":1,"repo":"ide-repo","tokens":1450}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"agent"},
+        {"count":4,"credits":1.32,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":7,"credits":2.31,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":7,"credits":105,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"agent"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"edit"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"inline"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"agent"},
+        {"count":4,"credits":4,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":10,"credits":60,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":2,"credits":12,"model":"claude-sonnet-4.5","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"edit"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"inline"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"unknown"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"agent"},
+        {"count":3,"credits":3,"model":"gemini-2.5-pro","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"agent"},
+        {"count":3,"credits":0.99,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"inline"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":2,"credits":0.66,"model":"gpt-5-mini","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"inline"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"unknown"}
+      ],
+      "totals": {"all":{"cost":0.81403925,"credits":326.9,"eventCount":83,"tokens":151837},"mtd":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"today":{"cost":0.04088,"credits":52.65,"eventCount":13,"tokens":9543}},
+      "weekday": [66.98,68.3,38.66,48.66,15.65,39.99,48.66]
+    },
+    "filter": {"rangePreset":"30d"},
+    "label": "preset-30d",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1793644200000,"start":1791052200000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.04777480066},
+        {"category":"output","cost":0.06058774934},
+        {"category":"cache_creation","cost":0.000228},
+        {"category":"cache_read","cost":0.002283}
+      ],
+      "daily": [
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.02380025066,"catOutput":0.01707974934,"catThinking":0,"catTool":0,"cost":0.04088,"credits":52.65,"dayStart":1793557800000,"eventCount":13,"tokens":9543}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","o3-mini"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline"]},
+      "estimatedEventCount": 22,
+      "hourly": [
+        {"credits":0.66,"hourLocal":1},
+        {"credits":6.33,"hourLocal":9},
+        {"credits":12.66,"hourLocal":10},
+        {"credits":33.33,"hourLocal":11},
+        {"credits":15.33,"hourLocal":14},
+        {"credits":15,"hourLocal":15},
+        {"credits":0.33,"hourLocal":16},
+        {"credits":1,"hourLocal":18},
+        {"credits":1,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.10123355,"credits":58.64,"language":"unknown","tokens":25445},
+        {"cost":0.00896,"credits":27,"language":"typescript","tokens":1532},
+        {"cost":0.00068,"credits":0,"language":"go","tokens":220}
+      ],
+      "models": [
+        {"cost":0.012225,"credits":45,"modelId":"claude-opus-4-5-20251101","tokens":1377},
+        {"cost":0.014625,"credits":30,"modelId":"claude-sonnet-4-5-20250929","tokens":3087},
+        {"cost":0.00465,"credits":6,"modelId":"claude-sonnet-4.5","tokens":950},
+        {"cost":0.039657,"credits":1,"modelId":"claude-sonnet-4-20250514","tokens":5990},
+        {"cost":0.008055,"credits":1,"modelId":"gemini-2.5-pro","tokens":2216},
+        {"cost":0.00465,"credits":0.99,"modelId":"claude-haiku-4-5-20251001","tokens":2610},
+        {"cost":0.00067,"credits":0.66,"modelId":"gpt-4o","tokens":187},
+        {"cost":0.0098728,"credits":0.33,"modelId":"claude-3-5-haiku-20241022","tokens":5800},
+        {"cost":0.00156675,"credits":0.33,"modelId":"gpt-5-mini","tokens":2158},
+        {"cost":0.0132,"credits":0.33,"modelId":"o3-mini","tokens":2274},
+        {"cost":0.001702,"credits":0,"modelId":"gpt-4.1","tokens":548}
+      ],
+      "repos": [
+        {"cost":0.062467,"credits":43.99,"heuristicShare":0,"repo":"beta","tokens":11286},
+        {"cost":0.0153978,"credits":21.33,"heuristicShare":0,"repo":"alpha","tokens":7007},
+        {"cost":0.00689,"credits":12,"heuristicShare":1,"repo":"ide-repo","tokens":1450},
+        {"cost":0.02611875,"credits":8.32,"heuristicShare":0,"repo":"unattributed","tokens":7454}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":3,"credits":0.99,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"}
+      ],
+      "totals": {"all":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"mtd":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"today":{"cost":0.04088,"credits":52.65,"eventCount":13,"tokens":9543}},
+      "weekday": [32.99,52.65,0,0,0,0,0]
+    },
+    "filter": {"rangePreset":"month"},
+    "label": "preset-month",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1796063400000,"start":1793471400000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.094923},
+        {"category":"output","cost":0.15858},
+        {"category":"thinking","cost":0.006},
+        {"category":"cache_creation","cost":0.002385},
+        {"category":"cache_read","cost":0.00381}
+      ],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0024,"catOutput":0.00375,"catThinking":0,"catTool":0,"cost":0.00615,"credits":6,"dayStart":1767205800000,"eventCount":1,"tokens":1050},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0033,"catOutput":0.009,"catThinking":0.006,"catTool":0,"cost":0.0183,"credits":6,"dayStart":1768156200000,"eventCount":1,"tokens":1700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00075,"catOutput":0.001275,"catThinking":0,"catTool":0,"cost":0.002025,"credits":12,"dayStart":1768933800000,"eventCount":2,"tokens":335},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000312,"catOutput":0.00036,"catThinking":0,"catTool":0,"cost":0.000672,"credits":6,"dayStart":1769797800000,"eventCount":1,"tokens":128},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000606,"catOutput":0.00063,"catThinking":0,"catTool":0,"cost":0.001236,"credits":12,"dayStart":1769884200000,"eventCount":2,"tokens":244},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0027,"catOutput":0.0045,"catThinking":0,"catTool":0,"cost":0.0072,"credits":6,"dayStart":1770661800000,"eventCount":1,"tokens":1200},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00192,"catOutput":0.00273,"catThinking":0,"catTool":0,"cost":0.00465,"credits":12,"dayStart":1772908200000,"eventCount":2,"tokens":822},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00303,"catOutput":0.004515,"catThinking":0,"catTool":0,"cost":0.007545,"credits":12,"dayStart":1773513000000,"eventCount":2,"tokens":1311},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00213,"catOutput":0.002835,"catThinking":0,"catTool":0,"cost":0.004965,"credits":12,"dayStart":1775241000000,"eventCount":2,"tokens":899},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00237,"catOutput":0.002955,"catThinking":0,"catTool":0,"cost":0.005325,"credits":12,"dayStart":1790361000000,"eventCount":2,"tokens":987},
+        {"catCacheCreation":0.00075,"catCacheRead":0,"catInput":0.0012,"catOutput":0.0012,"catThinking":0,"catTool":0,"cost":0.00315,"credits":6,"dayStart":1792261800000,"eventCount":1,"tokens":480},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.002433,"catOutput":0.003585,"catThinking":0,"catTool":0,"cost":0.006018,"credits":6,"dayStart":1792348200000,"eventCount":1,"tokens":1050},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.003666,"catOutput":0.00597,"catThinking":0,"catTool":0,"cost":0.009636,"credits":6,"dayStart":1792521000000,"eventCount":1,"tokens":1620},
+        {"catCacheCreation":0,"catCacheRead":0.001743,"catInput":0.004899,"catOutput":0.008355,"catThinking":0,"catTool":0,"cost":0.014997,"credits":6,"dayStart":1792607400000,"eventCount":1,"tokens":2190},
+        {"catCacheCreation":0.000795,"catCacheRead":0,"catInput":0.006132,"catOutput":0.01074,"catThinking":0,"catTool":0,"cost":0.017667,"credits":6,"dayStart":1792780200000,"eventCount":1,"tokens":2760},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.007365,"catOutput":0.013125,"catThinking":0,"catTool":0,"cost":0.02049,"credits":6,"dayStart":1792866600000,"eventCount":1,"tokens":3330},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.008598,"catOutput":0.01551,"catThinking":0,"catTool":0,"cost":0.024108,"credits":6,"dayStart":1793039400000,"eventCount":1,"tokens":3900},
+        {"catCacheCreation":0,"catCacheRead":0.002067,"catInput":0.009831,"catOutput":0.017895,"catThinking":0,"catTool":0,"cost":0.029793,"credits":6,"dayStart":1793125800000,"eventCount":1,"tokens":4470},
+        {"catCacheCreation":0.00084,"catCacheRead":0,"catInput":0.011064,"catOutput":0.02028,"catThinking":0,"catTool":0,"cost":0.032184,"credits":6,"dayStart":1793298600000,"eventCount":1,"tokens":5040},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.012297,"catOutput":0.022665,"catThinking":0,"catTool":0,"cost":0.034962,"credits":6,"dayStart":1793385000000,"eventCount":1,"tokens":5610},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00792,"catOutput":0.006705,"catThinking":0,"catTool":0,"cost":0.014625,"credits":30,"dayStart":1793557800000,"eventCount":5,"tokens":3087}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 31,
+      "hourly": [
+        {"credits":6,"hourLocal":0},
+        {"credits":6,"hourLocal":5},
+        {"credits":6,"hourLocal":9},
+        {"credits":12,"hourLocal":10},
+        {"credits":12,"hourLocal":11},
+        {"credits":12,"hourLocal":13},
+        {"credits":24,"hourLocal":14},
+        {"credits":36,"hourLocal":15},
+        {"credits":18,"hourLocal":16},
+        {"credits":12,"hourLocal":19},
+        {"credits":18,"hourLocal":20},
+        {"credits":12,"hourLocal":21},
+        {"credits":12,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.264138,"credits":180,"language":"unknown","tokens":41933},
+        {"cost":0.00156,"credits":6,"language":"typescript","tokens":280}
+      ],
+      "models": [{"cost":0.265698,"credits":186,"modelId":"claude-sonnet-4-5-20250929","tokens":42213}],
+      "repos": [
+        {"cost":0.137085,"credits":84,"heuristicShare":0,"repo":"beta","tokens":22169},
+        {"cost":0.117903,"credits":78,"heuristicShare":0,"repo":"alpha","tokens":18162},
+        {"cost":0.00915,"credits":18,"heuristicShare":0,"repo":"unattributed","tokens":1602},
+        {"cost":0.00156,"credits":6,"heuristicShare":1,"repo":"ide-repo","tokens":280}
+      ],
+      "sankey": [
+        {"count":11,"credits":66,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":20,"credits":120,"model":"claude-sonnet-4-5-20250929","surface":"chat"}
+      ],
+      "totals": {"all":{"cost":0.265698,"credits":186,"eventCount":31,"tokens":42213},"mtd":{"cost":0.014625,"credits":30,"eventCount":5,"tokens":3087},"today":{"cost":0.014625,"credits":30,"eventCount":5,"tokens":3087}},
+      "weekday": [48,42,12,24,12,6,42]
+    },
+    "filter": {"models":["claude-sonnet-4-5-20250929"]},
+    "label": "model-one",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"models":["claude-sonnet-4-5-20250929"],"range":{"end":1793678400000,"start":1762021800000}}
+    }
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.105409},
+        {"category":"output","cost":0.152083},
+        {"category":"thinking","cost":0.003},
+        {"category":"cache_creation","cost":0.008125},
+        {"category":"cache_read","cost":0.018755}
+      ],
+      "daily": [
+        {"catCacheCreation":0.003125,"catCacheRead":0.0035,"catInput":0.015,"catOutput":0.0225,"catThinking":0,"catTool":0,"cost":0.044125,"credits":15,"dayStart":1767205800000,"eventCount":1,"tokens":3900},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0024,"catOutput":0.0024,"catThinking":0,"catTool":0,"cost":0.0048,"credits":0,"dayStart":1767551400000,"eventCount":1,"tokens":1500},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0,"catOutput":0,"catThinking":0,"catTool":0,"cost":0,"credits":0,"dayStart":1767637800000,"eventCount":1,"tokens":0},
+        {"catCacheCreation":0.005,"catCacheRead":0.006,"catInput":0.014,"catOutput":0.00725,"catThinking":0.003,"catTool":0,"cost":0.03525,"credits":30,"dayStart":1768156200000,"eventCount":2,"tokens":3090},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000376,"catOutput":0.000304,"catThinking":0,"catTool":0,"cost":0.00068,"credits":0,"dayStart":1769797800000,"eventCount":2,"tokens":226},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000182,"catOutput":0.000128,"catThinking":0,"catTool":0,"cost":0.00031,"credits":0,"dayStart":1769884200000,"eventCount":1,"tokens":107},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0003,"catOutput":0.00024,"catThinking":0,"catTool":0,"cost":0.00054,"credits":0,"dayStart":1772389800000,"eventCount":1,"tokens":180},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00032,"catOutput":0.000248,"catThinking":0,"catTool":0,"cost":0.000568,"credits":0,"dayStart":1772476200000,"eventCount":1,"tokens":191},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.002142,"catOutput":0.002685,"catThinking":0,"catTool":0,"cost":0.004827,"credits":15,"dayStart":1772908200000,"eventCount":3,"tokens":699},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0008,"catOutput":0.00072,"catThinking":0,"catTool":0,"cost":0.00152,"credits":0,"dayStart":1773081000000,"eventCount":1,"tokens":490},
+        {"catCacheCreation":0,"catCacheRead":0.002545,"catInput":0.003285,"catOutput":0.003805,"catThinking":0,"catTool":0,"cost":0.009635,"credits":15,"dayStart":1792261800000,"eventCount":2,"tokens":1030},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.007969,"catOutput":0.012707,"catThinking":0,"catTool":0,"cost":0.020676,"credits":15,"dayStart":1792521000000,"eventCount":2,"tokens":2576},
+        {"catCacheCreation":0,"catCacheRead":0.003085,"catInput":0.012653,"catOutput":0.021609,"catThinking":0,"catTool":0,"cost":0.037347,"credits":15,"dayStart":1792780200000,"eventCount":2,"tokens":4122},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.017337,"catOutput":0.030511,"catThinking":0,"catTool":0,"cost":0.047848,"credits":15,"dayStart":1793039400000,"eventCount":2,"tokens":5668},
+        {"catCacheCreation":0,"catCacheRead":0.003625,"catInput":0.022201,"catOutput":0.039493,"catThinking":0,"catTool":0,"cost":0.065319,"credits":15,"dayStart":1793298600000,"eventCount":3,"tokens":7314},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.004884,"catOutput":0.005613,"catThinking":0,"catTool":0,"cost":0.010497,"credits":30,"dayStart":1793471400000,"eventCount":4,"tokens":1403},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00156,"catOutput":0.00187,"catThinking":0,"catTool":0,"cost":0.00343,"credits":15,"dayStart":1793557800000,"eventCount":2,"tokens":522}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 31,
+      "hourly": [
+        {"credits":15,"hourLocal":5},
+        {"credits":15,"hourLocal":11},
+        {"credits":15,"hourLocal":14},
+        {"credits":30,"hourLocal":15},
+        {"credits":15,"hourLocal":16},
+        {"credits":15,"hourLocal":17},
+        {"credits":0,"hourLocal":18},
+        {"credits":30,"hourLocal":20},
+        {"credits":30,"hourLocal":21},
+        {"credits":15,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.282422,"credits":165,"language":"unknown","tokens":32006},
+        {"cost":0.00427,"credits":15,"language":"typescript","tokens":792},
+        {"cost":0.00068,"credits":0,"language":"go","tokens":220}
+      ],
+      "models": [
+        {"cost":0.25553,"credits":180,"modelId":"claude-opus-4-5-20251101","tokens":23550},
+        {"cost":0.031842,"credits":0,"modelId":"gpt-4.1","tokens":9468}
+      ],
+      "repos": [
+        {"cost":0.173405,"credits":120,"heuristicShare":0,"repo":"beta","tokens":16258},
+        {"cost":0.082125,"credits":60,"heuristicShare":0,"repo":"alpha","tokens":7292},
+        {"cost":0.00068,"credits":0,"heuristicShare":1,"repo":"ide-repo","tokens":220},
+        {"cost":0.031162,"credits":0,"heuristicShare":0,"repo":"unattributed","tokens":9248}
+      ],
+      "sankey": [
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":9,"credits":135,"model":"claude-opus-4-5-20251101","surface":"chat"}
+      ],
+      "totals": {"all":{"cost":0.287372,"credits":180,"eventCount":31,"tokens":33018},"mtd":{"cost":0.013927,"credits":45,"eventCount":6,"tokens":1925},"today":{"cost":0.00343,"credits":15,"eventCount":2,"tokens":522}},
+      "weekday": [60,45,15,15,15,15,15]
+    },
+    "filter": {"models":["gpt-4.1","claude-opus-4-5-20251101"]},
+    "label": "model-two",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"models":["gpt-4.1","claude-opus-4-5-20251101"],"range":{"end":1793678400000,"start":1762021800000}}
+    }
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.098255},
+        {"category":"output","cost":0.143145},
+        {"category":"thinking","cost":0.009},
+        {"category":"cache_creation","cost":0.011586},
+        {"category":"cache_read","cost":0.0295}
+      ],
+      "daily": [
+        {"catCacheCreation":0.003125,"catCacheRead":0.0035,"catInput":0.0174,"catOutput":0.02625,"catThinking":0,"catTool":0,"cost":0.050275,"credits":21,"dayStart":1767205800000,"eventCount":2,"tokens":4950},
+        {"catCacheCreation":0.005,"catCacheRead":0.006,"catInput":0.0173,"catOutput":0.01625,"catThinking":0.009,"catTool":0,"cost":0.05355,"credits":36,"dayStart":1768156200000,"eventCount":3,"tokens":4790},
+        {"catCacheCreation":0,"catCacheRead":0.02,"catInput":0.005,"catOutput":0.0035,"catThinking":0,"catTool":0,"cost":0.0285,"credits":0.33,"dayStart":1768847400000,"eventCount":1,"tokens":5700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00081,"catOutput":0.001375,"catThinking":0,"catTool":0,"cost":0.002185,"credits":12.33,"dayStart":1768933800000,"eventCount":3,"tokens":415},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00052,"catOutput":0.0006,"catThinking":0,"catTool":0,"cost":0.00112,"credits":6.66,"dayStart":1769797800000,"eventCount":3,"tokens":384},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000707,"catOutput":0.000735,"catThinking":0,"catTool":0,"cost":0.001442,"credits":12.33,"dayStart":1769884200000,"eventCount":3,"tokens":366},
+        {"catCacheCreation":0.00075,"catCacheRead":0,"catInput":0.0012,"catOutput":0.0012,"catThinking":0,"catTool":0,"cost":0.00315,"credits":6,"dayStart":1792261800000,"eventCount":1,"tokens":480},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000674,"catOutput":0.00093,"catThinking":0,"catTool":0,"cost":0.001604,"credits":0.33,"dayStart":1792348200000,"eventCount":1,"tokens":860},
+        {"catCacheCreation":0.000204,"catCacheRead":0,"catInput":0.0007584,"catOutput":0.001168,"catThinking":0,"catTool":0,"cost":0.0021304,"credits":0.33,"dayStart":1792434600000,"eventCount":1,"tokens":1240},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.003666,"catOutput":0.00597,"catThinking":0,"catTool":0,"cost":0.009636,"credits":6,"dayStart":1792521000000,"eventCount":1,"tokens":1620},
+        {"catCacheCreation":0.000208,"catCacheRead":0,"catInput":0.001496,"catOutput":0.00252,"catThinking":0,"catTool":0,"cost":0.004224,"credits":0.33,"dayStart":1792607400000,"eventCount":1,"tokens":2000},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001416,"catOutput":0.00244,"catThinking":0,"catTool":0,"cost":0.003856,"credits":0.33,"dayStart":1792693800000,"eventCount":1,"tokens":2380},
+        {"catCacheCreation":0.000795,"catCacheRead":0,"catInput":0.006132,"catOutput":0.01074,"catThinking":0,"catTool":0,"cost":0.017667,"credits":6,"dayStart":1792780200000,"eventCount":1,"tokens":2760},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.002318,"catOutput":0.00411,"catThinking":0,"catTool":0,"cost":0.006428,"credits":0.33,"dayStart":1792866600000,"eventCount":1,"tokens":3140},
+        {"catCacheCreation":0.000216,"catCacheRead":0,"catInput":0.0020736,"catOutput":0.003712,"catThinking":0,"catTool":0,"cost":0.0060016,"credits":0.33,"dayStart":1792953000000,"eventCount":1,"tokens":3520},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.008598,"catOutput":0.01551,"catThinking":0,"catTool":0,"cost":0.024108,"credits":6,"dayStart":1793039400000,"eventCount":1,"tokens":3900},
+        {"catCacheCreation":0.00022,"catCacheRead":0,"catInput":0.00314,"catOutput":0.0057,"catThinking":0,"catTool":0,"cost":0.00906,"credits":0.33,"dayStart":1793125800000,"eventCount":1,"tokens":4280},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0027312,"catOutput":0.004984,"catThinking":0,"catTool":0,"cost":0.0077152,"credits":0.33,"dayStart":1793212200000,"eventCount":1,"tokens":4660},
+        {"catCacheCreation":0.00084,"catCacheRead":0,"catInput":0.011064,"catOutput":0.02028,"catThinking":0,"catTool":0,"cost":0.032184,"credits":6,"dayStart":1793298600000,"eventCount":1,"tokens":5040},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.003962,"catOutput":0.00729,"catThinking":0,"catTool":0,"cost":0.011252,"credits":0.33,"dayStart":1793385000000,"eventCount":1,"tokens":5420},
+        {"catCacheCreation":0.000228,"catCacheRead":0,"catInput":0.0033888,"catOutput":0.006256,"catThinking":0,"catTool":0,"cost":0.0098728,"credits":0.33,"dayStart":1793471400000,"eventCount":1,"tokens":5800},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0039,"catOutput":0.001625,"catThinking":0,"catTool":0,"cost":0.005525,"credits":21,"dayStart":1793557800000,"eventCount":2,"tokens":1207}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 32,
+      "hourly": [
+        {"credits":6,"hourLocal":0},
+        {"credits":21.33,"hourLocal":5},
+        {"credits":6,"hourLocal":10},
+        {"credits":15,"hourLocal":11},
+        {"credits":6,"hourLocal":13},
+        {"credits":24.66,"hourLocal":14},
+        {"credits":28.98,"hourLocal":15},
+        {"credits":19.32,"hourLocal":16},
+        {"credits":15,"hourLocal":17},
+        {"credits":0.33,"hourLocal":18},
+        {"credits":0.33,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.288736,"credits":127.95,"language":"unknown","tokens":64610},
+        {"cost":0.00275,"credits":15,"language":"typescript","tokens":302}
+      ],
+      "models": [
+        {"cost":0.117903,"credits":78,"modelId":"claude-sonnet-4-5-20250929","tokens":18162},
+        {"cost":0.082125,"credits":60,"modelId":"claude-opus-4-5-20251101","tokens":7292},
+        {"cost":0.061882,"credits":3.3,"modelId":"claude-haiku-4-5-20251001","tokens":21858},
+        {"cost":0.029576,"credits":1.65,"modelId":"claude-3-5-haiku-20241022","tokens":17600}
+      ],
+      "repos": [{"cost":0.291486,"credits":142.95,"heuristicShare":0,"repo":"alpha","tokens":64912}],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"agent"},
+        {"count":4,"credits":1.32,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":8,"credits":2.64,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":2,"credits":30,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":2,"credits":30,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":8,"credits":48,"model":"claude-sonnet-4-5-20250929","surface":"chat"}
+      ],
+      "totals": {"all":{"cost":0.291486,"credits":142.95,"eventCount":32,"tokens":64912},"mtd":{"cost":0.0153978,"credits":21.33,"eventCount":3,"tokens":7007},"today":{"cost":0.005525,"credits":21,"eventCount":2,"tokens":1207}},
+      "weekday": [18.99,57.66,6.66,18.66,21.66,6.33,12.99]
+    },
+    "filter": {"repos":["alpha"]},
+    "label": "repo-alpha",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"range":{"end":1793678400000,"start":1762021800000},"repos":["alpha"]}
+    }
+  },
+  {
+    "data": {
+      "categories": [{"category":"input","cost":0.3590338092},{"category":"output","cost":0.2326766908}],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0374,"catOutput":0.0359,"catThinking":0,"catTool":0,"cost":0.0733,"credits":21,"dayStart":1767551400000,"eventCount":3,"tokens":12200},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.06481,"catOutput":0.02044,"catThinking":0,"catTool":0,"cost":0.32525,"credits":9.16,"dayStart":1767637800000,"eventCount":6,"tokens":7700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00025,"catOutput":0.0002,"catThinking":0,"catTool":0,"cost":0.00045,"credits":0.33,"dayStart":1767724200000,"eventCount":1,"tokens":120},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0001,"catOutput":0.00008,"catThinking":0,"catTool":0,"cost":0.00018,"credits":0.33,"dayStart":1767810600000,"eventCount":1,"tokens":48},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000841,"catOutput":0.000664,"catThinking":0,"catTool":0,"cost":0.001505,"credits":0.66,"dayStart":1769797800000,"eventCount":4,"tokens":448},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000407,"catOutput":0.000278,"catThinking":0,"catTool":0,"cost":0.000685,"credits":0.33,"dayStart":1769884200000,"eventCount":2,"tokens":212},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0085,"catOutput":0.01,"catThinking":0,"catTool":0,"cost":0.0185,"credits":6.33,"dayStart":1772303400000,"eventCount":2,"tokens":3750},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0003,"catOutput":0.00024,"catThinking":0,"catTool":0,"cost":0.00054,"credits":0,"dayStart":1772389800000,"eventCount":1,"tokens":180},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0603375,"catOutput":0.000336,"catThinking":0,"catTool":0,"cost":0.0738735,"credits":2.49,"dayStart":1772476200000,"eventCount":5,"tokens":291},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000442,"catOutput":0.00036,"catThinking":0,"catTool":0,"cost":0.000802,"credits":0,"dayStart":1772908200000,"eventCount":2,"tokens":266},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.009855,"catOutput":0.011308,"catThinking":0,"catTool":0,"cost":0.021163,"credits":6.33,"dayStart":1773081000000,"eventCount":3,"tokens":4454},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.05015,"catOutput":0.01012,"catThinking":0,"catTool":0,"cost":0.07347,"credits":2.16,"dayStart":1773167400000,"eventCount":3,"tokens":144},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0075,"catOutput":0.0075,"catThinking":0,"catTool":0,"cost":0.015,"credits":15,"dayStart":1773253800000,"eventCount":1,"tokens":1800},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00303,"catOutput":0.004515,"catThinking":0,"catTool":0,"cost":0.007545,"credits":12,"dayStart":1773513000000,"eventCount":2,"tokens":1311},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00025,"catOutput":0.0003,"catThinking":0,"catTool":0,"cost":0.00055,"credits":0.33,"dayStart":1773599400000,"eventCount":1,"tokens":310},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0009075,"catOutput":0.00075,"catThinking":0,"catTool":0,"cost":0.0016575,"credits":0.99,"dayStart":1775241000000,"eventCount":3,"tokens":438},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00006525,"catOutput":0.00011,"catThinking":0,"catTool":0,"cost":0.00017525,"credits":0.66,"dayStart":1790361000000,"eventCount":2,"tokens":316},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000033,"catOutput":0.000058,"catThinking":0,"catTool":0,"cost":0.000091,"credits":0.33,"dayStart":1790965800000,"eventCount":1,"tokens":161},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0014525,"catOutput":0.00125,"catThinking":0,"catTool":0,"cost":0.0027025,"credits":0.33,"dayStart":1792261800000,"eventCount":2,"tokens":778},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00125175,"catOutput":0.001632,"catThinking":0,"catTool":0,"cost":0.00288375,"credits":6.33,"dayStart":1792348200000,"eventCount":2,"tokens":1010},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01083538462,"catOutput":0.004224615385,"catThinking":0,"catTool":0,"cost":0.01506,"credits":1.33,"dayStart":1792434600000,"eventCount":2,"tokens":1242},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.003904,"catOutput":0.005482,"catThinking":0,"catTool":0,"cost":0.009386,"credits":15,"dayStart":1792521000000,"eventCount":2,"tokens":1474},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0037545,"catOutput":0.005615,"catThinking":0,"catTool":0,"cost":0.0093695,"credits":6.66,"dayStart":1792607400000,"eventCount":3,"tokens":2646},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01083875,"catOutput":0.00577,"catThinking":0,"catTool":0,"cost":0.01660875,"credits":1.33,"dayStart":1792693800000,"eventCount":2,"tokens":2054},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.005913,"catOutput":0.009409,"catThinking":0,"catTool":0,"cost":0.015322,"credits":15,"dayStart":1792780200000,"eventCount":2,"tokens":2286},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0051555,"catOutput":0.00813,"catThinking":0,"catTool":0,"cost":0.0132855,"credits":6.33,"dayStart":1792866600000,"eventCount":2,"tokens":2518},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01128874726,"catOutput":0.007816002736,"catThinking":0,"catTool":0,"cost":0.01910475,"credits":1.66,"dayStart":1792953000000,"eventCount":3,"tokens":4212},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.007922,"catOutput":0.013336,"catThinking":0,"catTool":0,"cost":0.021258,"credits":15,"dayStart":1793039400000,"eventCount":2,"tokens":3098},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.006734,"catOutput":0.011105,"catThinking":0,"catTool":0,"cost":0.017839,"credits":6.33,"dayStart":1793125800000,"eventCount":2,"tokens":3330},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00197725,"catOutput":0.005786,"catThinking":0,"catTool":0,"cost":0.00776325,"credits":1.33,"dayStart":1793212200000,"eventCount":2,"tokens":3562},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.02088867666,"catOutput":0.02339032334,"catThinking":0,"catTool":0,"cost":0.044279,"credits":16.33,"dayStart":1793298600000,"eventCount":5,"tokens":7028},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0083125,"catOutput":0.01408,"catThinking":0,"catTool":0,"cost":0.0223925,"credits":6.33,"dayStart":1793385000000,"eventCount":2,"tokens":4142},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00311675,"catOutput":0.007872,"catThinking":0,"catTool":0,"cost":0.01098875,"credits":1.66,"dayStart":1793471400000,"eventCount":5,"tokens":4789},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01051025066,"catOutput":0.00461974934,"catThinking":0,"catTool":0,"cost":0.01513,"credits":6.66,"dayStart":1793557800000,"eventCount":3,"tokens":2665}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 84,
+      "hourly": [
+        {"credits":33.64,"hourLocal":1},
+        {"credits":0,"hourLocal":5},
+        {"credits":6.33,"hourLocal":11},
+        {"credits":0.66,"hourLocal":13},
+        {"credits":31.15,"hourLocal":14},
+        {"credits":91.66,"hourLocal":15},
+        {"credits":2.82,"hourLocal":16},
+        {"credits":0.33,"hourLocal":17},
+        {"credits":14.98,"hourLocal":18},
+        {"credits":3.48,"hourLocal":19},
+        {"credits":0.33,"hourLocal":20},
+        {"credits":0.33,"hourLocal":21},
+        {"credits":0.33,"hourLocal":23}
+      ],
+      "languages": [
+        {"cost":0.8550205,"credits":185.38,"language":"unknown","tokens":78021},
+        {"cost":0.0013,"credits":0.33,"language":"python","tokens":2400},
+        {"cost":0.00027,"credits":0.33,"language":"rust","tokens":72},
+        {"cost":0.00152,"credits":0,"language":"typescript","tokens":490}
+      ],
+      "models": [
+        {"cost":0.10858,"credits":90,"modelId":"claude-opus-4.5","tokens":11868},
+        {"cost":0.34074,"credits":54,"modelId":"claude-sonnet-4.5","tokens":18540},
+        {"cost":0.00915,"credits":18,"modelId":"claude-sonnet-4-5-20250929","tokens":1602},
+        {"cost":0.0391625,"credits":7,"modelId":"gemini-2.5-pro","tokens":11870},
+        {"cost":0.063075,"credits":6.6,"modelId":"gpt-4o","tokens":8598},
+        {"cost":0.18,"credits":4.5,"modelId":"mystery-model-x","tokens":682},
+        {"cost":0.006491,"credits":3.63,"modelId":"gpt-5-mini","tokens":9955},
+        {"cost":0.0792,"credits":1.98,"modelId":"o3-mini","tokens":8310},
+        {"cost":0.00055,"credits":0.33,"modelId":"claude-haiku-4-5-20251001","tokens":310},
+        {"cost":0.031162,"credits":0,"modelId":"gpt-4.1","tokens":9248}
+      ],
+      "repos": [{"cost":0.8581105,"credits":186.04,"heuristicShare":0,"repo":"unattributed","tokens":80983}],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"agent"},
+        {"count":2,"credits":30,"model":"claude-opus-4.5","surface":"chat"},
+        {"count":2,"credits":30,"model":"claude-opus-4.5","surface":"edit"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"inline"},
+        {"count":3,"credits":18,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":3,"credits":18,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":3,"credits":18,"model":"claude-sonnet-4.5","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"edit"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"inline"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"unknown"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"agent"},
+        {"count":4,"credits":4,"model":"gemini-2.5-pro","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"agent"},
+        {"count":9,"credits":2.97,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"edit"},
+        {"count":7,"credits":2.31,"model":"gpt-4o","surface":"inline"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":7,"credits":2.31,"model":"gpt-5-mini","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"gpt-5-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"unknown"},
+        {"count":3,"credits":4.5,"model":"mystery-model-x","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"agent"},
+        {"count":2,"credits":0.66,"model":"o3-mini","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"inline"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"unknown"}
+      ],
+      "totals": {"all":{"cost":0.8581105,"credits":186.04,"eventCount":84,"tokens":80983},"mtd":{"cost":0.02611875,"credits":8.32,"eventCount":8,"tokens":7454},"today":{"cost":0.01513,"credits":6.66,"eventCount":3,"tokens":2665}},
+      "weekday": [26.98,35.98,34.31,23.82,23.32,17.66,23.97]
+    },
+    "filter": {"repos":["unattributed"]},
+    "label": "repo-unattributed",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"range":{"end":1793678400000,"start":1762021800000},"repos":["unattributed"]}
+    }
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.4572888092},
+        {"category":"output","cost":0.3758216908},
+        {"category":"thinking","cost":0.009},
+        {"category":"cache_creation","cost":0.011586},
+        {"category":"cache_read","cost":0.0295}
+      ],
+      "daily": [
+        {"catCacheCreation":0.003125,"catCacheRead":0.0035,"catInput":0.0174,"catOutput":0.02625,"catThinking":0,"catTool":0,"cost":0.050275,"credits":21,"dayStart":1767205800000,"eventCount":2,"tokens":4950},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0374,"catOutput":0.0359,"catThinking":0,"catTool":0,"cost":0.0733,"credits":21,"dayStart":1767551400000,"eventCount":3,"tokens":12200},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.06481,"catOutput":0.02044,"catThinking":0,"catTool":0,"cost":0.32525,"credits":9.16,"dayStart":1767637800000,"eventCount":6,"tokens":7700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00025,"catOutput":0.0002,"catThinking":0,"catTool":0,"cost":0.00045,"credits":0.33,"dayStart":1767724200000,"eventCount":1,"tokens":120},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0001,"catOutput":0.00008,"catThinking":0,"catTool":0,"cost":0.00018,"credits":0.33,"dayStart":1767810600000,"eventCount":1,"tokens":48},
+        {"catCacheCreation":0.005,"catCacheRead":0.006,"catInput":0.0173,"catOutput":0.01625,"catThinking":0.009,"catTool":0,"cost":0.05355,"credits":36,"dayStart":1768156200000,"eventCount":3,"tokens":4790},
+        {"catCacheCreation":0,"catCacheRead":0.02,"catInput":0.005,"catOutput":0.0035,"catThinking":0,"catTool":0,"cost":0.0285,"credits":0.33,"dayStart":1768847400000,"eventCount":1,"tokens":5700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00081,"catOutput":0.001375,"catThinking":0,"catTool":0,"cost":0.002185,"credits":12.33,"dayStart":1768933800000,"eventCount":3,"tokens":415},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001361,"catOutput":0.001264,"catThinking":0,"catTool":0,"cost":0.002625,"credits":7.32,"dayStart":1769797800000,"eventCount":7,"tokens":832},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001114,"catOutput":0.001013,"catThinking":0,"catTool":0,"cost":0.002127,"credits":12.66,"dayStart":1769884200000,"eventCount":5,"tokens":578},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0085,"catOutput":0.01,"catThinking":0,"catTool":0,"cost":0.0185,"credits":6.33,"dayStart":1772303400000,"eventCount":2,"tokens":3750},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0003,"catOutput":0.00024,"catThinking":0,"catTool":0,"cost":0.00054,"credits":0,"dayStart":1772389800000,"eventCount":1,"tokens":180},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0603375,"catOutput":0.000336,"catThinking":0,"catTool":0,"cost":0.0738735,"credits":2.49,"dayStart":1772476200000,"eventCount":5,"tokens":291},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000442,"catOutput":0.00036,"catThinking":0,"catTool":0,"cost":0.000802,"credits":0,"dayStart":1772908200000,"eventCount":2,"tokens":266},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.009855,"catOutput":0.011308,"catThinking":0,"catTool":0,"cost":0.021163,"credits":6.33,"dayStart":1773081000000,"eventCount":3,"tokens":4454},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.05015,"catOutput":0.01012,"catThinking":0,"catTool":0,"cost":0.07347,"credits":2.16,"dayStart":1773167400000,"eventCount":3,"tokens":144},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0075,"catOutput":0.0075,"catThinking":0,"catTool":0,"cost":0.015,"credits":15,"dayStart":1773253800000,"eventCount":1,"tokens":1800},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00303,"catOutput":0.004515,"catThinking":0,"catTool":0,"cost":0.007545,"credits":12,"dayStart":1773513000000,"eventCount":2,"tokens":1311},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00025,"catOutput":0.0003,"catThinking":0,"catTool":0,"cost":0.00055,"credits":0.33,"dayStart":1773599400000,"eventCount":1,"tokens":310},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0009075,"catOutput":0.00075,"catThinking":0,"catTool":0,"cost":0.0016575,"credits":0.99,"dayStart":1775241000000,"eventCount":3,"tokens":438},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00006525,"catOutput":0.00011,"catThinking":0,"catTool":0,"cost":0.00017525,"credits":0.66,"dayStart":1790361000000,"eventCount":2,"tokens":316},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000033,"catOutput":0.000058,"catThinking":0,"catTool":0,"cost":0.000091,"credits":0.33,"dayStart":1790965800000,"eventCount":1,"tokens":161},
+        {"catCacheCreation":0.00075,"catCacheRead":0,"catInput":0.0026525,"catOutput":0.00245,"catThinking":0,"catTool":0,"cost":0.0058525,"credits":6.33,"dayStart":1792261800000,"eventCount":3,"tokens":1258},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00192575,"catOutput":0.002562,"catThinking":0,"catTool":0,"cost":0.00448775,"credits":6.66,"dayStart":1792348200000,"eventCount":3,"tokens":1870},
+        {"catCacheCreation":0.000204,"catCacheRead":0,"catInput":0.01159378462,"catOutput":0.005392615385,"catThinking":0,"catTool":0,"cost":0.0171904,"credits":1.66,"dayStart":1792434600000,"eventCount":3,"tokens":2482},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00757,"catOutput":0.011452,"catThinking":0,"catTool":0,"cost":0.019022,"credits":21,"dayStart":1792521000000,"eventCount":3,"tokens":3094},
+        {"catCacheCreation":0.000208,"catCacheRead":0,"catInput":0.0052505,"catOutput":0.008135,"catThinking":0,"catTool":0,"cost":0.0135935,"credits":6.99,"dayStart":1792607400000,"eventCount":4,"tokens":4646},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01225475,"catOutput":0.00821,"catThinking":0,"catTool":0,"cost":0.02046475,"credits":1.66,"dayStart":1792693800000,"eventCount":3,"tokens":4434},
+        {"catCacheCreation":0.000795,"catCacheRead":0,"catInput":0.012045,"catOutput":0.020149,"catThinking":0,"catTool":0,"cost":0.032989,"credits":21,"dayStart":1792780200000,"eventCount":3,"tokens":5046},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0074735,"catOutput":0.01224,"catThinking":0,"catTool":0,"cost":0.0197135,"credits":6.66,"dayStart":1792866600000,"eventCount":3,"tokens":5658},
+        {"catCacheCreation":0.000216,"catCacheRead":0,"catInput":0.01336234726,"catOutput":0.01152800274,"catThinking":0,"catTool":0,"cost":0.02510635,"credits":1.99,"dayStart":1792953000000,"eventCount":4,"tokens":7732},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01652,"catOutput":0.028846,"catThinking":0,"catTool":0,"cost":0.045366,"credits":21,"dayStart":1793039400000,"eventCount":3,"tokens":6998},
+        {"catCacheCreation":0.00022,"catCacheRead":0,"catInput":0.009874,"catOutput":0.016805,"catThinking":0,"catTool":0,"cost":0.026899,"credits":6.66,"dayStart":1793125800000,"eventCount":3,"tokens":7610},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00470845,"catOutput":0.01077,"catThinking":0,"catTool":0,"cost":0.01547845,"credits":1.66,"dayStart":1793212200000,"eventCount":3,"tokens":8222},
+        {"catCacheCreation":0.00084,"catCacheRead":0,"catInput":0.03195267666,"catOutput":0.04367032334,"catThinking":0,"catTool":0,"cost":0.076463,"credits":22.33,"dayStart":1793298600000,"eventCount":6,"tokens":12068},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0122745,"catOutput":0.02137,"catThinking":0,"catTool":0,"cost":0.0336445,"credits":6.66,"dayStart":1793385000000,"eventCount":3,"tokens":9562},
+        {"catCacheCreation":0.000228,"catCacheRead":0,"catInput":0.00650555,"catOutput":0.014128,"catThinking":0,"catTool":0,"cost":0.02086155,"credits":1.99,"dayStart":1793471400000,"eventCount":6,"tokens":10589},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01441025066,"catOutput":0.00624474934,"catThinking":0,"catTool":0,"cost":0.020655,"credits":27.66,"dayStart":1793557800000,"eventCount":5,"tokens":3872}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 116,
+      "hourly": [
+        {"credits":6,"hourLocal":0},
+        {"credits":33.64,"hourLocal":1},
+        {"credits":21.33,"hourLocal":5},
+        {"credits":6,"hourLocal":10},
+        {"credits":21.33,"hourLocal":11},
+        {"credits":6.66,"hourLocal":13},
+        {"credits":55.81,"hourLocal":14},
+        {"credits":120.64,"hourLocal":15},
+        {"credits":22.14,"hourLocal":16},
+        {"credits":15.33,"hourLocal":17},
+        {"credits":15.31,"hourLocal":18},
+        {"credits":3.48,"hourLocal":19},
+        {"credits":0.33,"hourLocal":20},
+        {"credits":0.33,"hourLocal":21},
+        {"credits":0.33,"hourLocal":22},
+        {"credits":0.33,"hourLocal":23}
+      ],
+      "languages": [
+        {"cost":1.1437565,"credits":313.33,"language":"unknown","tokens":142631},
+        {"cost":0.00427,"credits":15,"language":"typescript","tokens":792},
+        {"cost":0.0013,"credits":0.33,"language":"python","tokens":2400},
+        {"cost":0.00027,"credits":0.33,"language":"rust","tokens":72}
+      ],
+      "models": [
+        {"cost":0.127053,"credits":96,"modelId":"claude-sonnet-4-5-20250929","tokens":19764},
+        {"cost":0.10858,"credits":90,"modelId":"claude-opus-4.5","tokens":11868},
+        {"cost":0.082125,"credits":60,"modelId":"claude-opus-4-5-20251101","tokens":7292},
+        {"cost":0.34074,"credits":54,"modelId":"claude-sonnet-4.5","tokens":18540},
+        {"cost":0.0391625,"credits":7,"modelId":"gemini-2.5-pro","tokens":11870},
+        {"cost":0.063075,"credits":6.6,"modelId":"gpt-4o","tokens":8598},
+        {"cost":0.18,"credits":4.5,"modelId":"mystery-model-x","tokens":682},
+        {"cost":0.062432,"credits":3.63,"modelId":"claude-haiku-4-5-20251001","tokens":22168},
+        {"cost":0.006491,"credits":3.63,"modelId":"gpt-5-mini","tokens":9955},
+        {"cost":0.0792,"credits":1.98,"modelId":"o3-mini","tokens":8310},
+        {"cost":0.029576,"credits":1.65,"modelId":"claude-3-5-haiku-20241022","tokens":17600},
+        {"cost":0.031162,"credits":0,"modelId":"gpt-4.1","tokens":9248}
+      ],
+      "repos": [
+        {"cost":0.8581105,"credits":186.04,"heuristicShare":0,"repo":"unattributed","tokens":80983},
+        {"cost":0.291486,"credits":142.95,"heuristicShare":0,"repo":"alpha","tokens":64912}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"agent"},
+        {"count":4,"credits":1.32,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":9,"credits":2.97,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":2,"credits":30,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":2,"credits":30,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"agent"},
+        {"count":2,"credits":30,"model":"claude-opus-4.5","surface":"chat"},
+        {"count":2,"credits":30,"model":"claude-opus-4.5","surface":"edit"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"inline"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":11,"credits":66,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":3,"credits":18,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":3,"credits":18,"model":"claude-sonnet-4.5","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"edit"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"inline"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"unknown"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"agent"},
+        {"count":4,"credits":4,"model":"gemini-2.5-pro","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"agent"},
+        {"count":9,"credits":2.97,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"edit"},
+        {"count":7,"credits":2.31,"model":"gpt-4o","surface":"inline"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":7,"credits":2.31,"model":"gpt-5-mini","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"gpt-5-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"unknown"},
+        {"count":3,"credits":4.5,"model":"mystery-model-x","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"agent"},
+        {"count":2,"credits":0.66,"model":"o3-mini","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"inline"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"unknown"}
+      ],
+      "totals": {"all":{"cost":1.1495965,"credits":328.99,"eventCount":116,"tokens":145895},"mtd":{"cost":0.04151655,"credits":29.65,"eventCount":11,"tokens":14461},"today":{"cost":0.020655,"credits":27.66,"eventCount":5,"tokens":3872}},
+      "weekday": [45.97,93.64,40.97,42.48,44.98,23.99,36.96]
+    },
+    "filter": {"repos":["alpha","unattributed"]},
+    "label": "repo-alpha+unattributed",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"range":{"end":1793678400000,"start":1762021800000},"repos":["alpha","unattributed"]}
+    }
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.2070034973},
+        {"category":"output","cost":0.2934740027},
+        {"category":"cache_creation","cost":0.016355},
+        {"category":"cache_read","cost":0.04232}
+      ],
+      "daily": [
+        {"catCacheCreation":0.003125,"catCacheRead":0.0035,"catInput":0.015,"catOutput":0.0225,"catThinking":0,"catTool":0,"cost":0.044125,"credits":15,"dayStart":1767205800000,"eventCount":1,"tokens":3900},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.015,"catOutput":0.0135,"catThinking":0,"catTool":0,"cost":0.0285,"credits":6,"dayStart":1767551400000,"eventCount":1,"tokens":5900},
+        {"catCacheCreation":0.005,"catCacheRead":0.006,"catInput":0.0125,"catOutput":0.00525,"catThinking":0,"catTool":0,"cost":0.02875,"credits":15,"dayStart":1768156200000,"eventCount":1,"tokens":2710},
+        {"catCacheCreation":0,"catCacheRead":0.02,"catInput":0.005,"catOutput":0.0035,"catThinking":0,"catTool":0,"cost":0.0285,"credits":0.33,"dayStart":1768847400000,"eventCount":1,"tokens":5700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0027,"catOutput":0.0045,"catThinking":0,"catTool":0,"cost":0.0072,"credits":6,"dayStart":1770661800000,"eventCount":1,"tokens":1200},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.006,"catOutput":0.0075,"catThinking":0,"catTool":0,"cost":0.0135,"credits":6,"dayStart":1772303400000,"eventCount":1,"tokens":2500},
+        {"catCacheCreation":0.005625,"catCacheRead":0.00375,"catInput":0.027,"catOutput":0.0375,"catThinking":0,"catTool":0,"cost":0.073875,"credits":10,"dayStart":1772649000000,"eventCount":1,"tokens":2300},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.009,"catOutput":0.0105,"catThinking":0,"catTool":0,"cost":0.0195,"credits":6,"dayStart":1773081000000,"eventCount":1,"tokens":3700},
+        {"catCacheCreation":0.00075,"catCacheRead":0,"catInput":0.0020525,"catOutput":0.00197,"catThinking":0,"catTool":0,"cost":0.0047725,"credits":6.33,"dayStart":1792261800000,"eventCount":2,"tokens":898},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.002433,"catOutput":0.003585,"catThinking":0,"catTool":0,"cost":0.006018,"credits":6,"dayStart":1792348200000,"eventCount":1,"tokens":1050},
+        {"catCacheCreation":0,"catCacheRead":0.001635,"catInput":0.003255,"catOutput":0.005175,"catThinking":0,"catTool":0,"cost":0.010065,"credits":1,"dayStart":1792434600000,"eventCount":1,"tokens":1430},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00484,"catOutput":0.007402,"catThinking":0,"catTool":0,"cost":0.012242,"credits":6,"dayStart":1792521000000,"eventCount":2,"tokens":2386},
+        {"catCacheCreation":0,"catCacheRead":0.001743,"catInput":0.004899,"catOutput":0.008355,"catThinking":0,"catTool":0,"cost":0.014997,"credits":6,"dayStart":1792607400000,"eventCount":1,"tokens":2190},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001416,"catOutput":0.00244,"catThinking":0,"catTool":0,"cost":0.003856,"credits":0.33,"dayStart":1792693800000,"eventCount":1,"tokens":2380},
+        {"catCacheCreation":0.000795,"catCacheRead":0,"catInput":0.010297,"catOutput":0.017765,"catThinking":0,"catTool":0,"cost":0.028857,"credits":21,"dayStart":1792780200000,"eventCount":2,"tokens":3874},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.007365,"catOutput":0.013125,"catThinking":0,"catTool":0,"cost":0.02049,"credits":6,"dayStart":1792866600000,"eventCount":1,"tokens":3330},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.009741997264,"catOutput":0.003458002736,"catThinking":0,"catTool":0,"cost":0.0132,"credits":0.33,"dayStart":1792953000000,"eventCount":1,"tokens":1462},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.008598,"catOutput":0.01551,"catThinking":0,"catTool":0,"cost":0.024108,"credits":6,"dayStart":1793039400000,"eventCount":1,"tokens":3900},
+        {"catCacheCreation":0.00022,"catCacheRead":0.002067,"catInput":0.012971,"catOutput":0.023595,"catThinking":0,"catTool":0,"cost":0.038853,"credits":6.33,"dayStart":1793125800000,"eventCount":2,"tokens":8750},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00165625,"catOutput":0.00485,"catThinking":0,"catTool":0,"cost":0.00650625,"credits":1,"dayStart":1793212200000,"eventCount":1,"tokens":1810},
+        {"catCacheCreation":0.00084,"catCacheRead":0.003625,"catInput":0.030189,"catOutput":0.055405,"catThinking":0,"catTool":0,"cost":0.090059,"credits":21,"dayStart":1793298600000,"eventCount":2,"tokens":10270},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.012297,"catOutput":0.022665,"catThinking":0,"catTool":0,"cost":0.034962,"credits":6,"dayStart":1793385000000,"eventCount":1,"tokens":5610},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00039275,"catOutput":0.001174,"catThinking":0,"catTool":0,"cost":0.00156675,"credits":0.33,"dayStart":1793471400000,"eventCount":1,"tokens":2158},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0024,"catOutput":0.00225,"catThinking":0,"catTool":0,"cost":0.00465,"credits":6,"dayStart":1793557800000,"eventCount":1,"tokens":950}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 29,
+      "hourly": [
+        {"credits":15.33,"hourLocal":1},
+        {"credits":15,"hourLocal":5},
+        {"credits":6,"hourLocal":11},
+        {"credits":6,"hourLocal":13},
+        {"credits":28,"hourLocal":14},
+        {"credits":40.33,"hourLocal":15},
+        {"credits":6.33,"hourLocal":16},
+        {"credits":0.66,"hourLocal":18},
+        {"credits":7,"hourLocal":20},
+        {"credits":12,"hourLocal":21},
+        {"credits":27.33,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.5545025,"credits":157.98,"language":"unknown","tokens":79408},
+        {"cost":0.00465,"credits":6,"language":"typescript","tokens":950}
+      ],
+      "models": [
+        {"cost":0.200205,"credits":66,"modelId":"claude-sonnet-4-5-20250929","tokens":31650},
+        {"cost":0.13075,"credits":45,"modelId":"claude-opus-4-5-20251101","tokens":11840},
+        {"cost":0.06615,"credits":24,"modelId":"claude-sonnet-4.5","tokens":13050},
+        {"cost":0.01119,"credits":15,"modelId":"claude-opus-4.5","tokens":1114},
+        {"cost":0.073875,"credits":10,"modelId":"claude-opus-4-1-20250805","tokens":2300},
+        {"cost":0.010065,"credits":1,"modelId":"claude-sonnet-4-20250514","tokens":1430},
+        {"cost":0.00650625,"credits":1,"modelId":"gemini-2.5-pro","tokens":1810},
+        {"cost":0.03756,"credits":0.66,"modelId":"claude-haiku-4-5-20251001","tokens":9980},
+        {"cost":0.003856,"credits":0.33,"modelId":"claude-3-5-haiku-20241022","tokens":2380},
+        {"cost":0.0016225,"credits":0.33,"modelId":"gpt-4o","tokens":418},
+        {"cost":0.00156675,"credits":0.33,"modelId":"gpt-5-mini","tokens":2158},
+        {"cost":0.0132,"credits":0.33,"modelId":"o3-mini","tokens":1462},
+        {"cost":0.002606,"credits":0,"modelId":"gpt-4.1","tokens":766}
+      ],
+      "repos": [
+        {"cost":0.255275,"credits":62,"heuristicShare":0,"repo":"beta","tokens":26810},
+        {"cost":0.201036,"credits":60.99,"heuristicShare":0,"repo":"alpha","tokens":32770},
+        {"cost":0.0981915,"credits":34.99,"heuristicShare":0,"repo":"unattributed","tokens":19828},
+        {"cost":0.00465,"credits":6,"heuristicShare":1,"repo":"ide-repo","tokens":950}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"agent"},
+        {"count":2,"credits":0.66,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":1,"credits":10,"model":"claude-opus-4-1-20250805","surface":"agent"},
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"agent"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"agent"},
+        {"count":11,"credits":66,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":4,"credits":24,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"agent"}
+      ],
+      "totals": {"all":{"cost":0.5591525,"credits":163.98,"eventCount":29,"tokens":80358},"mtd":{"cost":0.00621675,"credits":6.33,"eventCount":2,"tokens":3108},"today":{"cost":0.00465,"credits":6,"eventCount":1,"tokens":950}},
+      "weekday": [18.66,33.33,19.33,12.33,32,21.33,27]
+    },
+    "filter": {"surfaces":["agent"]},
+    "label": "surface-agent",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"range":{"end":1793678400000,"start":1762021800000},"surfaces":["agent"]}
+    }
+  },
+  {
+    "data": {
+      "categories": [{"category":"input","cost":0.3578238092},{"category":"output","cost":0.2295166908}],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0374,"catOutput":0.0359,"catThinking":0,"catTool":0,"cost":0.0733,"credits":21,"dayStart":1767551400000,"eventCount":3,"tokens":12200},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.06481,"catOutput":0.02044,"catThinking":0,"catTool":0,"cost":0.32525,"credits":9.16,"dayStart":1767637800000,"eventCount":6,"tokens":7700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00025,"catOutput":0.0002,"catThinking":0,"catTool":0,"cost":0.00045,"credits":0.33,"dayStart":1767724200000,"eventCount":1,"tokens":120},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0001,"catOutput":0.00008,"catThinking":0,"catTool":0,"cost":0.00018,"credits":0.33,"dayStart":1767810600000,"eventCount":1,"tokens":48},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000841,"catOutput":0.000664,"catThinking":0,"catTool":0,"cost":0.001505,"credits":0.66,"dayStart":1769797800000,"eventCount":4,"tokens":448},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000407,"catOutput":0.000278,"catThinking":0,"catTool":0,"cost":0.000685,"credits":0.33,"dayStart":1769884200000,"eventCount":2,"tokens":212},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0085,"catOutput":0.01,"catThinking":0,"catTool":0,"cost":0.0185,"credits":6.33,"dayStart":1772303400000,"eventCount":2,"tokens":3750},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0003,"catOutput":0.00024,"catThinking":0,"catTool":0,"cost":0.00054,"credits":0,"dayStart":1772389800000,"eventCount":1,"tokens":180},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0603375,"catOutput":0.000336,"catThinking":0,"catTool":0,"cost":0.0738735,"credits":2.49,"dayStart":1772476200000,"eventCount":5,"tokens":291},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000442,"catOutput":0.00036,"catThinking":0,"catTool":0,"cost":0.000802,"credits":0,"dayStart":1772908200000,"eventCount":2,"tokens":266},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.009855,"catOutput":0.011308,"catThinking":0,"catTool":0,"cost":0.021163,"credits":6.33,"dayStart":1773081000000,"eventCount":3,"tokens":4454},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.05015,"catOutput":0.01012,"catThinking":0,"catTool":0,"cost":0.07347,"credits":2.16,"dayStart":1773167400000,"eventCount":3,"tokens":144},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0075,"catOutput":0.0075,"catThinking":0,"catTool":0,"cost":0.015,"credits":15,"dayStart":1773253800000,"eventCount":1,"tokens":1800},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0009075,"catOutput":0.00075,"catThinking":0,"catTool":0,"cost":0.0016575,"credits":0.99,"dayStart":1775241000000,"eventCount":3,"tokens":438},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00006525,"catOutput":0.00011,"catThinking":0,"catTool":0,"cost":0.00017525,"credits":0.66,"dayStart":1790361000000,"eventCount":2,"tokens":316},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000033,"catOutput":0.000058,"catThinking":0,"catTool":0,"cost":0.000091,"credits":0.33,"dayStart":1790965800000,"eventCount":1,"tokens":161},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0014525,"catOutput":0.00125,"catThinking":0,"catTool":0,"cost":0.0027025,"credits":0.33,"dayStart":1792261800000,"eventCount":2,"tokens":778},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00125175,"catOutput":0.001632,"catThinking":0,"catTool":0,"cost":0.00288375,"credits":6.33,"dayStart":1792348200000,"eventCount":2,"tokens":1010},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01083538462,"catOutput":0.004224615385,"catThinking":0,"catTool":0,"cost":0.01506,"credits":1.33,"dayStart":1792434600000,"eventCount":2,"tokens":1242},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.003904,"catOutput":0.005482,"catThinking":0,"catTool":0,"cost":0.009386,"credits":15,"dayStart":1792521000000,"eventCount":2,"tokens":1474},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0037545,"catOutput":0.005615,"catThinking":0,"catTool":0,"cost":0.0093695,"credits":6.66,"dayStart":1792607400000,"eventCount":3,"tokens":2646},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01083875,"catOutput":0.00577,"catThinking":0,"catTool":0,"cost":0.01660875,"credits":1.33,"dayStart":1792693800000,"eventCount":2,"tokens":2054},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.005913,"catOutput":0.009409,"catThinking":0,"catTool":0,"cost":0.015322,"credits":15,"dayStart":1792780200000,"eventCount":2,"tokens":2286},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0051555,"catOutput":0.00813,"catThinking":0,"catTool":0,"cost":0.0132855,"credits":6.33,"dayStart":1792866600000,"eventCount":2,"tokens":2518},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01128874726,"catOutput":0.007816002736,"catThinking":0,"catTool":0,"cost":0.01910475,"credits":1.66,"dayStart":1792953000000,"eventCount":3,"tokens":4212},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.007922,"catOutput":0.013336,"catThinking":0,"catTool":0,"cost":0.021258,"credits":15,"dayStart":1793039400000,"eventCount":2,"tokens":3098},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.006734,"catOutput":0.011105,"catThinking":0,"catTool":0,"cost":0.017839,"credits":6.33,"dayStart":1793125800000,"eventCount":2,"tokens":3330},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00197725,"catOutput":0.005786,"catThinking":0,"catTool":0,"cost":0.00776325,"credits":1.33,"dayStart":1793212200000,"eventCount":2,"tokens":3562},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.02088867666,"catOutput":0.02339032334,"catThinking":0,"catTool":0,"cost":0.044279,"credits":16.33,"dayStart":1793298600000,"eventCount":5,"tokens":7028},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0083125,"catOutput":0.01408,"catThinking":0,"catTool":0,"cost":0.0223925,"credits":6.33,"dayStart":1793385000000,"eventCount":2,"tokens":4142},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00311675,"catOutput":0.007872,"catThinking":0,"catTool":0,"cost":0.01098875,"credits":1.66,"dayStart":1793471400000,"eventCount":5,"tokens":4789},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01258025066,"catOutput":0.00627474934,"catThinking":0,"catTool":0,"cost":0.018855,"credits":6.66,"dayStart":1793557800000,"eventCount":4,"tokens":3544}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 82,
+      "hourly": [
+        {"credits":33.64,"hourLocal":1},
+        {"credits":0,"hourLocal":5},
+        {"credits":6.33,"hourLocal":11},
+        {"credits":0.33,"hourLocal":13},
+        {"credits":31.15,"hourLocal":14},
+        {"credits":79.66,"hourLocal":15},
+        {"credits":2.82,"hourLocal":16},
+        {"credits":0.33,"hourLocal":17},
+        {"credits":14.98,"hourLocal":18},
+        {"credits":3.48,"hourLocal":19},
+        {"credits":0.33,"hourLocal":20},
+        {"credits":0.33,"hourLocal":21},
+        {"credits":0.33,"hourLocal":23}
+      ],
+      "languages": [
+        {"cost":0.8453205,"credits":167.05,"language":"unknown","tokens":76109},
+        {"cost":0.00617,"credits":6,"language":"typescript","tokens":1440},
+        {"cost":0.0013,"credits":0.33,"language":"python","tokens":2400},
+        {"cost":0.00027,"credits":0.33,"language":"rust","tokens":72},
+        {"cost":0.00068,"credits":0,"language":"go","tokens":220}
+      ],
+      "models": [
+        {"cost":0.10858,"credits":90,"modelId":"claude-opus-4.5","tokens":11868},
+        {"cost":0.34539,"credits":60,"modelId":"claude-sonnet-4.5","tokens":19490},
+        {"cost":0.0391625,"credits":7,"modelId":"gemini-2.5-pro","tokens":11870},
+        {"cost":0.063075,"credits":6.6,"modelId":"gpt-4o","tokens":8598},
+        {"cost":0.18,"credits":4.5,"modelId":"mystery-model-x","tokens":682},
+        {"cost":0.006491,"credits":3.63,"modelId":"gpt-5-mini","tokens":9955},
+        {"cost":0.0792,"credits":1.98,"modelId":"o3-mini","tokens":8310},
+        {"cost":0.031842,"credits":0,"modelId":"gpt-4.1","tokens":9468}
+      ],
+      "repos": [
+        {"cost":0.8484105,"credits":167.71,"heuristicShare":0,"repo":"unattributed","tokens":79071},
+        {"cost":0.00533,"credits":6,"heuristicShare":1,"repo":"ide-repo","tokens":1170}
+      ],
+      "sankey": [
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"agent"},
+        {"count":2,"credits":30,"model":"claude-opus-4.5","surface":"chat"},
+        {"count":2,"credits":30,"model":"claude-opus-4.5","surface":"edit"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"inline"},
+        {"count":4,"credits":24,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":3,"credits":18,"model":"claude-sonnet-4.5","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"edit"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"inline"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"unknown"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"agent"},
+        {"count":4,"credits":4,"model":"gemini-2.5-pro","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"agent"},
+        {"count":9,"credits":2.97,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"edit"},
+        {"count":7,"credits":2.31,"model":"gpt-4o","surface":"inline"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":7,"credits":2.31,"model":"gpt-5-mini","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"gpt-5-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"unknown"},
+        {"count":3,"credits":4.5,"model":"mystery-model-x","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"agent"},
+        {"count":2,"credits":0.66,"model":"o3-mini","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"inline"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"unknown"}
+      ],
+      "totals": {"all":{"cost":0.8537405,"credits":173.71,"eventCount":82,"tokens":80241},"mtd":{"cost":0.02984375,"credits":8.32,"eventCount":9,"tokens":8333},"today":{"cost":0.018855,"credits":6.66,"eventCount":4,"tokens":3544}},
+      "weekday": [14.98,35.65,34.31,23.82,23.32,17.66,23.97]
+    },
+    "filter": {"sources":["local"]},
+    "label": "source-local",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"range":{"end":1793678400000,"start":1762021800000},"sources":["local"]}
+    }
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.29687},
+        {"category":"output","cost":0.46909},
+        {"category":"thinking","cost":0.009},
+        {"category":"cache_creation","cost":0.017411},
+        {"category":"cache_read","cost":0.053164}
+      ],
+      "daily": [
+        {"catCacheCreation":0.003125,"catCacheRead":0.0035,"catInput":0.0174,"catOutput":0.02625,"catThinking":0,"catTool":0,"cost":0.050275,"credits":21,"dayStart":1767205800000,"eventCount":2,"tokens":4950},
+        {"catCacheCreation":0.005,"catCacheRead":0.006,"catInput":0.0173,"catOutput":0.01625,"catThinking":0.009,"catTool":0,"cost":0.05355,"credits":36,"dayStart":1768156200000,"eventCount":3,"tokens":4790},
+        {"catCacheCreation":0,"catCacheRead":0.02,"catInput":0.005,"catOutput":0.0035,"catThinking":0,"catTool":0,"cost":0.0285,"credits":0.33,"dayStart":1768847400000,"eventCount":1,"tokens":5700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00081,"catOutput":0.001375,"catThinking":0,"catTool":0,"cost":0.002185,"credits":12.33,"dayStart":1768933800000,"eventCount":3,"tokens":415},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00052,"catOutput":0.0006,"catThinking":0,"catTool":0,"cost":0.00112,"credits":6.66,"dayStart":1769797800000,"eventCount":3,"tokens":384},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000707,"catOutput":0.000735,"catThinking":0,"catTool":0,"cost":0.001442,"credits":12.33,"dayStart":1769884200000,"eventCount":3,"tokens":366},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0045,"catOutput":0.006,"catThinking":0,"catTool":0,"cost":0.0105,"credits":1,"dayStart":1770057000000,"eventCount":1,"tokens":1900},
+        {"catCacheCreation":0.0002,"catCacheRead":0.000072,"catInput":0.00326,"catOutput":0.00498,"catThinking":0,"catTool":0,"cost":0.008512,"credits":6.33,"dayStart":1770661800000,"eventCount":2,"tokens":2020},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0,"catOutput":0,"catThinking":0,"catTool":0,"cost":0,"credits":1.5,"dayStart":1771007400000,"eventCount":1,"tokens":500},
+        {"catCacheCreation":0,"catCacheRead":0.0009,"catInput":0.0066,"catOutput":0.00975,"catThinking":0,"catTool":0,"cost":0.01725,"credits":6,"dayStart":1772389800000,"eventCount":1,"tokens":2850},
+        {"catCacheCreation":0.005625,"catCacheRead":0.00375,"catInput":0.027,"catOutput":0.0375,"catThinking":0,"catTool":0,"cost":0.073875,"credits":10,"dayStart":1772649000000,"eventCount":1,"tokens":2300},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00394,"catOutput":0.00551,"catThinking":0,"catTool":0,"cost":0.00945,"credits":27.33,"dayStart":1772908200000,"eventCount":4,"tokens":1666},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00303,"catOutput":0.004515,"catThinking":0,"catTool":0,"cost":0.007545,"credits":12,"dayStart":1773513000000,"eventCount":2,"tokens":1311},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00025,"catOutput":0.0003,"catThinking":0,"catTool":0,"cost":0.00055,"credits":0.33,"dayStart":1773599400000,"eventCount":1,"tokens":310},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00288,"catOutput":0.0038,"catThinking":0,"catTool":0,"cost":0.00668,"credits":12.66,"dayStart":1775241000000,"eventCount":4,"tokens":1842},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00237,"catOutput":0.002955,"catThinking":0,"catTool":0,"cost":0.005325,"credits":12,"dayStart":1790361000000,"eventCount":2,"tokens":987},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00083,"catOutput":0.001005,"catThinking":0,"catTool":0,"cost":0.001835,"credits":0.66,"dayStart":1790965800000,"eventCount":2,"tokens":1031},
+        {"catCacheCreation":0.00075,"catCacheRead":0.002545,"catInput":0.003885,"catOutput":0.004525,"catThinking":0,"catTool":0,"cost":0.011705,"credits":21,"dayStart":1792261800000,"eventCount":2,"tokens":1150},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.003107,"catOutput":0.004515,"catThinking":0,"catTool":0,"cost":0.007622,"credits":6.33,"dayStart":1792348200000,"eventCount":2,"tokens":1910},
+        {"catCacheCreation":0.000204,"catCacheRead":0.001635,"catInput":0.0040134,"catOutput":0.006343,"catThinking":0,"catTool":0,"cost":0.0121954,"credits":1.33,"dayStart":1792434600000,"eventCount":2,"tokens":2670},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.010461,"catOutput":0.017245,"catThinking":0,"catTool":0,"cost":0.027706,"credits":21,"dayStart":1792521000000,"eventCount":2,"tokens":3430},
+        {"catCacheCreation":0.000208,"catCacheRead":0.001743,"catInput":0.006395,"catOutput":0.010875,"catThinking":0,"catTool":0,"cost":0.019221,"credits":6.33,"dayStart":1792607400000,"eventCount":2,"tokens":4190},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.007137,"catOutput":0.012385,"catThinking":0,"catTool":0,"cost":0.019522,"credits":1.33,"dayStart":1792693800000,"eventCount":2,"tokens":4950},
+        {"catCacheCreation":0.000795,"catCacheRead":0.003085,"catInput":0.017037,"catOutput":0.029965,"catThinking":0,"catTool":0,"cost":0.050882,"credits":21,"dayStart":1792780200000,"eventCount":2,"tokens":5710},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.009683,"catOutput":0.017235,"catThinking":0,"catTool":0,"cost":0.026918,"credits":6.33,"dayStart":1792866600000,"eventCount":2,"tokens":6470},
+        {"catCacheCreation":0.000216,"catCacheRead":0.001959,"catInput":0.0102606,"catOutput":0.018427,"catThinking":0,"catTool":0,"cost":0.0308626,"credits":1.33,"dayStart":1792953000000,"eventCount":2,"tokens":7230},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.023613,"catOutput":0.042685,"catThinking":0,"catTool":0,"cost":0.066298,"credits":21,"dayStart":1793039400000,"eventCount":2,"tokens":7990},
+        {"catCacheCreation":0.00022,"catCacheRead":0.002067,"catInput":0.012971,"catOutput":0.023595,"catThinking":0,"catTool":0,"cost":0.038853,"credits":6.33,"dayStart":1793125800000,"eventCount":2,"tokens":8750},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0133842,"catOutput":0.024469,"catThinking":0,"catTool":0,"cost":0.0378532,"credits":1.33,"dayStart":1793212200000,"eventCount":2,"tokens":9510},
+        {"catCacheCreation":0.00084,"catCacheRead":0.003625,"catInput":0.030189,"catOutput":0.055405,"catThinking":0,"catTool":0,"cost":0.090059,"credits":21,"dayStart":1793298600000,"eventCount":2,"tokens":10270},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.016259,"catOutput":0.029955,"catThinking":0,"catTool":0,"cost":0.046214,"credits":6.33,"dayStart":1793385000000,"eventCount":2,"tokens":11030},
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.0208578,"catOutput":0.035636,"catThinking":0,"catTool":0,"cost":0.0590048,"credits":31.33,"dayStart":1793471400000,"eventCount":4,"tokens":12865},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01122,"catOutput":0.010805,"catThinking":0,"catTool":0,"cost":0.022025,"credits":45.99,"dayStart":1793557800000,"eventCount":9,"tokens":5999}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 77,
+      "hourly": [
+        {"credits":6,"hourLocal":0},
+        {"credits":21.33,"hourLocal":5},
+        {"credits":6.33,"hourLocal":9},
+        {"credits":12.66,"hourLocal":10},
+        {"credits":27,"hourLocal":11},
+        {"credits":12.66,"hourLocal":13},
+        {"credits":49.66,"hourLocal":14},
+        {"credits":68.31,"hourLocal":15},
+        {"credits":40.32,"hourLocal":16},
+        {"credits":16.5,"hourLocal":17},
+        {"credits":0.33,"hourLocal":18},
+        {"credits":13,"hourLocal":19},
+        {"credits":49.99,"hourLocal":20},
+        {"credits":44.33,"hourLocal":21},
+        {"credits":29.33,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.841225,"credits":376.75,"language":"unknown","tokens":136864},
+        {"cost":0.00431,"credits":21,"language":"typescript","tokens":582}
+      ],
+      "models": [
+        {"cost":0.265698,"credits":186,"modelId":"claude-sonnet-4-5-20250929","tokens":42213},
+        {"cost":0.25553,"credits":180,"modelId":"claude-opus-4-5-20251101","tokens":23550},
+        {"cost":0.073875,"credits":10,"modelId":"claude-opus-4-1-20250805","tokens":2300},
+        {"cost":0.071407,"credits":6.27,"modelId":"claude-haiku-4-5-20251001","tokens":27163},
+        {"cost":0.130887,"credits":6,"modelId":"claude-sonnet-4-20250514","tokens":20450},
+        {"cost":0.01725,"credits":6,"modelId":"us.anthropic.claude-sonnet-4-5-20250929-v1:0","tokens":2850},
+        {"cost":0.030888,"credits":1.98,"modelId":"claude-3-5-haiku-20241022","tokens":18420},
+        {"cost":0,"credits":1.5,"modelId":"claude-fable-9","tokens":500}
+      ],
+      "repos": [
+        {"cost":0.542789,"credits":230.47,"heuristicShare":0,"repo":"beta","tokens":70342},
+        {"cost":0.291486,"credits":142.95,"heuristicShare":0,"repo":"alpha","tokens":64912},
+        {"cost":0.0097,"credits":18.33,"heuristicShare":0,"repo":"unattributed","tokens":1912},
+        {"cost":0.00156,"credits":6,"heuristicShare":1,"repo":"ide-repo","tokens":280}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"agent"},
+        {"count":5,"credits":1.65,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":1,"credits":1.5,"model":"claude-fable-9","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":17,"credits":5.61,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":10,"model":"claude-opus-4-1-20250805","surface":"agent"},
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":9,"credits":135,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"agent"},
+        {"count":5,"credits":5,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":11,"credits":66,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":20,"credits":120,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":6,"model":"us.anthropic.claude-sonnet-4-5-20250929-v1:0","surface":"chat"}
+      ],
+      "totals": {"all":{"cost":0.845535,"credits":397.75,"eventCount":77,"tokens":137446},"mtd":{"cost":0.0810298,"credits":77.32,"eventCount":13,"tokens":18864},"today":{"cost":0.022025,"credits":45.99,"eventCount":9,"tokens":5999}},
+      "weekday": [110.32,95.98,29.99,39.66,38.66,22.33,60.81]
+    },
+    "filter": {"sources":["claude-code"],"surfaces":["chat","agent"]},
+    "label": "source-claude+surfaces",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"range":{"end":1793678400000,"start":1762021800000},"sources":["claude-code"],"surfaces":["chat","agent"]}
+    }
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.1094388},
+        {"category":"output","cost":0.173651},
+        {"category":"cache_creation","cost":0.006366},
+        {"category":"cache_read","cost":0.0235}
+      ],
+      "daily": [
+        {"catCacheCreation":0.003125,"catCacheRead":0.0035,"catInput":0.0174,"catOutput":0.02625,"catThinking":0,"catTool":0,"cost":0.050275,"credits":21,"dayStart":1767205800000,"eventCount":2,"tokens":4950},
+        {"catCacheCreation":0,"catCacheRead":0.02,"catInput":0.005,"catOutput":0.0035,"catThinking":0,"catTool":0,"cost":0.0285,"credits":0.33,"dayStart":1768847400000,"eventCount":1,"tokens":5700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00075,"catOutput":0.001275,"catThinking":0,"catTool":0,"cost":0.002025,"credits":12,"dayStart":1768933800000,"eventCount":2,"tokens":335},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000417,"catOutput":0.000485,"catThinking":0,"catTool":0,"cost":0.000902,"credits":6.33,"dayStart":1769797800000,"eventCount":2,"tokens":258},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.000407,"catOutput":0.000435,"catThinking":0,"catTool":0,"cost":0.000842,"credits":6.33,"dayStart":1769884200000,"eventCount":2,"tokens":246},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0015,"catOutput":0.00225,"catThinking":0,"catTool":0,"cost":0.00375,"credits":6,"dayStart":1773513000000,"eventCount":1,"tokens":650},
+        {"catCacheCreation":0.00075,"catCacheRead":0,"catInput":0.0012,"catOutput":0.0012,"catThinking":0,"catTool":0,"cost":0.00315,"credits":6,"dayStart":1792261800000,"eventCount":1,"tokens":480},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.002433,"catOutput":0.003585,"catThinking":0,"catTool":0,"cost":0.006018,"credits":6,"dayStart":1792348200000,"eventCount":1,"tokens":1050},
+        {"catCacheCreation":0.000204,"catCacheRead":0,"catInput":0.0007584,"catOutput":0.001168,"catThinking":0,"catTool":0,"cost":0.0021304,"credits":0.33,"dayStart":1792434600000,"eventCount":1,"tokens":1240},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.006795,"catOutput":0.011275,"catThinking":0,"catTool":0,"cost":0.01807,"credits":15,"dayStart":1792521000000,"eventCount":1,"tokens":1810},
+        {"catCacheCreation":0.000208,"catCacheRead":0,"catInput":0.001496,"catOutput":0.00252,"catThinking":0,"catTool":0,"cost":0.004224,"credits":0.33,"dayStart":1792607400000,"eventCount":1,"tokens":2000},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.005721,"catOutput":0.009945,"catThinking":0,"catTool":0,"cost":0.015666,"credits":1,"dayStart":1792693800000,"eventCount":1,"tokens":2570},
+        {"catCacheCreation":0.000795,"catCacheRead":0,"catInput":0.006132,"catOutput":0.01074,"catThinking":0,"catTool":0,"cost":0.017667,"credits":6,"dayStart":1792780200000,"eventCount":1,"tokens":2760},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.007365,"catOutput":0.013125,"catThinking":0,"catTool":0,"cost":0.02049,"credits":6,"dayStart":1792866600000,"eventCount":1,"tokens":3330},
+        {"catCacheCreation":0.000216,"catCacheRead":0,"catInput":0.0020736,"catOutput":0.003712,"catThinking":0,"catTool":0,"cost":0.0060016,"credits":0.33,"dayStart":1792953000000,"eventCount":1,"tokens":3520},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.015015,"catOutput":0.027175,"catThinking":0,"catTool":0,"cost":0.04219,"credits":15,"dayStart":1793039400000,"eventCount":1,"tokens":4090},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.010653,"catOutput":0.019485,"catThinking":0,"catTool":0,"cost":0.030138,"credits":1,"dayStart":1793212200000,"eventCount":1,"tokens":4850},
+        {"catCacheCreation":0.00084,"catCacheRead":0,"catInput":0.011064,"catOutput":0.02028,"catThinking":0,"catTool":0,"cost":0.032184,"credits":6,"dayStart":1793298600000,"eventCount":1,"tokens":5040},
+        {"catCacheCreation":0.000228,"catCacheRead":0,"catInput":0.0033888,"catOutput":0.006256,"catThinking":0,"catTool":0,"cost":0.0098728,"credits":0.33,"dayStart":1793471400000,"eventCount":1,"tokens":5800},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00987,"catOutput":0.00899,"catThinking":0,"catTool":0,"cost":0.01886,"credits":33.99,"dayStart":1793557800000,"eventCount":7,"tokens":5428}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-opus-4-1-20250805","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini","us.anthropic.claude-sonnet-4-5-20250929-v1:0"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 30,
+      "hourly": [
+        {"credits":6,"hourLocal":0},
+        {"credits":21.33,"hourLocal":5},
+        {"credits":6.33,"hourLocal":9},
+        {"credits":12.66,"hourLocal":10},
+        {"credits":15,"hourLocal":11},
+        {"credits":18.33,"hourLocal":14},
+        {"credits":12.99,"hourLocal":15},
+        {"credits":12.33,"hourLocal":16},
+        {"credits":21,"hourLocal":20},
+        {"credits":22,"hourLocal":21},
+        {"credits":1.33,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.3102058,"credits":134.3,"language":"unknown","tokens":55805},
+        {"cost":0.00275,"credits":15,"language":"typescript","tokens":302}
+      ],
+      "models": [
+        {"cost":0.104202,"credits":84,"modelId":"claude-sonnet-4-5-20250929","tokens":17463},
+        {"cost":0.107135,"credits":60,"modelId":"claude-opus-4-5-20251101","tokens":10102},
+        {"cost":0.03781,"credits":2.31,"modelId":"claude-haiku-4-5-20251001","tokens":10562},
+        {"cost":0.045804,"credits":2,"modelId":"claude-sonnet-4-20250514","tokens":7420},
+        {"cost":0.0180048,"credits":0.99,"modelId":"claude-3-5-haiku-20241022","tokens":10560}
+      ],
+      "repos": [
+        {"cost":0.1632988,"credits":86.31,"heuristicShare":0,"repo":"alpha","tokens":33536},
+        {"cost":0.145907,"credits":56.99,"heuristicShare":0,"repo":"beta","tokens":21921},
+        {"cost":0.00375,"credits":6,"heuristicShare":0,"repo":"unattributed","tokens":650}
+      ],
+      "sankey": [
+        {"count":3,"credits":0.99,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":6,"credits":1.98,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":2,"credits":2,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":9,"credits":54,"model":"claude-sonnet-4-5-20250929","surface":"chat"}
+      ],
+      "totals": {"all":{"cost":0.3129558,"credits":149.3,"eventCount":30,"tokens":56107},"mtd":{"cost":0.0287328,"credits":34.32,"eventCount":8,"tokens":11228},"today":{"cost":0.01886,"credits":33.99,"eventCount":7,"tokens":5428}},
+      "weekday": [24.66,40.32,15.66,27,22.33,7,12.33]
+    },
+    "filter": {"branches":["main"]},
+    "label": "branch-main",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"branches":["main"],"range":{"end":1793678400000,"start":1762021800000}}
+    }
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.061101},
+        {"category":"output","cost":0.108845},
+        {"category":"cache_read","cost":0.015857}
+      ],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0.002545,"catInput":0.002685,"catOutput":0.003325,"catThinking":0,"catTool":0,"cost":0.008555,"credits":15,"dayStart":1792261800000,"eventCount":1,"tokens":670},
+        {"catCacheCreation":0,"catCacheRead":0.001635,"catInput":0.003255,"catOutput":0.005175,"catThinking":0,"catTool":0,"cost":0.010065,"credits":1,"dayStart":1792434600000,"eventCount":1,"tokens":1430},
+        {"catCacheCreation":0,"catCacheRead":0.001743,"catInput":0.004899,"catOutput":0.008355,"catThinking":0,"catTool":0,"cost":0.014997,"credits":6,"dayStart":1792607400000,"eventCount":1,"tokens":2190},
+        {"catCacheCreation":0,"catCacheRead":0.001959,"catInput":0.008187,"catOutput":0.014715,"catThinking":0,"catTool":0,"cost":0.024861,"credits":1,"dayStart":1792953000000,"eventCount":1,"tokens":3710},
+        {"catCacheCreation":0,"catCacheRead":0.002067,"catInput":0.009831,"catOutput":0.017895,"catThinking":0,"catTool":0,"cost":0.029793,"credits":6,"dayStart":1793125800000,"eventCount":1,"tokens":4470},
+        {"catCacheCreation":0,"catCacheRead":0.003625,"catInput":0.019125,"catOutput":0.035125,"catThinking":0,"catTool":0,"cost":0.057875,"credits":15,"dayStart":1793298600000,"eventCount":1,"tokens":5230},
+        {"catCacheCreation":0,"catCacheRead":0.002283,"catInput":0.013119,"catOutput":0.024255,"catThinking":0,"catTool":0,"cost":0.039657,"credits":1,"dayStart":1793471400000,"eventCount":1,"tokens":5990}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","o3-mini"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 7,
+      "hourly": [{"credits":16,"hourLocal":20},{"credits":7,"hourLocal":21},{"credits":22,"hourLocal":22}],
+      "languages": [{"cost":0.185803,"credits":45,"language":"unknown","tokens":23690}],
+      "models": [
+        {"cost":0.06643,"credits":30,"modelId":"claude-opus-4-5-20251101","tokens":5900},
+        {"cost":0.04479,"credits":12,"modelId":"claude-sonnet-4-5-20250929","tokens":6660},
+        {"cost":0.074583,"credits":3,"modelId":"claude-sonnet-4-20250514","tokens":11130}
+      ],
+      "repos": [{"cost":0.185803,"credits":45,"heuristicShare":0,"repo":"beta","tokens":23690}],
+      "sankey": [
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"agent"},
+        {"count":2,"credits":2,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":2,"credits":12,"model":"claude-sonnet-4-5-20250929","surface":"agent"}
+      ],
+      "totals": {"all":{"cost":0.185803,"credits":45,"eventCount":7,"tokens":23690},"mtd":{"cost":0.039657,"credits":1,"eventCount":1,"tokens":5990},"today":{"cost":0,"credits":0,"eventCount":0,"tokens":0}},
+      "weekday": [16,1,1,6,6,15,0]
+    },
+    "filter": {"branches":["feature/x"],"rangePreset":"30d"},
+    "label": "branch-feature-x+30d",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"branches":["feature/x"],"range":{"end":1793644200000,"start":1791052200000}}
+    }
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.033363},
+        {"category":"output","cost":0.0585},
+        {"category":"cache_read","cost":0.002067}
+      ],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.007365,"catOutput":0.013125,"catThinking":0,"catTool":0,"cost":0.02049,"credits":6,"dayStart":1792866600000,"eventCount":1,"tokens":3330},
+        {"catCacheCreation":0,"catCacheRead":0.002067,"catInput":0.009831,"catOutput":0.017895,"catThinking":0,"catTool":0,"cost":0.029793,"credits":6,"dayStart":1793125800000,"eventCount":1,"tokens":4470},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.012297,"catOutput":0.022665,"catThinking":0,"catTool":0,"cost":0.034962,"credits":6,"dayStart":1793385000000,"eventCount":1,"tokens":5610},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00387,"catOutput":0.004815,"catThinking":0,"catTool":0,"cost":0.008685,"credits":12,"dayStart":1793557800000,"eventCount":2,"tokens":1611}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","o3-mini"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 5,
+      "hourly": [
+        {"credits":6,"hourLocal":9},
+        {"credits":6,"hourLocal":10},
+        {"credits":6,"hourLocal":21},
+        {"credits":12,"hourLocal":22}
+      ],
+      "languages": [{"cost":0.09393,"credits":30,"language":"unknown","tokens":15021}],
+      "models": [{"cost":0.09393,"credits":30,"modelId":"claude-sonnet-4-5-20250929","tokens":15021}],
+      "repos": [{"cost":0.09393,"credits":30,"heuristicShare":0,"repo":"beta","tokens":15021}],
+      "sankey": [
+        {"count":3,"credits":18,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":2,"credits":12,"model":"claude-sonnet-4-5-20250929","surface":"chat"}
+      ],
+      "totals": {"all":{"cost":0.09393,"credits":30,"eventCount":5,"tokens":15021},"mtd":{"cost":0.008685,"credits":12,"eventCount":2,"tokens":1611},"today":{"cost":0.008685,"credits":12,"eventCount":2,"tokens":1611}},
+      "weekday": [6,12,0,6,0,0,6]
+    },
+    "filter": {"models":["claude-sonnet-4-5-20250929"],"range":{"end":1793644200000,"start":1792866600000},"repos":["beta"]},
+    "label": "combo-model+repo+range",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {
+      "path": "filtered",
+      "recordFilter": {"models":["claude-sonnet-4-5-20250929"],"range":{"end":1793644200000,"start":1792866600000},"repos":["beta"]}
+    }
+  },
+  {
+    "data": {
+      "categories": [{"category":"input","cost":0.002475},{"category":"output","cost":0.002277}],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001361,"catOutput":0.001264,"catThinking":0,"catTool":0,"cost":0.002625,"credits":7.32,"dayStart":1769797800000,"eventCount":7,"tokens":832},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001114,"catOutput":0.001013,"catThinking":0,"catTool":0,"cost":0.002127,"credits":12.66,"dayStart":1769884200000,"eventCount":5,"tokens":578}
+      ],
+      "dims": {"models":["claude-haiku-4-5-20251001","claude-sonnet-4-5-20250929","gpt-4.1","gpt-4o"],"repos":["alpha","unattributed"],"sources":["claude-code","local"],"surfaces":["chat","inline"]},
+      "estimatedEventCount": 12,
+      "hourly": [
+        {"credits":6,"hourLocal":0},
+        {"credits":0.33,"hourLocal":5},
+        {"credits":6.33,"hourLocal":13},
+        {"credits":0.33,"hourLocal":15},
+        {"credits":6.33,"hourLocal":16},
+        {"credits":0.33,"hourLocal":18},
+        {"credits":0.33,"hourLocal":23}
+      ],
+      "languages": [{"cost":0.004752,"credits":19.98,"language":"unknown","tokens":1410}],
+      "models": [
+        {"cost":0.001908,"credits":18,"modelId":"claude-sonnet-4-5-20250929","tokens":372},
+        {"cost":0.000654,"credits":0.99,"modelId":"claude-haiku-4-5-20251001","tokens":378},
+        {"cost":0.0012,"credits":0.99,"modelId":"gpt-4o","tokens":327},
+        {"cost":0.00099,"credits":0,"modelId":"gpt-4.1","tokens":333}
+      ],
+      "repos": [
+        {"cost":0.002562,"credits":18.99,"heuristicShare":0,"repo":"alpha","tokens":750},
+        {"cost":0.00219,"credits":0.99,"heuristicShare":0,"repo":"unattributed","tokens":660}
+      ],
+      "sankey": [
+        {"count":3,"credits":0.99,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":3,"credits":18,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":3,"credits":0.99,"model":"gpt-4o","surface":"inline"}
+      ],
+      "totals": {"all":{"cost":0.004752,"credits":19.98,"eventCount":12,"tokens":1410},"mtd":{"cost":0,"credits":0,"eventCount":0,"tokens":0},"today":{"cost":0,"credits":0,"eventCount":0,"tokens":0}},
+      "weekday": [12.66,0,0,0,0,0,7.32]
+    },
+    "filter": {"range":{"end":1769970600000,"start":1769797800000}},
+    "label": "range-month-edge",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1769970600000,"start":1769797800000}}}
+  },
+  {
+    "data": {
+      "categories": [{"category":"input","cost":0.004382},{"category":"output","cost":0.00587}],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.004382,"catOutput":0.00587,"catThinking":0,"catTool":0,"cost":0.010252,"credits":27.33,"dayStart":1772908200000,"eventCount":6,"tokens":1932}
+      ],
+      "dims": {"models":["claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-sonnet-4-5-20250929","gpt-4.1"],"repos":["beta","unattributed"],"sources":["claude-code","local"],"surfaces":["chat"]},
+      "estimatedEventCount": 6,
+      "hourly": [{"credits":12.33,"hourLocal":15},{"credits":15,"hourLocal":16}],
+      "languages": [{"cost":0.010252,"credits":27.33,"language":"unknown","tokens":1932}],
+      "models": [
+        {"cost":0.004025,"credits":15,"modelId":"claude-opus-4-5-20251101","tokens":433},
+        {"cost":0.00465,"credits":12,"modelId":"claude-sonnet-4-5-20250929","tokens":822},
+        {"cost":0.000775,"credits":0.33,"modelId":"claude-haiku-4-5-20251001","tokens":411},
+        {"cost":0.000802,"credits":0,"modelId":"gpt-4.1","tokens":266}
+      ],
+      "repos": [
+        {"cost":0.00945,"credits":27.33,"heuristicShare":0,"repo":"beta","tokens":1666},
+        {"cost":0.000802,"credits":0,"heuristicShare":0,"repo":"unattributed","tokens":266}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":2,"credits":12,"model":"claude-sonnet-4-5-20250929","surface":"chat"}
+      ],
+      "totals": {"all":{"cost":0.010252,"credits":27.33,"eventCount":6,"tokens":1932},"mtd":{"cost":0,"credits":0,"eventCount":0,"tokens":0},"today":{"cost":0,"credits":0,"eventCount":0,"tokens":0}},
+      "weekday": [27.33,0,0,0,0,0,0]
+    },
+    "filter": {"range":{"end":1772994600000,"start":1772908200000}},
+    "label": "range-dst-spring-la",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1772994600000,"start":1772908200000}}}
+  },
+  {
+    "data": {
+      "categories": [],
+      "daily": [],
+      "dims": {"models":[],"repos":[],"sources":[],"surfaces":[]},
+      "estimatedEventCount": 0,
+      "hourly": [],
+      "languages": [],
+      "models": [],
+      "repos": [],
+      "sankey": [],
+      "totals": {"all":{"cost":0,"credits":0,"eventCount":0,"tokens":0},"mtd":{"cost":0,"credits":0,"eventCount":0,"tokens":0},"today":{"cost":0,"credits":0,"eventCount":0,"tokens":0}},
+      "weekday": [0,0,0,0,0,0,0]
+    },
+    "filter": {"range":{"end":1775413800000,"start":1775327400000}},
+    "label": "range-dst-end-south",
+    "now": "2026-11-02T04:00:00.000Z",
+    "nowLabel": "main",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1775413800000,"start":1775327400000}}}
+  },
+  {
+    "data": {
+      "daily": {"days":45,"first":1739125800000,"last":1793557800000},
+      "estimatedEventCount": 162,
+      "reduced": "unfiltered read at an edge now: totals and daily extent only",
+      "totals": {"all":{"cost":1.7288255,"credits":573.71,"eventCount":162,"tokens":222587},"mtd":{"cost":0.536315,"credits":107.8,"eventCount":27,"tokens":36755},"today":{"cost":0.002625,"credits":7.32,"eventCount":7,"tokens":832}}
+    },
+    "filter": {},
+    "label": "none",
+    "now": "2026-01-31T18:20:00.000Z",
+    "nowLabel": "month-end",
+    "read": {"path":"cache","recordFilter":null}
+  },
+  {
+    "data": {
+      "categories": [{"category":"input","cost":0.001361},{"category":"output","cost":0.001264}],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001361,"catOutput":0.001264,"catThinking":0,"catTool":0,"cost":0.002625,"credits":7.32,"dayStart":1769797800000,"eventCount":7,"tokens":832}
+      ],
+      "dims": {"models":["claude-haiku-4-5-20251001","claude-sonnet-4-5-20250929","gpt-4.1","gpt-4o"],"repos":["alpha","unattributed"],"sources":["claude-code","local"],"surfaces":["chat","inline"]},
+      "estimatedEventCount": 7,
+      "hourly": [
+        {"credits":0.33,"hourLocal":15},
+        {"credits":6.33,"hourLocal":16},
+        {"credits":0.33,"hourLocal":18},
+        {"credits":0.33,"hourLocal":23}
+      ],
+      "languages": [{"cost":0.002625,"credits":7.32,"language":"unknown","tokens":832}],
+      "models": [
+        {"cost":0.000672,"credits":6,"modelId":"claude-sonnet-4-5-20250929","tokens":128},
+        {"cost":0.000448,"credits":0.66,"modelId":"claude-haiku-4-5-20251001","tokens":256},
+        {"cost":0.000825,"credits":0.66,"modelId":"gpt-4o","tokens":222},
+        {"cost":0.00068,"credits":0,"modelId":"gpt-4.1","tokens":226}
+      ],
+      "repos": [
+        {"cost":0.00112,"credits":6.66,"heuristicShare":0,"repo":"alpha","tokens":384},
+        {"cost":0.001505,"credits":0.66,"heuristicShare":0,"repo":"unattributed","tokens":448}
+      ],
+      "sankey": [
+        {"count":2,"credits":0.66,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"inline"}
+      ],
+      "totals": {"all":{"cost":0.002625,"credits":7.32,"eventCount":7,"tokens":832},"mtd":{"cost":0.002625,"credits":7.32,"eventCount":7,"tokens":832},"today":{"cost":0.002625,"credits":7.32,"eventCount":7,"tokens":832}},
+      "weekday": [0,0,0,0,0,0,7.32]
+    },
+    "filter": {"rangePreset":"today"},
+    "label": "preset-today",
+    "now": "2026-01-31T18:20:00.000Z",
+    "nowLabel": "month-end",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1769884200000,"start":1769797800000}}}
+  },
+  {
+    "data": {
+      "categories": [{"category":"input","cost":0.001361},{"category":"output","cost":0.001264}],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001361,"catOutput":0.001264,"catThinking":0,"catTool":0,"cost":0.002625,"credits":7.32,"dayStart":1769797800000,"eventCount":7,"tokens":832}
+      ],
+      "dims": {"models":["claude-haiku-4-5-20251001","claude-sonnet-4-5-20250929","gpt-4.1","gpt-4o"],"repos":["alpha","unattributed"],"sources":["claude-code","local"],"surfaces":["chat","inline"]},
+      "estimatedEventCount": 7,
+      "hourly": [
+        {"credits":0.33,"hourLocal":15},
+        {"credits":6.33,"hourLocal":16},
+        {"credits":0.33,"hourLocal":18},
+        {"credits":0.33,"hourLocal":23}
+      ],
+      "languages": [{"cost":0.002625,"credits":7.32,"language":"unknown","tokens":832}],
+      "models": [
+        {"cost":0.000672,"credits":6,"modelId":"claude-sonnet-4-5-20250929","tokens":128},
+        {"cost":0.000448,"credits":0.66,"modelId":"claude-haiku-4-5-20251001","tokens":256},
+        {"cost":0.000825,"credits":0.66,"modelId":"gpt-4o","tokens":222},
+        {"cost":0.00068,"credits":0,"modelId":"gpt-4.1","tokens":226}
+      ],
+      "repos": [
+        {"cost":0.00112,"credits":6.66,"heuristicShare":0,"repo":"alpha","tokens":384},
+        {"cost":0.001505,"credits":0.66,"heuristicShare":0,"repo":"unattributed","tokens":448}
+      ],
+      "sankey": [
+        {"count":2,"credits":0.66,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"inline"}
+      ],
+      "totals": {"all":{"cost":0.002625,"credits":7.32,"eventCount":7,"tokens":832},"mtd":{"cost":0.002625,"credits":7.32,"eventCount":7,"tokens":832},"today":{"cost":0.002625,"credits":7.32,"eventCount":7,"tokens":832}},
+      "weekday": [0,0,0,0,0,0,7.32]
+    },
+    "filter": {"rangePreset":"7d"},
+    "label": "preset-7d",
+    "now": "2026-01-31T18:20:00.000Z",
+    "nowLabel": "month-end",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1769884200000,"start":1769279400000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.144431},
+        {"category":"output","cost":0.105259},
+        {"category":"thinking","cost":0.009},
+        {"category":"cache_creation","cost":0.008125},
+        {"category":"cache_read","cost":0.0295}
+      ],
+      "daily": [
+        {"catCacheCreation":0.003125,"catCacheRead":0.0035,"catInput":0.0174,"catOutput":0.02625,"catThinking":0,"catTool":0,"cost":0.050275,"credits":21,"dayStart":1767205800000,"eventCount":2,"tokens":4950},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0374,"catOutput":0.0359,"catThinking":0,"catTool":0,"cost":0.0733,"credits":21,"dayStart":1767551400000,"eventCount":3,"tokens":12200},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.06481,"catOutput":0.02044,"catThinking":0,"catTool":0,"cost":0.32525,"credits":9.16,"dayStart":1767637800000,"eventCount":6,"tokens":7700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00025,"catOutput":0.0002,"catThinking":0,"catTool":0,"cost":0.00045,"credits":0.33,"dayStart":1767724200000,"eventCount":1,"tokens":120},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0001,"catOutput":0.00008,"catThinking":0,"catTool":0,"cost":0.00018,"credits":0.33,"dayStart":1767810600000,"eventCount":1,"tokens":48},
+        {"catCacheCreation":0.005,"catCacheRead":0.006,"catInput":0.0173,"catOutput":0.01625,"catThinking":0.009,"catTool":0,"cost":0.05355,"credits":36,"dayStart":1768156200000,"eventCount":3,"tokens":4790},
+        {"catCacheCreation":0,"catCacheRead":0.02,"catInput":0.005,"catOutput":0.0035,"catThinking":0,"catTool":0,"cost":0.0285,"credits":0.33,"dayStart":1768847400000,"eventCount":1,"tokens":5700},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.00081,"catOutput":0.001375,"catThinking":0,"catTool":0,"cost":0.002185,"credits":12.33,"dayStart":1768933800000,"eventCount":3,"tokens":415},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001361,"catOutput":0.001264,"catThinking":0,"catTool":0,"cost":0.002625,"credits":7.32,"dayStart":1769797800000,"eventCount":7,"tokens":832}
+      ],
+      "dims": {"models":["claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","mystery-model-x","o3-mini"],"repos":["alpha","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 27,
+      "hourly": [
+        {"credits":21,"hourLocal":5},
+        {"credits":21.49,"hourLocal":14},
+        {"credits":36.66,"hourLocal":15},
+        {"credits":12.66,"hourLocal":16},
+        {"credits":15,"hourLocal":17},
+        {"credits":0.33,"hourLocal":18},
+        {"credits":0.33,"hourLocal":22},
+        {"credits":0.33,"hourLocal":23}
+      ],
+      "languages": [
+        {"cost":0.535015,"credits":107.47,"language":"unknown","tokens":34355},
+        {"cost":0.0013,"credits":0.33,"language":"python","tokens":2400}
+      ],
+      "models": [
+        {"cost":0.079375,"credits":45,"modelId":"claude-opus-4-5-20251101","tokens":6990},
+        {"cost":0.027147,"credits":30,"modelId":"claude-sonnet-4-5-20250929","tokens":3213},
+        {"cost":0.04,"credits":15,"modelId":"claude-opus-4.5","tokens":4800},
+        {"cost":0.2685,"credits":12,"modelId":"claude-sonnet-4.5","tokens":5900},
+        {"cost":0.06,"credits":1.5,"modelId":"mystery-model-x","tokens":600},
+        {"cost":0.029108,"credits":1.32,"modelId":"claude-haiku-4-5-20251001","tokens":6036},
+        {"cost":0.001455,"credits":1.32,"modelId":"gpt-4o","tokens":390},
+        {"cost":0.01075,"credits":1,"modelId":"gemini-2.5-pro","tokens":3700},
+        {"cost":0.0013,"credits":0.33,"modelId":"gpt-5-mini","tokens":2400},
+        {"cost":0.0132,"credits":0.33,"modelId":"o3-mini","tokens":1000},
+        {"cost":0.00548,"credits":0,"modelId":"gpt-4.1","tokens":1726}
+      ],
+      "repos": [
+        {"cost":0.13563,"credits":76.32,"heuristicShare":0,"repo":"alpha","tokens":16239},
+        {"cost":0.400685,"credits":31.48,"heuristicShare":0,"repo":"unattributed","tokens":20516}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":3,"credits":0.99,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":2,"credits":30,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"chat"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"chat"},
+        {"count":3,"credits":0.99,"model":"gpt-4o","surface":"inline"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"edit"},
+        {"count":1,"credits":1.5,"model":"mystery-model-x","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"chat"}
+      ],
+      "totals": {"all":{"cost":0.536315,"credits":107.8,"eventCount":27,"tokens":36755},"mtd":{"cost":0.536315,"credits":107.8,"eventCount":27,"tokens":36755},"today":{"cost":0.002625,"credits":7.32,"eventCount":7,"tokens":832}},
+      "weekday": [0,57,9.49,12.66,21.33,0,7.32]
+    },
+    "filter": {"rangePreset":"month"},
+    "label": "preset-month",
+    "now": "2026-01-31T18:20:00.000Z",
+    "nowLabel": "month-end",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1769884200000,"start":1767205800000}}}
+  },
+  {
+    "data": {
+      "daily": {"days":45,"first":1739125800000,"last":1793557800000},
+      "estimatedEventCount": 162,
+      "reduced": "unfiltered read at an edge now: totals and daily extent only",
+      "totals": {"all":{"cost":1.7288255,"credits":573.71,"eventCount":162,"tokens":222587},"mtd":{"cost":0.021139,"credits":21.49,"eventCount":9,"tokens":4998},"today":{"cost":0.002127,"credits":12.66,"eventCount":5,"tokens":578}}
+    },
+    "filter": {},
+    "label": "none",
+    "now": "2026-01-31T18:40:00.000Z",
+    "nowLabel": "month-start",
+    "read": {"path":"cache","recordFilter":null}
+  },
+  {
+    "data": {
+      "categories": [{"category":"input","cost":0.001114},{"category":"output","cost":0.001013}],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001114,"catOutput":0.001013,"catThinking":0,"catTool":0,"cost":0.002127,"credits":12.66,"dayStart":1769884200000,"eventCount":5,"tokens":578}
+      ],
+      "dims": {"models":["claude-haiku-4-5-20251001","claude-sonnet-4-5-20250929","gpt-4.1","gpt-4o"],"repos":["alpha","unattributed"],"sources":["claude-code","local"],"surfaces":["chat","inline"]},
+      "estimatedEventCount": 5,
+      "hourly": [{"credits":6,"hourLocal":0},{"credits":0.33,"hourLocal":5},{"credits":6.33,"hourLocal":13}],
+      "languages": [{"cost":0.002127,"credits":12.66,"language":"unknown","tokens":578}],
+      "models": [
+        {"cost":0.001236,"credits":12,"modelId":"claude-sonnet-4-5-20250929","tokens":244},
+        {"cost":0.000206,"credits":0.33,"modelId":"claude-haiku-4-5-20251001","tokens":122},
+        {"cost":0.000375,"credits":0.33,"modelId":"gpt-4o","tokens":105},
+        {"cost":0.00031,"credits":0,"modelId":"gpt-4.1","tokens":107}
+      ],
+      "repos": [
+        {"cost":0.001442,"credits":12.33,"heuristicShare":0,"repo":"alpha","tokens":366},
+        {"cost":0.000685,"credits":0.33,"heuristicShare":0,"repo":"unattributed","tokens":212}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":2,"credits":12,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"inline"}
+      ],
+      "totals": {"all":{"cost":0.002127,"credits":12.66,"eventCount":5,"tokens":578},"mtd":{"cost":0.002127,"credits":12.66,"eventCount":5,"tokens":578},"today":{"cost":0.002127,"credits":12.66,"eventCount":5,"tokens":578}},
+      "weekday": [12.66,0,0,0,0,0,0]
+    },
+    "filter": {"rangePreset":"today"},
+    "label": "preset-today",
+    "now": "2026-01-31T18:40:00.000Z",
+    "nowLabel": "month-start",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1769970600000,"start":1769884200000}}}
+  },
+  {
+    "data": {
+      "categories": [{"category":"input","cost":0.002475},{"category":"output","cost":0.002277}],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001361,"catOutput":0.001264,"catThinking":0,"catTool":0,"cost":0.002625,"credits":7.32,"dayStart":1769797800000,"eventCount":7,"tokens":832},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001114,"catOutput":0.001013,"catThinking":0,"catTool":0,"cost":0.002127,"credits":12.66,"dayStart":1769884200000,"eventCount":5,"tokens":578}
+      ],
+      "dims": {"models":["claude-haiku-4-5-20251001","claude-sonnet-4-5-20250929","gpt-4.1","gpt-4o"],"repos":["alpha","unattributed"],"sources":["claude-code","local"],"surfaces":["chat","inline"]},
+      "estimatedEventCount": 12,
+      "hourly": [
+        {"credits":6,"hourLocal":0},
+        {"credits":0.33,"hourLocal":5},
+        {"credits":6.33,"hourLocal":13},
+        {"credits":0.33,"hourLocal":15},
+        {"credits":6.33,"hourLocal":16},
+        {"credits":0.33,"hourLocal":18},
+        {"credits":0.33,"hourLocal":23}
+      ],
+      "languages": [{"cost":0.004752,"credits":19.98,"language":"unknown","tokens":1410}],
+      "models": [
+        {"cost":0.001908,"credits":18,"modelId":"claude-sonnet-4-5-20250929","tokens":372},
+        {"cost":0.000654,"credits":0.99,"modelId":"claude-haiku-4-5-20251001","tokens":378},
+        {"cost":0.0012,"credits":0.99,"modelId":"gpt-4o","tokens":327},
+        {"cost":0.00099,"credits":0,"modelId":"gpt-4.1","tokens":333}
+      ],
+      "repos": [
+        {"cost":0.002562,"credits":18.99,"heuristicShare":0,"repo":"alpha","tokens":750},
+        {"cost":0.00219,"credits":0.99,"heuristicShare":0,"repo":"unattributed","tokens":660}
+      ],
+      "sankey": [
+        {"count":3,"credits":0.99,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":3,"credits":18,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":3,"credits":0.99,"model":"gpt-4o","surface":"inline"}
+      ],
+      "totals": {"all":{"cost":0.004752,"credits":19.98,"eventCount":12,"tokens":1410},"mtd":{"cost":0.002127,"credits":12.66,"eventCount":5,"tokens":578},"today":{"cost":0.002127,"credits":12.66,"eventCount":5,"tokens":578}},
+      "weekday": [12.66,0,0,0,0,0,7.32]
+    },
+    "filter": {"rangePreset":"7d"},
+    "label": "preset-7d",
+    "now": "2026-01-31T18:40:00.000Z",
+    "nowLabel": "month-start",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1769970600000,"start":1769365800000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.008874},
+        {"category":"output","cost":0.011993},
+        {"category":"cache_creation","cost":0.0002},
+        {"category":"cache_read","cost":0.000072}
+      ],
+      "daily": [
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.001114,"catOutput":0.001013,"catThinking":0,"catTool":0,"cost":0.002127,"credits":12.66,"dayStart":1769884200000,"eventCount":5,"tokens":578},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0045,"catOutput":0.006,"catThinking":0,"catTool":0,"cost":0.0105,"credits":1,"dayStart":1770057000000,"eventCount":1,"tokens":1900},
+        {"catCacheCreation":0.0002,"catCacheRead":0.000072,"catInput":0.00326,"catOutput":0.00498,"catThinking":0,"catTool":0,"cost":0.008512,"credits":6.33,"dayStart":1770661800000,"eventCount":2,"tokens":2020},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0,"catOutput":0,"catThinking":0,"catTool":0,"cost":0,"credits":1.5,"dayStart":1771007400000,"eventCount":1,"tokens":500}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-fable-9","claude-haiku-4-5-20251001","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","gpt-4.1","gpt-4o"],"repos":["alpha","beta","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","inline"]},
+      "estimatedEventCount": 9,
+      "hourly": [
+        {"credits":6,"hourLocal":0},
+        {"credits":0.33,"hourLocal":5},
+        {"credits":12.66,"hourLocal":13},
+        {"credits":1.5,"hourLocal":17},
+        {"credits":1,"hourLocal":19}
+      ],
+      "languages": [{"cost":0.021139,"credits":21.49,"language":"unknown","tokens":4998}],
+      "models": [
+        {"cost":0.008436,"credits":18,"modelId":"claude-sonnet-4-5-20250929","tokens":1444},
+        {"cost":0,"credits":1.5,"modelId":"claude-fable-9","tokens":500},
+        {"cost":0.0105,"credits":1,"modelId":"claude-sonnet-4-20250514","tokens":1900},
+        {"cost":0.001312,"credits":0.33,"modelId":"claude-3-5-haiku-20241022","tokens":820},
+        {"cost":0.000206,"credits":0.33,"modelId":"claude-haiku-4-5-20251001","tokens":122},
+        {"cost":0.000375,"credits":0.33,"modelId":"gpt-4o","tokens":105},
+        {"cost":0.00031,"credits":0,"modelId":"gpt-4.1","tokens":107}
+      ],
+      "repos": [
+        {"cost":0.001442,"credits":12.33,"heuristicShare":0,"repo":"alpha","tokens":366},
+        {"cost":0.019012,"credits":8.83,"heuristicShare":0,"repo":"beta","tokens":4420},
+        {"cost":0.000685,"credits":0.33,"heuristicShare":0,"repo":"unattributed","tokens":212}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":1,"credits":1.5,"model":"claude-fable-9","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":2,"credits":12,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"inline"}
+      ],
+      "totals": {"all":{"cost":0.021139,"credits":21.49,"eventCount":9,"tokens":4998},"mtd":{"cost":0.021139,"credits":21.49,"eventCount":9,"tokens":4998},"today":{"cost":0.002127,"credits":12.66,"eventCount":5,"tokens":578}},
+      "weekday": [12.66,0,7.33,0,0,0,1.5]
+    },
+    "filter": {"rangePreset":"month"},
+    "label": "preset-month",
+    "now": "2026-01-31T18:40:00.000Z",
+    "nowLabel": "month-start",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1772303400000,"start":1769884200000}}}
+  },
+  {
+    "data": {
+      "daily": {"days":45,"first":1739125800000,"last":1793557800000},
+      "estimatedEventCount": 162,
+      "reduced": "unfiltered read at an edge now: totals and daily extent only",
+      "totals": {"all":{"cost":1.7288255,"credits":573.71,"eventCount":162,"tokens":222587},"mtd":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"today":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654}}
+    },
+    "filter": {},
+    "label": "none",
+    "now": "2026-11-01T06:30:00.000Z",
+    "nowLabel": "dst-day",
+    "read": {"path":"cache","recordFilter":null}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.02397455},
+        {"category":"output","cost":0.043508},
+        {"category":"cache_creation","cost":0.000228},
+        {"category":"cache_read","cost":0.002283}
+      ],
+      "daily": [
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-opus-4-5-20251101","claude-sonnet-4-20250514","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini"],"repos":["alpha","beta","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","inline"]},
+      "estimatedEventCount": 9,
+      "hourly": [
+        {"credits":0.33,"hourLocal":1},
+        {"credits":15.33,"hourLocal":14},
+        {"credits":15,"hourLocal":15},
+        {"credits":0.33,"hourLocal":16},
+        {"credits":1,"hourLocal":18},
+        {"credits":1,"hourLocal":22}
+      ],
+      "languages": [{"cost":0.06999355,"credits":32.99,"language":"unknown","tokens":17654}],
+      "models": [
+        {"cost":0.009475,"credits":30,"modelId":"claude-opus-4-5-20251101","tokens":1075},
+        {"cost":0.039657,"credits":1,"modelId":"claude-sonnet-4-20250514","tokens":5990},
+        {"cost":0.008055,"credits":1,"modelId":"gemini-2.5-pro","tokens":2216},
+        {"cost":0.0098728,"credits":0.33,"modelId":"claude-3-5-haiku-20241022","tokens":5800},
+        {"cost":0.000345,"credits":0.33,"modelId":"gpt-4o","tokens":87},
+        {"cost":0.00156675,"credits":0.33,"modelId":"gpt-5-mini","tokens":2158},
+        {"cost":0.001022,"credits":0,"modelId":"gpt-4.1","tokens":328}
+      ],
+      "repos": [
+        {"cost":0.049132,"credits":31,"heuristicShare":0,"repo":"beta","tokens":7065},
+        {"cost":0.01098875,"credits":1.66,"heuristicShare":0,"repo":"unattributed","tokens":4789},
+        {"cost":0.0098728,"credits":0.33,"heuristicShare":0,"repo":"alpha","tokens":5800}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":2,"credits":30,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"}
+      ],
+      "totals": {"all":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654},"mtd":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654},"today":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654}},
+      "weekday": [32.99,0,0,0,0,0,0]
+    },
+    "filter": {"rangePreset":"today"},
+    "label": "preset-today",
+    "now": "2026-11-01T06:30:00.000Z",
+    "nowLabel": "dst-day",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1793557800000,"start":1793471400000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.1877745239},
+        {"category":"output","cost":0.3135573261},
+        {"category":"cache_creation","cost":0.001504},
+        {"category":"cache_read","cost":0.009934}
+      ],
+      "daily": [
+        {"catCacheCreation":0.000216,"catCacheRead":0.001959,"catInput":0.02154934726,"catOutput":0.02624300274,"catThinking":0,"catTool":0,"cost":0.04996735,"credits":2.99,"dayStart":1792953000000,"eventCount":5,"tokens":11442},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.031535,"catOutput":0.056021,"catThinking":0,"catTool":0,"cost":0.087556,"credits":36,"dayStart":1793039400000,"eventCount":4,"tokens":11088},
+        {"catCacheCreation":0.00022,"catCacheRead":0.002067,"catInput":0.019705,"catOutput":0.0347,"catThinking":0,"catTool":0,"cost":0.056692,"credits":12.66,"dayStart":1793125800000,"eventCount":4,"tokens":12080},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01536145,"catOutput":0.030255,"catThinking":0,"catTool":0,"cost":0.04561645,"credits":2.66,"dayStart":1793212200000,"eventCount":4,"tokens":13072},
+        {"catCacheCreation":0.00084,"catCacheRead":0.003625,"catInput":0.05107767666,"catOutput":0.07879532334,"catThinking":0,"catTool":0,"cost":0.134338,"credits":37.33,"dayStart":1793298600000,"eventCount":7,"tokens":17298},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0245715,"catOutput":0.044035,"catThinking":0,"catTool":0,"cost":0.0686065,"credits":12.66,"dayStart":1793385000000,"eventCount":4,"tokens":15172},
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","o3-mini"],"repos":["alpha","beta","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 37,
+      "hourly": [
+        {"credits":1.65,"hourLocal":1},
+        {"credits":15.33,"hourLocal":14},
+        {"credits":54.66,"hourLocal":15},
+        {"credits":7.32,"hourLocal":16},
+        {"credits":13.33,"hourLocal":18},
+        {"credits":16,"hourLocal":21},
+        {"credits":29,"hourLocal":22}
+      ],
+      "languages": [{"cost":0.51276985,"credits":137.29,"language":"unknown","tokens":97806}],
+      "models": [
+        {"cost":0.10954,"credits":60,"modelId":"claude-opus-4-5-20251101","tokens":10395},
+        {"cost":0.03561,"credits":30,"modelId":"claude-opus-4.5","tokens":3446},
+        {"cost":0.121047,"credits":24,"modelId":"claude-sonnet-4-5-20250929","tokens":19020},
+        {"cost":0.023634,"credits":12,"modelId":"claude-sonnet-4.5","tokens":3794},
+        {"cost":0.02314375,"credits":4,"modelId":"gemini-2.5-pro","tokens":6580},
+        {"cost":0.094656,"credits":3,"modelId":"claude-sonnet-4-20250514","tokens":14550},
+        {"cost":0.0235896,"credits":0.99,"modelId":"claude-3-5-haiku-20241022","tokens":13980},
+        {"cost":0.0169425,"credits":0.99,"modelId":"gpt-4o","tokens":3765},
+        {"cost":0.003771,"credits":0.99,"modelId":"gpt-5-mini","tokens":5256},
+        {"cost":0.020312,"credits":0.66,"modelId":"claude-haiku-4-5-20251001","tokens":9700},
+        {"cost":0.0264,"credits":0.66,"modelId":"o3-mini","tokens":3330},
+        {"cost":0.014124,"credits":0,"modelId":"gpt-4.1","tokens":3990}
+      ],
+      "repos": [
+        {"cost":0.268951,"credits":75,"heuristicShare":0,"repo":"beta","tokens":35025},
+        {"cost":0.14362525,"credits":48.64,"heuristicShare":0,"repo":"unattributed","tokens":30161},
+        {"cost":0.1001936,"credits":13.65,"heuristicShare":0,"repo":"alpha","tokens":32620}
+      ],
+      "sankey": [
+        {"count":3,"credits":0.99,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"edit"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"inline"},
+        {"count":3,"credits":3,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":4,"credits":24,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"unknown"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"agent"},
+        {"count":2,"credits":2,"model":"gemini-2.5-pro","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"inline"}
+      ],
+      "totals": {"all":{"cost":0.51276985,"credits":137.29,"eventCount":37,"tokens":97806},"mtd":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654},"today":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654}},
+      "weekday": [32.99,2.99,36,12.66,2.66,37.33,12.66]
+    },
+    "filter": {"rangePreset":"7d"},
+    "label": "preset-7d",
+    "now": "2026-11-01T06:30:00.000Z",
+    "nowLabel": "dst-day",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1793557800000,"start":1792953000000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.04777480066},
+        {"category":"output","cost":0.06058774934},
+        {"category":"cache_creation","cost":0.000228},
+        {"category":"cache_read","cost":0.002283}
+      ],
+      "daily": [
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.02380025066,"catOutput":0.01707974934,"catThinking":0,"catTool":0,"cost":0.04088,"credits":52.65,"dayStart":1793557800000,"eventCount":13,"tokens":9543}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","o3-mini"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline"]},
+      "estimatedEventCount": 22,
+      "hourly": [
+        {"credits":0.66,"hourLocal":1},
+        {"credits":6.33,"hourLocal":9},
+        {"credits":12.66,"hourLocal":10},
+        {"credits":33.33,"hourLocal":11},
+        {"credits":15.33,"hourLocal":14},
+        {"credits":15,"hourLocal":15},
+        {"credits":0.33,"hourLocal":16},
+        {"credits":1,"hourLocal":18},
+        {"credits":1,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.10123355,"credits":58.64,"language":"unknown","tokens":25445},
+        {"cost":0.00896,"credits":27,"language":"typescript","tokens":1532},
+        {"cost":0.00068,"credits":0,"language":"go","tokens":220}
+      ],
+      "models": [
+        {"cost":0.012225,"credits":45,"modelId":"claude-opus-4-5-20251101","tokens":1377},
+        {"cost":0.014625,"credits":30,"modelId":"claude-sonnet-4-5-20250929","tokens":3087},
+        {"cost":0.00465,"credits":6,"modelId":"claude-sonnet-4.5","tokens":950},
+        {"cost":0.039657,"credits":1,"modelId":"claude-sonnet-4-20250514","tokens":5990},
+        {"cost":0.008055,"credits":1,"modelId":"gemini-2.5-pro","tokens":2216},
+        {"cost":0.00465,"credits":0.99,"modelId":"claude-haiku-4-5-20251001","tokens":2610},
+        {"cost":0.00067,"credits":0.66,"modelId":"gpt-4o","tokens":187},
+        {"cost":0.0098728,"credits":0.33,"modelId":"claude-3-5-haiku-20241022","tokens":5800},
+        {"cost":0.00156675,"credits":0.33,"modelId":"gpt-5-mini","tokens":2158},
+        {"cost":0.0132,"credits":0.33,"modelId":"o3-mini","tokens":2274},
+        {"cost":0.001702,"credits":0,"modelId":"gpt-4.1","tokens":548}
+      ],
+      "repos": [
+        {"cost":0.062467,"credits":43.99,"heuristicShare":0,"repo":"beta","tokens":11286},
+        {"cost":0.0153978,"credits":21.33,"heuristicShare":0,"repo":"alpha","tokens":7007},
+        {"cost":0.00689,"credits":12,"heuristicShare":1,"repo":"ide-repo","tokens":1450},
+        {"cost":0.02611875,"credits":8.32,"heuristicShare":0,"repo":"unattributed","tokens":7454}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":3,"credits":0.99,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"}
+      ],
+      "totals": {"all":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"mtd":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"today":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654}},
+      "weekday": [32.99,52.65,0,0,0,0,0]
+    },
+    "filter": {"rangePreset":"month"},
+    "label": "preset-month",
+    "now": "2026-11-01T06:30:00.000Z",
+    "nowLabel": "dst-day",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1796063400000,"start":1793471400000}}}
+  },
+  {
+    "data": {
+      "daily": {"days":45,"first":1739125800000,"last":1793557800000},
+      "estimatedEventCount": 162,
+      "reduced": "unfiltered read at an edge now: totals and daily extent only",
+      "totals": {"all":{"cost":1.7288255,"credits":573.71,"eventCount":162,"tokens":222587},"mtd":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"today":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654}}
+    },
+    "filter": {},
+    "label": "none",
+    "now": "2026-10-31T18:35:00.000Z",
+    "nowLabel": "dst-midnight",
+    "read": {"path":"cache","recordFilter":null}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.02397455},
+        {"category":"output","cost":0.043508},
+        {"category":"cache_creation","cost":0.000228},
+        {"category":"cache_read","cost":0.002283}
+      ],
+      "daily": [
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-opus-4-5-20251101","claude-sonnet-4-20250514","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini"],"repos":["alpha","beta","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","inline"]},
+      "estimatedEventCount": 9,
+      "hourly": [
+        {"credits":0.33,"hourLocal":1},
+        {"credits":15.33,"hourLocal":14},
+        {"credits":15,"hourLocal":15},
+        {"credits":0.33,"hourLocal":16},
+        {"credits":1,"hourLocal":18},
+        {"credits":1,"hourLocal":22}
+      ],
+      "languages": [{"cost":0.06999355,"credits":32.99,"language":"unknown","tokens":17654}],
+      "models": [
+        {"cost":0.009475,"credits":30,"modelId":"claude-opus-4-5-20251101","tokens":1075},
+        {"cost":0.039657,"credits":1,"modelId":"claude-sonnet-4-20250514","tokens":5990},
+        {"cost":0.008055,"credits":1,"modelId":"gemini-2.5-pro","tokens":2216},
+        {"cost":0.0098728,"credits":0.33,"modelId":"claude-3-5-haiku-20241022","tokens":5800},
+        {"cost":0.000345,"credits":0.33,"modelId":"gpt-4o","tokens":87},
+        {"cost":0.00156675,"credits":0.33,"modelId":"gpt-5-mini","tokens":2158},
+        {"cost":0.001022,"credits":0,"modelId":"gpt-4.1","tokens":328}
+      ],
+      "repos": [
+        {"cost":0.049132,"credits":31,"heuristicShare":0,"repo":"beta","tokens":7065},
+        {"cost":0.01098875,"credits":1.66,"heuristicShare":0,"repo":"unattributed","tokens":4789},
+        {"cost":0.0098728,"credits":0.33,"heuristicShare":0,"repo":"alpha","tokens":5800}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":2,"credits":30,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"}
+      ],
+      "totals": {"all":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654},"mtd":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654},"today":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654}},
+      "weekday": [32.99,0,0,0,0,0,0]
+    },
+    "filter": {"rangePreset":"today"},
+    "label": "preset-today",
+    "now": "2026-10-31T18:35:00.000Z",
+    "nowLabel": "dst-midnight",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1793557800000,"start":1793471400000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.1877745239},
+        {"category":"output","cost":0.3135573261},
+        {"category":"cache_creation","cost":0.001504},
+        {"category":"cache_read","cost":0.009934}
+      ],
+      "daily": [
+        {"catCacheCreation":0.000216,"catCacheRead":0.001959,"catInput":0.02154934726,"catOutput":0.02624300274,"catThinking":0,"catTool":0,"cost":0.04996735,"credits":2.99,"dayStart":1792953000000,"eventCount":5,"tokens":11442},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.031535,"catOutput":0.056021,"catThinking":0,"catTool":0,"cost":0.087556,"credits":36,"dayStart":1793039400000,"eventCount":4,"tokens":11088},
+        {"catCacheCreation":0.00022,"catCacheRead":0.002067,"catInput":0.019705,"catOutput":0.0347,"catThinking":0,"catTool":0,"cost":0.056692,"credits":12.66,"dayStart":1793125800000,"eventCount":4,"tokens":12080},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.01536145,"catOutput":0.030255,"catThinking":0,"catTool":0,"cost":0.04561645,"credits":2.66,"dayStart":1793212200000,"eventCount":4,"tokens":13072},
+        {"catCacheCreation":0.00084,"catCacheRead":0.003625,"catInput":0.05107767666,"catOutput":0.07879532334,"catThinking":0,"catTool":0,"cost":0.134338,"credits":37.33,"dayStart":1793298600000,"eventCount":7,"tokens":17298},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.0245715,"catOutput":0.044035,"catThinking":0,"catTool":0,"cost":0.0686065,"credits":12.66,"dayStart":1793385000000,"eventCount":4,"tokens":15172},
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-opus-4.5","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","o3-mini"],"repos":["alpha","beta","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline","unknown"]},
+      "estimatedEventCount": 37,
+      "hourly": [
+        {"credits":1.65,"hourLocal":1},
+        {"credits":15.33,"hourLocal":14},
+        {"credits":54.66,"hourLocal":15},
+        {"credits":7.32,"hourLocal":16},
+        {"credits":13.33,"hourLocal":18},
+        {"credits":16,"hourLocal":21},
+        {"credits":29,"hourLocal":22}
+      ],
+      "languages": [{"cost":0.51276985,"credits":137.29,"language":"unknown","tokens":97806}],
+      "models": [
+        {"cost":0.10954,"credits":60,"modelId":"claude-opus-4-5-20251101","tokens":10395},
+        {"cost":0.03561,"credits":30,"modelId":"claude-opus-4.5","tokens":3446},
+        {"cost":0.121047,"credits":24,"modelId":"claude-sonnet-4-5-20250929","tokens":19020},
+        {"cost":0.023634,"credits":12,"modelId":"claude-sonnet-4.5","tokens":3794},
+        {"cost":0.02314375,"credits":4,"modelId":"gemini-2.5-pro","tokens":6580},
+        {"cost":0.094656,"credits":3,"modelId":"claude-sonnet-4-20250514","tokens":14550},
+        {"cost":0.0235896,"credits":0.99,"modelId":"claude-3-5-haiku-20241022","tokens":13980},
+        {"cost":0.0169425,"credits":0.99,"modelId":"gpt-4o","tokens":3765},
+        {"cost":0.003771,"credits":0.99,"modelId":"gpt-5-mini","tokens":5256},
+        {"cost":0.020312,"credits":0.66,"modelId":"claude-haiku-4-5-20251001","tokens":9700},
+        {"cost":0.0264,"credits":0.66,"modelId":"o3-mini","tokens":3330},
+        {"cost":0.014124,"credits":0,"modelId":"gpt-4.1","tokens":3990}
+      ],
+      "repos": [
+        {"cost":0.268951,"credits":75,"heuristicShare":0,"repo":"beta","tokens":35025},
+        {"cost":0.14362525,"credits":48.64,"heuristicShare":0,"repo":"unattributed","tokens":30161},
+        {"cost":0.1001936,"credits":13.65,"heuristicShare":0,"repo":"alpha","tokens":32620}
+      ],
+      "sankey": [
+        {"count":3,"credits":0.99,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4-5-20251101","surface":"agent"},
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"edit"},
+        {"count":1,"credits":15,"model":"claude-opus-4.5","surface":"inline"},
+        {"count":3,"credits":3,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":4,"credits":24,"model":"claude-sonnet-4-5-20250929","surface":"agent"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"unknown"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"agent"},
+        {"count":2,"credits":2,"model":"gemini-2.5-pro","surface":"chat"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-4o","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"unknown"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"inline"}
+      ],
+      "totals": {"all":{"cost":0.51276985,"credits":137.29,"eventCount":37,"tokens":97806},"mtd":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654},"today":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654}},
+      "weekday": [32.99,2.99,36,12.66,2.66,37.33,12.66]
+    },
+    "filter": {"rangePreset":"7d"},
+    "label": "preset-7d",
+    "now": "2026-10-31T18:35:00.000Z",
+    "nowLabel": "dst-midnight",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1793557800000,"start":1792953000000}}}
+  },
+  {
+    "data": {
+      "categories": [
+        {"category":"input","cost":0.04777480066},
+        {"category":"output","cost":0.06058774934},
+        {"category":"cache_creation","cost":0.000228},
+        {"category":"cache_read","cost":0.002283}
+      ],
+      "daily": [
+        {"catCacheCreation":0.000228,"catCacheRead":0.002283,"catInput":0.02397455,"catOutput":0.043508,"catThinking":0,"catTool":0,"cost":0.06999355,"credits":32.99,"dayStart":1793471400000,"eventCount":9,"tokens":17654},
+        {"catCacheCreation":0,"catCacheRead":0,"catInput":0.02380025066,"catOutput":0.01707974934,"catThinking":0,"catTool":0,"cost":0.04088,"credits":52.65,"dayStart":1793557800000,"eventCount":13,"tokens":9543}
+      ],
+      "dims": {"models":["claude-3-5-haiku-20241022","claude-haiku-4-5-20251001","claude-opus-4-5-20251101","claude-sonnet-4-20250514","claude-sonnet-4-5-20250929","claude-sonnet-4.5","gemini-2.5-pro","gpt-4.1","gpt-4o","gpt-5-mini","o3-mini"],"repos":["alpha","beta","ide-repo","unattributed"],"sources":["claude-code","local"],"surfaces":["agent","chat","edit","inline"]},
+      "estimatedEventCount": 22,
+      "hourly": [
+        {"credits":0.66,"hourLocal":1},
+        {"credits":6.33,"hourLocal":9},
+        {"credits":12.66,"hourLocal":10},
+        {"credits":33.33,"hourLocal":11},
+        {"credits":15.33,"hourLocal":14},
+        {"credits":15,"hourLocal":15},
+        {"credits":0.33,"hourLocal":16},
+        {"credits":1,"hourLocal":18},
+        {"credits":1,"hourLocal":22}
+      ],
+      "languages": [
+        {"cost":0.10123355,"credits":58.64,"language":"unknown","tokens":25445},
+        {"cost":0.00896,"credits":27,"language":"typescript","tokens":1532},
+        {"cost":0.00068,"credits":0,"language":"go","tokens":220}
+      ],
+      "models": [
+        {"cost":0.012225,"credits":45,"modelId":"claude-opus-4-5-20251101","tokens":1377},
+        {"cost":0.014625,"credits":30,"modelId":"claude-sonnet-4-5-20250929","tokens":3087},
+        {"cost":0.00465,"credits":6,"modelId":"claude-sonnet-4.5","tokens":950},
+        {"cost":0.039657,"credits":1,"modelId":"claude-sonnet-4-20250514","tokens":5990},
+        {"cost":0.008055,"credits":1,"modelId":"gemini-2.5-pro","tokens":2216},
+        {"cost":0.00465,"credits":0.99,"modelId":"claude-haiku-4-5-20251001","tokens":2610},
+        {"cost":0.00067,"credits":0.66,"modelId":"gpt-4o","tokens":187},
+        {"cost":0.0098728,"credits":0.33,"modelId":"claude-3-5-haiku-20241022","tokens":5800},
+        {"cost":0.00156675,"credits":0.33,"modelId":"gpt-5-mini","tokens":2158},
+        {"cost":0.0132,"credits":0.33,"modelId":"o3-mini","tokens":2274},
+        {"cost":0.001702,"credits":0,"modelId":"gpt-4.1","tokens":548}
+      ],
+      "repos": [
+        {"cost":0.062467,"credits":43.99,"heuristicShare":0,"repo":"beta","tokens":11286},
+        {"cost":0.0153978,"credits":21.33,"heuristicShare":0,"repo":"alpha","tokens":7007},
+        {"cost":0.00689,"credits":12,"heuristicShare":1,"repo":"ide-repo","tokens":1450},
+        {"cost":0.02611875,"credits":8.32,"heuristicShare":0,"repo":"unattributed","tokens":7454}
+      ],
+      "sankey": [
+        {"count":1,"credits":0.33,"model":"claude-3-5-haiku-20241022","surface":"chat"},
+        {"count":3,"credits":0.99,"model":"claude-haiku-4-5-20251001","surface":"chat"},
+        {"count":3,"credits":45,"model":"claude-opus-4-5-20251101","surface":"chat"},
+        {"count":1,"credits":1,"model":"claude-sonnet-4-20250514","surface":"chat"},
+        {"count":5,"credits":30,"model":"claude-sonnet-4-5-20250929","surface":"chat"},
+        {"count":1,"credits":6,"model":"claude-sonnet-4.5","surface":"agent"},
+        {"count":1,"credits":1,"model":"gemini-2.5-pro","surface":"inline"},
+        {"count":2,"credits":0.66,"model":"gpt-4o","surface":"chat"},
+        {"count":1,"credits":0.33,"model":"gpt-5-mini","surface":"agent"},
+        {"count":1,"credits":0.33,"model":"o3-mini","surface":"edit"}
+      ],
+      "totals": {"all":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"mtd":{"cost":0.11087355,"credits":85.64,"eventCount":22,"tokens":27197},"today":{"cost":0.06999355,"credits":32.99,"eventCount":9,"tokens":17654}},
+      "weekday": [32.99,52.65,0,0,0,0,0]
+    },
+    "filter": {"rangePreset":"month"},
+    "label": "preset-month",
+    "now": "2026-10-31T18:35:00.000Z",
+    "nowLabel": "dst-midnight",
+    "read": {"path":"filtered","recordFilter":{"range":{"end":1796063400000,"start":1793471400000}}}
+  }
+]

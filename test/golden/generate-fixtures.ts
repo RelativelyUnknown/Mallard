@@ -278,15 +278,15 @@ function claudeFiles(): { pass1: Map<string, string>; pass2: Map<string, string>
   // Last line of the fortnight is complete JSON with NO trailing newline, and a later pass finishes it.
   const unterminated = J(asst({ session: S_B3, ts: '2026-11-02T04:00:00.000Z', model: SONNET45, uuid: nextUuid(), cwd: B, branch: 'main', msgId: 'msg_unterm', reqId: 'req_unterm', usage: usage(640, 160) }));
   raw1.set(P_B3, `${(f1.get(P_B3) ?? []).join('\n')}\n${unterminated}`);
-  raw2.set(P_B3, `\n${J(asst({ session: S_B3, ts: '2026-11-02T04:10:00.000Z', model: SONNET45, uuid: nextUuid(), cwd: B, branch: 'main', msgId: 'msg_afterterm', reqId: 'req_afterterm', usage: usage(650, 161) }))}\n`);
+  raw2.set(P_B3, `\n${J(asst({ session: S_B3, ts: '2026-11-02T04:52:00.000Z', model: SONNET45, uuid: nextUuid(), cwd: B, branch: 'main', msgId: 'msg_afterterm', reqId: 'req_afterterm', usage: usage(650, 161) }))}\n`);
   f1.delete(P_B3);
 
   // A file whose last line is cut mid-write; pass 2 delivers the rest of that line plus another.
-  const cutLine = J(asst({ session: S_B1, ts: '2026-11-02T04:30:00.000Z', model: HAIKU45, uuid: nextUuid(), cwd: B, branch: 'main', msgId: 'msg_cut', reqId: 'req_cut', content: [TEXT('a long answer that was cut off mid write')], usage: usage(700, 170) }));
+  const cutLine = J(asst({ session: S_B1, ts: '2026-11-02T04:55:00.000Z', model: HAIKU45, uuid: nextUuid(), cwd: B, branch: 'main', msgId: 'msg_cut', reqId: 'req_cut', content: [TEXT('a long answer that was cut off mid write')], usage: usage(700, 170) }));
   const cutAt = cutLine.indexOf('long answer') + 4;
   push(f1, P_B1, J(asst({ session: S_B1, ts: '2026-11-02T04:20:00.000Z', model: HAIKU45, uuid: nextUuid(), cwd: B, branch: 'main', msgId: 'msg_precut', reqId: 'req_precut', usage: usage(690, 169) })));
   raw1.set(P_B1, `${(f1.get(P_B1) ?? []).join('\n')}\n${cutLine.slice(0, cutAt)}`);
-  raw2.set(P_B1, `${cutLine.slice(cutAt)}\n${J(asst({ session: S_B1, ts: '2026-11-02T04:35:00.000Z', model: HAIKU45, uuid: nextUuid(), cwd: B, branch: 'main', msgId: 'msg_postcut', reqId: 'req_postcut', usage: usage(710, 171) }))}\n`);
+  raw2.set(P_B1, `${cutLine.slice(cutAt)}\n${J(asst({ session: S_B1, ts: '2026-11-02T04:56:00.000Z', model: HAIKU45, uuid: nextUuid(), cwd: B, branch: 'main', msgId: 'msg_postcut', reqId: 'req_postcut', usage: usage(710, 171) }))}\n`);
   f1.delete(P_B1);
 
   // Live rows (pass 2 only): no cwd and no gitBranch, so the active-editor heuristic applies when "live".
