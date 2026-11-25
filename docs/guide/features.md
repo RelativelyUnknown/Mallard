@@ -29,23 +29,22 @@ Four more charts sit behind the **Add chart** button, hidden until you want them
 - **GitHub billing items** — net amount per model/SKU from the billing API (needs sign-in).
 - **≈ By language** — spend per programming language, detected from the active editor the same way the repo heuristic works (live events only, never backfill). The `≈` in the title is deliberate: treat it as directional.
 
-Added charts behave like the stock ones: drag, resize, hide, all persisted to `config.json`.
+Added charts behave like the stock ones: drag, resize, hide, all persisted with the layout.
 
 ## Layout
 
-Use **Resize** and **Move** to drag, resize, or hide panels. Your arrangement is saved automatically into `config.json`. **Reset layout** restores defaults.
+Use **Resize** and **Move** to drag, resize, or hide panels. Your arrangement is saved automatically in VS Code's extension storage. **Reset layout** restores defaults.
 
 ## Budget and alerts
 
-Set a monthly budget, included-credit allowance, daily threshold, and velocity alert from the dashboard or directly in `config.json` (click **Edit alert rules**):
+Set a monthly budget, included-credit allowance, daily threshold, and velocity alert in VS Code Settings (click **Edit alert rules** to open them):
 
 ```json
-{
-  "monthlyBudget": 20,
-  "includedCredits": 300,
-  "dailyCreditAlert": 50,
-  "alerts": { "velocityEnabled": true, "velocityCreditsPerHour": 40 }
-}
+"mallard.monthlyBudget": 20,
+"mallard.includedCredits": 300,
+"mallard.dailyCreditAlert": 50,
+"mallard.alerts.velocityEnabled": true,
+"mallard.alerts.velocityCreditsPerHour": 40
 ```
 
 ## Custom alert rules
@@ -101,10 +100,10 @@ Run **Mallard: Simulate Restriction State** from the Command Palette for a dry r
 
 ## Branch-aware tracking
 
-Every event is tagged to the active git branch and repo. Set per-branch credit caps in `config.json`:
+Every event is tagged to the active git branch and repo. Set per-branch credit caps in the `mallard.branchBudgets` setting:
 
 ```json
-{ "branchBudgets": { "feature/big-refactor": 500, "main": 200 } }
+"mallard.branchBudgets": { "feature/big-refactor": 500, "main": 200 }
 ```
 
 When a branch hits its cap, Mallard fires a critical notification (4-hour cooldown). Custom rules can reference `currentBranchCredits` and `branchBudgets.<branch>` in conditions.

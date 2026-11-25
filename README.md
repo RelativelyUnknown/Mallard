@@ -43,7 +43,7 @@ If you opt in to metric export, payloads are sent to your self-hosted server onl
    "Mallard: Open Dashboard" from the Command Palette.
 
 If the dashboard shows "not enough data", run "Mallard: Show Detected Log Path" to check,
-and set `mallard.copilotLogPath` if needed.
+and, for Copilot, run "Mallard: Enable Copilot Usage Tracking" (or set `mallard.copilotOtelPath`).
 
 ## Documentation
 

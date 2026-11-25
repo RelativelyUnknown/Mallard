@@ -46,11 +46,34 @@
   rotation; startup gets faster because ingest resumes from its watermark instead
   of re-parsing everything. **Mallard: Prepare for Uninstall** remains the full
   wipe.
-- **One config store**: the dashboard layout moved from VS Code `globalState`
-  into `config.json`'s `dashboard.panels` block, and the now-redundant "Save to
-  config" button was removed — every layout change saves directly. The
-  `mallard.currency` setting was removed; currency lives in `config.json` and is
-  set from the dashboard.
+- **VS Code settings are the one place to configure Mallard**: `config.json` is
+  gone. Budgets, alert thresholds, branch budgets, display preferences, currency,
+  GitHub billing and the export fan-out targets are now `mallard.*` settings
+  (`mallard.monthlyBudget`, `mallard.includedCredits`, `mallard.dailyCreditAlert`,
+  `mallard.alerts.*`, `mallard.branchBudgets`, `mallard.display.*`,
+  `mallard.currency`, `mallard.export.webhookTargets` / `mqttTargets`,
+  `mallard.githubBilling.mode`). Each setting has an explicit scope: user-level
+  and synced for preferences, machine-only for anything that points at a server or
+  a file. Mallard validates every value itself (ranges, enums, per-entry in
+  lists), from one table that also generates `docs/reference/settings.md`.
+  The dashboard layout stays in the extension's own storage, not in settings.
+- **One-time `config.json` import**: on the first start, an existing `config.json`
+  is imported into the settings above (export targets get a stable `id`, and their
+  stored credentials follow it), the dashboard layout is kept, and the file is
+  renamed to `config.json.migrated` with a single summary message. Custom alert
+  rules, groups and variables cannot be converted (the rules language is
+  replaced by a flat `mallard.alerts.rules` list); they stay in the backup.
+- **Export target credentials are keyed by a stable `id`** (new in each
+  `mallard.export.*Targets` entry) instead of the target name, so renaming a
+  target cannot orphan its credentials.
+- **Settings now take effect live**: one configuration event drives every
+  consumer, so changing `mallard.pricingManifestUrl`, the refresh interval, the
+  GitHub billing org or any export setting applies without a reload. Only
+  `mallard.enabledConnectors` and `mallard.dataRetentionDays` still ask for a
+  window reload.
+- **New first-install defaults come from the settings**: the daily credit alert
+  (50) and the velocity alert (100 credits/hour) are the defaults of their
+  settings, as the old first-run `config.json` seeded them.
 - **Billing on its own cadence**: a GitHub auth/billing refresh no longer forces
   a full usage recompute, chart rebuild, or metric export.
 - **Infisical support removed** from the server. It required its own Postgres +
@@ -60,8 +83,25 @@
   copy your credentials into `.env`/`mallard-server-secrets` (static) or OpenBao
   and update the variable.
 
+### Removed
+
+- **`mallard.copilotLogPath`**: it was read but never used to find Copilot's
+  usage (that comes from its OpenTelemetry export, `mallard.copilotOtelPath`).
+  **Mallard: Show Detected Log Path** now offers to enable Copilot tracking
+  instead of picking a log folder.
+- **`mallard.mqtt.auth`**: declared but never read.
+- **The `config.json` JSON schema**, its `budget.*` duplicate of the top-level
+  budget fields, and the webview's config-patch message: Settings is the editor.
+
 ### Fixed
 
+- **`githubBilling.org` works**: the org used to be split between a setting that
+  was never read and a `config.json` value; `mallard.githubBilling.org` is now
+  the single setting, read for org-level billing (user-level, so a workspace
+  cannot override it), and changing it refreshes the billing data.
+- **Settings out of range no longer slip through**: the settings schema, the
+  config merge and the chart builders each had their own idea of a valid range
+  for the display options; there is now one range per setting.
 - **Sidebar budget gauge**: the month-to-date gauge in the activity-bar panel
   read snapshot fields that don't exist, so it never rendered. It now shows spend
   against your monthly budget as designed.

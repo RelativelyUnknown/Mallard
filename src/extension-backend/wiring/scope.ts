@@ -6,7 +6,7 @@ import type * as vscode from 'vscode';
 
 export interface WiringScope {
   readonly context: vscode.ExtensionContext;
-  /** `context.globalStorageUri.fsPath`: where the store, caches and config.json live. */
+  /** `context.globalStorageUri.fsPath`: where the store, caches and any pre-settings config.json live. */
   readonly storageDir: string;
   /**
    * Cleanup callbacks for everything started so far. A wire function pushes one

@@ -1,6 +1,6 @@
 # Alert Rules Reference
 
-Every field, operator, and context path available in a `config.json` rule.
+Every field, operator, and context path available in a rule of the old rules language. (`config.json` is no longer read: alert rules are the flat `mallard.alerts.rules` setting, and this page is being rewritten for it.)
 
 ## Rule fields
 

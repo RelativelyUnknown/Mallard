@@ -42,8 +42,10 @@ Uninstall** instead.
 
 ID `mallard.showLogPath`. Lists the log directories Mallard is watching (Copilot
 and Claude Code) and how many files it found. Useful when the dashboard shows
-the empty state. If Copilot's path is wrong, set `mallard.copilotLogPath`;
-Claude Code's log directory is auto-detected and has no override setting.
+the empty state. If nothing is found, it offers to run **Enable Copilot Usage
+Tracking**; Copilot's export file can be overridden with
+`mallard.copilotOtelPath`. Claude Code's log directory is auto-detected and has
+no override setting.
 
 ## Mallard: Enable Copilot Usage Tracking
 
@@ -110,12 +112,12 @@ previously saved password.
 ## Mallard: Configure Export Fanout Targets
 
 ID `mallard.configureExportTargets`. Manages the extra webhook and MQTT
-destinations that mirror every export (`export.webhookTargets` /
-`export.mqttTargets` in `config.json`) without hand-editing the file. A picker
+destinations that mirror every export (the `mallard.export.webhookTargets` /
+`mallard.export.mqttTargets` settings) without hand-editing them. A picker
 lists the configured targets and offers to add a webhook or MQTT target, and for
 an existing one to jump to its credential slots (each target has its own API
-key / bearer token / signing secret, or broker password, namespaced by the
-target name) or remove it. Target changes rebuild the exporter in place, so no
+key / bearer token / signing secret, or broker password, stored under the
+target's stable `id`) or remove it. Target changes rebuild the exporter in place, so no
 window reload is needed. See the Settings reference for the fanout model.
 
 ## Mallard: Set Webhook API Key
@@ -143,7 +145,7 @@ see the Authentication reference. Leave blank to clear.
 ID `mallard.setGitHubPat`. Prompts for a GitHub PAT (scopes: `read:user` for
 user billing, `read:org` for org billing) and stores it in SecretStorage. Used
 for GitHub billing when you don't want to use VS Code's built-in GitHub
-sign-in — set `githubBilling.mode` to `"pat"` in `config.json` to skip the
+sign-in — set `mallard.githubBilling.mode` to `"pat"` to skip the
 OAuth prompt entirely. Leave blank to clear.
 
 ## Mallard: Simulate Restriction State

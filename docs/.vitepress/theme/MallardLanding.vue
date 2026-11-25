@@ -4,7 +4,7 @@ const features = [
   ['02', 'Budget gauge', 'Set a monthly USD budget and included-credits allowance. The gauge colours at 80% and 100%. Projected month-end recalculates every snapshot.'],
   ['03', 'Custom alert rules', '32 context fields covering spend, velocity, forecast, branch, and time-of-day. JSONLogic operators, per-rule cooldown, and {{field}} message templates.'],
   ['04', 'Restriction popups', 'A Dismiss/Snooze popup when a rule fires, with a one-click path to disable Mallard itself. Nothing is ever disabled automatically. Simulate first to see what would fire before enabling.'],
-  ['05', 'Branch tracking', 'Every event tagged to the active git branch and workspace. Set per-branch credit caps in config.json. A repo selector in the dashboard isolates spend to one project.'],
+  ['05', 'Branch tracking', 'Every event tagged to the active git branch and workspace. Set per-branch credit caps in settings. A repo selector in the dashboard isolates spend to one project.'],
   ['06', 'GitHub billing', 'Optional sign-in pulls authoritative spend from GitHub\'s billing API, across all your machines, not just this one. Every other feature works without it.'],
   ['07', 'Metric streaming', 'Publish a usage feature vector to a self-hosted server after each snapshot. Webhook (API key, Bearer, mTLS) or MQTT over WebSocket.'],
   ['08', 'Offline & private', 'Reads only the OTel log files Copilot already writes locally. No account, no telemetry, no background requests. Pricing manifests update daily; bundled copy is the fallback.'],
