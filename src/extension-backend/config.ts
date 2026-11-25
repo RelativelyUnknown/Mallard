@@ -84,6 +84,12 @@ export function readCopilotOtel(): CopilotOtelSource {
   return { kind, path: resolved };
 }
 
+/** Ids of the connectors the user has enabled (`mallard.enabledConnectors`; both when unset). */
+export function readEnabledConnectors(): string[] {
+  return vscode.workspace.getConfiguration('mallard').get<string[]>('enabledConnectors')
+    ?? ['copilot', 'claude-code'];
+}
+
 export function readConfig(): MallardConfig {
   const c = vscode.workspace.getConfiguration('mallard');
 
