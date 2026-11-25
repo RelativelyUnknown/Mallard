@@ -120,7 +120,9 @@ interface Parsed {
   patch: Partial<UserConfig>;
   panels: ConfigPanelLayout[] | undefined;
   columns: number | undefined;
-  /** Old name of each imported target, by its new id, to carry its credentials over. */
+  /** Number of export targets that were imported. */
+  targets: number;
+  /** Targets whose id differs from their old name, so their credentials have to be carried over. */
   renamed: Array<{ kind: 'webhook' | 'mqtt'; from: string; to: string }>;
   skipped: string[];
 }
@@ -157,6 +159,7 @@ function parseDocument(doc: RawObject): Parsed {
   // Export targets: ids are generated, preferring the old name so the existing
   // per-target secrets and retry queue keep working unchanged.
   const renamed: Parsed['renamed'] = [];
+  let targets = 0;
   const exp = doc['export'];
   if (isObject(exp)) {
     const taken = new Set<string>();
@@ -166,6 +169,7 @@ function parseDocument(doc: RawObject): Parsed {
       exported[key] = validEntries(`export.${key}`, exp[key], TargetShape, skipped).map((t) => {
         const id = TARGET_ID_RE.test(t.name) && !taken.has(t.name) ? t.name : uniqueTargetId(t.name, taken);
         taken.add(id);
+        targets++;
         if (id !== t.name) renamed.push({ kind, from: t.name, to: id });
         return { id, name: t.name, url: t.url };
       });
@@ -181,7 +185,7 @@ function parseDocument(doc: RawObject): Parsed {
     isObject(dash) && dash['panels'] !== undefined
       ? (validEntries('dashboard.panels', dash['panels'], PanelShape, skipped) as ConfigPanelLayout[])
       : undefined;
-  return { patch, panels, columns: typeof rawColumns === 'number' ? rawColumns : undefined, renamed, skipped };
+  return { patch, panels, columns: typeof rawColumns === 'number' ? rawColumns : undefined, targets, renamed, skipped };
 }
 
 // ── The import ───────────────────────────────────────────────────────────────
@@ -210,23 +214,26 @@ async function carryOverTarget(deps: ImportDeps, kind: 'webhook' | 'mqtt', from:
   if (existsSync(queue(from)) && !existsSync(queue(to))) renameSync(queue(from), queue(to));
 }
 
-function summary(r: ImportResult, targets: number): string {
+const count = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+/** The one message: what moved, and what a human still has to do. */
+function summary(r: ImportResult, targets: number, backup: string): string {
   const moved = [
-    r.written.length > 0 ? `${r.written.length} setting${r.written.length === 1 ? '' : 's'}` : '',
-    targets > 0 ? `${targets} export target${targets === 1 ? '' : 's'}` : '',
+    r.written.length > 0 ? count(r.written.length, 'setting') : '',
+    targets > 0 ? count(targets, 'export target') : '',
     r.layoutSeeded ? 'the dashboard layout' : '',
   ].filter(Boolean);
   const attention: string[] = [];
   if (r.legacyRules.length > 0) {
     attention.push(
-      `${r.legacyRules.length} custom alert rule${r.legacyRules.length === 1 ? '' : 's'} (and any groups/variables) ` +
-        'cannot be converted automatically; they stay in the backup, so recreate what you still need under mallard.alerts.rules',
+      `${count(r.legacyRules.length, 'custom alert rule')} (and any groups or variables) cannot be converted ` +
+        'automatically; they stay in the backup, so recreate what you still need under mallard.alerts.rules',
     );
   }
   if (r.skipped.length > 0) attention.push(`could not import ${r.skipped.join(', ')} (invalid)`);
   return (
     `Mallard now keeps its configuration in VS Code settings. Imported ${moved.join(', ') || 'nothing'} from config.json` +
-    ` (kept as ${path.basename(r.backup ?? BACKUP)}).` +
+    ` (kept as ${backup}).` +
     (attention.length > 0 ? ` Needs your attention: ${attention.join('; ')}.` : '')
   );
 }
@@ -281,9 +288,8 @@ export async function importLegacyConfig(deps: ImportDeps): Promise<ImportResult
   result.written = Object.entries(parsed.patch).flatMap(([k, v]) =>
     isObject(v) && k !== 'branchBudgets' ? Object.keys(v).map((s) => `${k}.${s}`) : [k],
   );
-  const targets = (parsed.patch.export?.webhookTargets?.length ?? 0) + (parsed.patch.export?.mqttTargets?.length ?? 0);
   if (result.written.length > 0 || result.layoutSeeded || result.legacyRules.length > 0 || result.skipped.length > 0) {
-    ui.info(summary(result, targets));
+    ui.info(summary(result, parsed.targets, path.basename(result.backup)));
   }
   logger.info('config', `imported ${file} into settings (${result.written.join(', ') || 'nothing'}); original kept as ${result.backup}`);
   return result;
