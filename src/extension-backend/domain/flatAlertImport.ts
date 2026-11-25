@@ -39,7 +39,53 @@ import type { FlatAlertMetric, FlatAlertRule } from './contracts';
 import { parseVarPath, toNumeric } from './expr/jsonCondition';
 import { DEFAULT_FLAT_COOLDOWN } from './flatAlerts';
 import { parseDurationMs } from './alertRules';
-import type { AlertGroup, AlertRule, JsonCondition, ThresholdLevel } from './types';
+
+// ── The legacy document shapes ───────────────────────────────────────────────
+//
+// What `config.json` carried (the rules language is gone, but its documents are
+// still read once). Deliberately loose: the importer takes the rules from a
+// JSON file it did not write, checks what it relies on and reports the rest.
+
+/** A JSONLogic-style condition: a boolean, or an object with one operator key (`{ ">": [a, b] }`, `{ "and": [...] }`, `{ "var": "x" }`). */
+export type LegacyCondition = boolean | { [operator: string]: unknown };
+
+/** One structured condition (`conditions`) or threshold level (`thresholds`): `field op value`. */
+export interface LegacyComparison {
+  field: string;
+  op: string;
+  value: unknown;
+}
+
+export interface LegacyThresholdLevel extends LegacyComparison {
+  severity: 'info' | 'warning' | 'critical';
+  /** Per-level cooldown (overrides the rule's own). */
+  cooldown?: string;
+}
+
+/** A rule of the old `config.json` `rules` array. */
+export interface LegacyRule {
+  id: string;
+  severity: 'info' | 'warning' | 'critical';
+  cooldown?: string;
+  message?: string;
+  when?: LegacyCondition;
+  conditions?: LegacyComparison[];
+  match?: 'all' | 'any' | 'none';
+  active?: LegacyCondition;
+  requiresAuth?: boolean;
+  notify?: boolean;
+  restrict?: { reEnableWhen?: LegacyCondition };
+  thresholds?: LegacyThresholdLevel[];
+  /** ISO 8601 timestamp the rule was snoozed until. */
+  snoozeUntil?: string;
+}
+
+/** A rule group of the old `config.json` `groups` array: a named gate (`group.<id>`) that rules referenced in `active`. */
+export interface LegacyGroup {
+  id: string;
+  label?: string;
+  active: LegacyCondition;
+}
 
 export interface LegacyImportResult {
   converted: FlatAlertRule[];
@@ -146,7 +192,7 @@ function comparisonOf(op: string, left: unknown, right: unknown): Parsed<Compari
 }
 
 /** A `when` / `reEnableWhen` condition as one flat comparison. */
-function conditionComparison(cond: JsonCondition): Parsed<Comparison> {
+function conditionComparison(cond: LegacyCondition): Parsed<Comparison> {
   if (typeof cond === 'boolean') return fail(`it is the constant condition ${String(cond)}`);
   const key = Object.keys(cond)[0] ?? '';
   if (key === 'and' || key === 'or' || key === 'not') {
@@ -158,7 +204,7 @@ function conditionComparison(cond: JsonCondition): Parsed<Comparison> {
   return comparisonOf(key, operands[0], operands[1]);
 }
 
-function levelComparison(level: { field: string; op: string; value: unknown }): Parsed<Comparison> {
+function levelComparison(level: LegacyComparison): Parsed<Comparison> {
   if (level.op === 'in' || level.op === 'matches') return fail(`the operator "${level.op}" is not supported`);
   return comparisonOf(level.op, { var: level.field }, level.value);
 }
@@ -167,11 +213,11 @@ function levelComparison(level: { field: string; op: string; value: unknown }): 
 
 interface Shared {
   notify: boolean | undefined;
-  restrict: AlertRule['restrict'];
+  restrict: LegacyRule['restrict'];
 }
 
 /** `restrict.reEnableWhen` as the `clearBelow` of a rule on `metric`. */
-function clearBelowOf(restrict: NonNullable<AlertRule['restrict']>, metric: FlatAlertMetric): Parsed<number | undefined> {
+function clearBelowOf(restrict: NonNullable<LegacyRule['restrict']>, metric: FlatAlertMetric): Parsed<number | undefined> {
   if (restrict.reEnableWhen === undefined) return { ok: true, value: undefined };
   const parsed = conditionComparison(restrict.reEnableWhen);
   if (!parsed.ok) return fail(`restrict.reEnableWhen cannot be converted (${parsed.reason})`);
@@ -213,7 +259,7 @@ function flatRule(
 }
 
 /** Why the gates (`requiresAuth`, `active`, `snoozeUntil`) rule out a conversion, if they do. */
-function gateReason(rule: AlertRule, groups: readonly AlertGroup[], now: number | undefined): string | undefined {
+function gateReason(rule: LegacyRule, groups: readonly LegacyGroup[], now: number | undefined): string | undefined {
   if (rule.requiresAuth) return 'requiresAuth: flat rules cannot depend on being signed in to GitHub';
   if (rule.active !== undefined) {
     const path = isVar(rule.active) ? parseVarPath(rule.active.var) : null;
@@ -230,9 +276,9 @@ function gateReason(rule: AlertRule, groups: readonly AlertGroup[], now: number 
   return undefined;
 }
 
-function triggerComparisons(rule: AlertRule): Parsed<Array<{ comparison: Comparison; level?: ThresholdLevel }>> {
+function triggerComparisons(rule: LegacyRule): Parsed<Array<{ comparison: Comparison; level?: LegacyThresholdLevel }>> {
   if (rule.thresholds?.length) {
-    const out: Array<{ comparison: Comparison; level: ThresholdLevel }> = [];
+    const out: Array<{ comparison: Comparison; level: LegacyThresholdLevel }> = [];
     for (const [i, level] of rule.thresholds.entries()) {
       const parsed = levelComparison(level);
       if (!parsed.ok) return fail(`threshold level ${i + 1}: ${parsed.reason}`);
@@ -258,8 +304,8 @@ function triggerComparisons(rule: AlertRule): Parsed<Array<{ comparison: Compari
  * cannot be converted never affects its siblings.
  */
 export function convertLegacyRules(
-  rules: readonly AlertRule[],
-  groups: readonly AlertGroup[] = [],
+  rules: readonly LegacyRule[],
+  groups: readonly LegacyGroup[] = [],
   options: LegacyImportOptions = {},
 ): LegacyImportResult {
   const converted: FlatAlertRule[] = [];
