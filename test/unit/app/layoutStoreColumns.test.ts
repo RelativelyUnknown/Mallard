@@ -1,16 +1,11 @@
 import { strict as assert } from 'assert';
-import { promises as fs } from 'fs';
-import * as os from 'os';
-import * as path from 'path';
 import { LayoutStore } from '../../../src/extension-backend/app/LayoutStore';
-import { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
-import { makeMemento } from '../helpers';
+import type { ConfigDashboard } from '../../../src/extension-backend/domain/types';
+import { makeFakeConfig, makeMemento } from '../helpers';
 
 describe('LayoutStore — dashboard.columns', () => {
-  async function setup(dashboard: unknown) {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-layout-cols-'));
-    await fs.writeFile(path.join(dir, 'config.json'), JSON.stringify({ dashboard }), 'utf8');
-    const userConfig = new UserConfigStore(dir);
+  async function setup(dashboard: ConfigDashboard) {
+    const userConfig = makeFakeConfig({ dashboard });
     return { userConfig, layout: new LayoutStore(userConfig, makeMemento()) };
   }
 

@@ -183,7 +183,7 @@ describe('ConfigService.update', () => {
     assert.deepEqual(f.writes, [['mallard.monthlyBudget', 5]]);
     f.writes.length = 0;
     await svc.update({});
-    await svc.update({ alerts: { velocityEnabled: true }, export: { webhookTargets: [] } });
+    await svc.update({ alerts: { velocityEnabled: true } as UserConfig['alerts'], export: { webhookTargets: [] } });
     assert.deepEqual(f.writes, [
       ['mallard.alerts.velocityEnabled', true],
       ['mallard.export.webhookTargets', []],
