@@ -2,8 +2,10 @@
  * The single registration point for dashboard charts. Adding a chart is one
  * entry here (plus its module): panel HTML, lazy mounting, layout defaults,
  * resize/theme fan-out, and the dirty-check render loop in main.ts all
- * iterate this list instead of hardcoding each chart.
+ * iterate this list instead of hardcoding each chart. Panel ids and their
+ * default placement come from domain/layout.ts (parity is unit-tested).
  */
+import type { PanelId } from '../../extension-backend/domain/layout';
 import type { Metric, UsageSnapshot } from '../../extension-backend/domain/types';
 import {
   changed,
@@ -46,15 +48,14 @@ export interface RegisteredChart {
 }
 
 export interface ChartDef {
-  /** Panel id — must appear in DASHBOARD_PANELS/DEFAULT_DASHBOARD_LAYOUT. */
-  id: string;
+  /** Panel id: the type comes from domain/layout.ts (PANEL_IDS), the one list of dashboard panels. */
+  id: PanelId;
   /** Stock charts render by default; extras start hidden until added. */
   tier: 'stock' | 'extra';
   icon: string;
   title: string;
   bodyId: string;
   ariaLabel: string;
-  bodyClass?: string;
   mount(el: HTMLElement, hooks: ChartHooks): RegisteredChart;
   /** Slice of the snapshot this chart renders from (drives the dirty check). */
   select(s: UsageSnapshot): unknown;
@@ -83,7 +84,7 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   },
   {
     id: 'heatmap', tier: 'stock', icon: 'codicon-calendar',
-    title: 'Activity (past year)', bodyId: 'chart-heatmap', ariaLabel: 'Activity heatmap', bodyClass: 'heatmap',
+    title: 'Activity (past year)', bodyId: 'chart-heatmap', ariaLabel: 'Activity heatmap',
     mount: (el) => plain(mountHeatmap(el)),
     select: (s) => s.chartData.heatmap,
     isDirty: (a, b) => heatmapChanged(a as never, b as never),
@@ -91,7 +92,7 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   },
   {
     id: 'models', tier: 'stock', icon: 'codicon-symbol-method',
-    title: 'By model', bodyId: 'chart-models', ariaLabel: 'Usage by model', bodyClass: 'mini',
+    title: 'By model', bodyId: 'chart-models', ariaLabel: 'Usage by model',
     mount: (el, hooks) => {
       const h = mountModelBreakdown(el, (label) => hooks.toggleModelFilter(label));
       return {
@@ -107,7 +108,7 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   },
   {
     id: 'sankey', tier: 'stock', icon: 'codicon-type-hierarchy-sub',
-    title: 'Flow breakdown', bodyId: 'chart-sankey', ariaLabel: 'Model to surface flow', bodyClass: 'mini',
+    title: 'Flow breakdown', bodyId: 'chart-sankey', ariaLabel: 'Model to surface flow',
     mount: (el) => plain(mountSankey(el)),
     select: (s) => [s.sankeyLinks, s.allModels, s.allSurfaces],
     isDirty: changed,
@@ -115,7 +116,7 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   },
   {
     id: 'category', tier: 'stock', icon: 'codicon-pie-chart',
-    title: 'Spend by cost type', bodyId: 'chart-category', ariaLabel: 'Spend by cost type', bodyClass: 'mini',
+    title: 'Spend by cost type', bodyId: 'chart-category', ariaLabel: 'Spend by cost type',
     mount: (el) => plain(mountCategoryBreakdown(el)),
     select: (s) => s.chartData.categoryBreakdown,
     isDirty: (a, b) => categoryBreakdownChanged(a as never, b as never),
@@ -123,14 +124,14 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   },
   {
     id: 'cumulative', tier: 'stock', icon: 'codicon-graph-line',
-    title: 'Cumulative spend', bodyId: 'chart-cumulative', ariaLabel: 'Cumulative spend over the month', bodyClass: 'mini',
+    title: 'Cumulative spend', bodyId: 'chart-cumulative', ariaLabel: 'Cumulative spend over the month',
     mount: (el) => plain(mountCumulativeArea(el)),
     select: (s) => s.chartData.dailyBars,
     isDirty: (a, b) => dailyBarsChanged(a as never, b as never),
   },
   {
     id: 'weekday', tier: 'stock', icon: 'codicon-pulse',
-    title: 'Usage by weekday', bodyId: 'chart-weekday', ariaLabel: 'Usage by weekday', bodyClass: 'mini',
+    title: 'Usage by weekday', bodyId: 'chart-weekday', ariaLabel: 'Usage by weekday',
     mount: (el) => plain(mountWeekdayRadial(el)),
     select: (s) => s.chartData.weekdayBreakdown,
     isDirty: changed,
@@ -138,7 +139,7 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   },
   {
     id: 'hourly', tier: 'stock', icon: 'codicon-clock',
-    title: 'Usage by hour', bodyId: 'chart-hourly', ariaLabel: 'Usage by hour of day', bodyClass: 'mini',
+    title: 'Usage by hour', bodyId: 'chart-hourly', ariaLabel: 'Usage by hour of day',
     mount: (el) => plain(mountHourlyTimeline(el)),
     select: (s) => s.chartData.hourlyTimeline,
     isDirty: (a, b) => hourlyChanged(a as never, b as never),
@@ -146,7 +147,7 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   // ── Extra charts (hidden by default; added via the "Add chart" picker) ──
   {
     id: 'repos', tier: 'extra', icon: 'codicon-repo',
-    title: 'By repository', bodyId: 'chart-repos', ariaLabel: 'Spend by repository', bodyClass: 'mini',
+    title: 'By repository', bodyId: 'chart-repos', ariaLabel: 'Spend by repository',
     mount: (el) => plain(mountRepoBreakdown(el)),
     select: (s) => s.byRepo,
     isDirty: changed,
@@ -162,7 +163,7 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   },
   {
     id: 'tokens', tier: 'extra', icon: 'codicon-symbol-numeric',
-    title: 'Tokens over time', bodyId: 'chart-tokens', ariaLabel: 'Token volume over time', bodyClass: 'mini',
+    title: 'Tokens over time', bodyId: 'chart-tokens', ariaLabel: 'Token volume over time',
     mount: (el) => plain(mountTokensTimeline(el)),
     select: (s) => s.chartData.tokensDaily,
     isDirty: changed,
@@ -170,7 +171,7 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   },
   {
     id: 'languages', tier: 'extra', icon: 'codicon-code',
-    title: '≈ By language', bodyId: 'chart-languages', ariaLabel: 'Spend by detected language', bodyClass: 'mini',
+    title: '≈ By language', bodyId: 'chart-languages', ariaLabel: 'Spend by detected language',
     mount: (el) => plain(mountLanguageBreakdown(el)),
     select: (s) => s.byLanguage,
     isDirty: changed,
@@ -178,7 +179,7 @@ export const CHART_REGISTRY: readonly ChartDef[] = [
   },
   {
     id: 'billing', tier: 'extra', icon: 'codicon-credit-card',
-    title: 'GitHub billing items', bodyId: 'chart-billing', ariaLabel: 'GitHub billing line items', bodyClass: 'mini',
+    title: 'GitHub billing items', bodyId: 'chart-billing', ariaLabel: 'GitHub billing line items',
     mount: (el) => plain(mountBillingItems(el)),
     select: (s) => s.githubBilling?.items ?? [],
     isDirty: changed,

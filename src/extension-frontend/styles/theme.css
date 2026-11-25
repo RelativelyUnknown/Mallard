@@ -54,10 +54,6 @@
   --w-r2: 6px;
   --w-r3: 10px;
 
-  /* Chart dimensions */
-  --w-chart-main: 260px;
-  --w-chart-mini: 200px;
-
   /* ── Analogous data layer ──────────────────────────────────────────
      Surfaces stay theme-native (derived from --vscode-* above). The data
      layer used to be strict duotone (accent + grayscale) — dimmed/unfocused

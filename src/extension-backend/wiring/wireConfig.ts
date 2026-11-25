@@ -26,7 +26,7 @@ export function wireConfig(scope: WiringScope): ConfigWiring {
   const github = new GitHubUsageService(githubSession);
   const userConfig = new UserConfigStore(storageDir);
   started.push(() => userConfig.dispose());
-  const layout = new LayoutStore(userConfig, context.globalState);
+  const layout = new LayoutStore(context.globalState);
   started.push(() => layout.dispose());
 
   githubSession.configure(userConfig.get().githubBilling);

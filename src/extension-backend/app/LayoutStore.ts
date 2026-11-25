@@ -1,79 +1,70 @@
 /**
- * Dashboard layout access, persisted in the extension's `globalState` under its
- * own key ({@link LAYOUT_STATE_KEY}) — no longer in config.json's
- * `dashboard.panels`. Normalises against the current panel set so adding or
- * removing a panel in a new version never breaks a saved layout.
+ * Dashboard layout access, persisted in the extension's `globalState` as a
+ * {@link LayoutV2} under {@link LAYOUT_V2_KEY}.
  *
- * Migration: while the key is empty the store seeds it ONCE from the legacy
- * `dashboard.panels` block of config.json (via `configPanelsToLayout`) and
- * never reads or writes that block again. `dashboard.columns` still lives in
- * config.json and is applied (read-only) when the layout is read.
+ * Migration: while the v2 key is absent and the v1 key ({@link LAYOUT_V1_KEY},
+ * an array of `{id, span, hidden, size}`) is present, the v1 layout is migrated
+ * ONCE (`migrateV1`) and written to the v2 key. The v1 key is never modified,
+ * so a downgrade still finds its layout. The grid is a fixed 4 columns, so
+ * nothing here reads `dashboard.columns` or config.json.
  */
 import * as vscode from 'vscode';
-import { DashboardLayout } from '../domain/types';
-import { configPanelsToLayout, normalizeLayout } from '../domain/layout';
+import { defaultLayout, migrateV1, parseLayoutV2 } from '../domain/layout';
+import type { LayoutV2 } from '../domain/contracts';
 import { defaultLogger, Logger } from '../util/logger';
-import { UserConfigStore } from './UserConfigStore';
 
-/** globalState key holding the v1 layout (an array of {id, span, hidden, size}). */
-export const LAYOUT_STATE_KEY = 'mallard.layout.v1';
+/** globalState key holding the legacy v1 layout (read for the one-time migration, never written). */
+export const LAYOUT_V1_KEY = 'mallard.layout.v1';
+/** globalState key holding the current layout. */
+export const LAYOUT_V2_KEY = 'mallard.layout.v2';
 
 export class LayoutStore implements vscode.Disposable {
-  private readonly _onDidChange = new vscode.EventEmitter<DashboardLayout>();
+  private readonly _onDidChange = new vscode.EventEmitter<LayoutV2>();
   readonly onDidChange = this._onDidChange.event;
 
   private lastJson: string;
-  private readonly sub: vscode.Disposable;
-  /** True once this instance has had its one chance to import the legacy config.json block. */
-  private seedAttempted = false;
-  /** In-memory copy of that import, served while the key is empty (e.g. the write has not landed). */
-  private seed: DashboardLayout | undefined;
+  /** The migrated layout, served from memory until its write to the v2 key has landed. */
+  private migrated: LayoutV2 | undefined;
 
   constructor(
-    private readonly userConfig: UserConfigStore,
     private readonly state: vscode.Memento,
     private readonly logger: Logger = defaultLogger,
   ) {
     this.lastJson = JSON.stringify(this.get());
-    // `dashboard.columns` still lives in the (hand-editable, watched) config.json
-    // — re-emit only when the layout actually changed so unrelated config edits
-    // don't reflow the grid.
-    this.sub = userConfig.onDidChange(() => this.emitIfChanged());
   }
 
-  get(): DashboardLayout {
-    const stored = this.state.get<DashboardLayout>(LAYOUT_STATE_KEY) ?? this.importLegacy();
-    return normalizeLayout(stored, this.userConfig.get().dashboard?.columns);
+  get(): LayoutV2 {
+    return parseLayoutV2(this.state.get<unknown>(LAYOUT_V2_KEY)) ?? this.migrate();
   }
 
-  async set(layout: DashboardLayout): Promise<void> {
-    this.seed = undefined;
-    await this.state.update(LAYOUT_STATE_KEY, normalizeLayout(layout));
+  async set(layout: LayoutV2): Promise<void> {
+    this.migrated = undefined;
+    await this.state.update(LAYOUT_V2_KEY, parseLayoutV2(layout) ?? defaultLayout());
     this.emitIfChanged();
   }
 
-  /** Back to the default layout: clears the stored key without re-importing the legacy config.json block. */
+  /** Forget the layout entirely (both keys): the dashboard returns to the default. Used by "Prepare for Uninstall". */
   async reset(): Promise<void> {
-    this.seedAttempted = true;
-    this.seed = undefined;
-    await this.state.update(LAYOUT_STATE_KEY, undefined);
+    this.migrated = undefined;
+    await this.state.update(LAYOUT_V2_KEY, undefined);
+    await this.state.update(LAYOUT_V1_KEY, undefined);
     this.emitIfChanged();
   }
 
   dispose(): void {
-    this.sub.dispose();
     this._onDidChange.dispose();
   }
 
-  /** The one-time import: seeds the key from config.json's `dashboard.panels`, at most once per instance. */
-  private importLegacy(): DashboardLayout | undefined {
-    if (this.seedAttempted) return this.seed;
-    this.seedAttempted = true;
-    this.seed = configPanelsToLayout(this.userConfig.get().dashboard?.panels);
-    Promise.resolve(this.state.update(LAYOUT_STATE_KEY, this.seed)).catch((err: unknown) =>
-      this.logger.warn('layout', 'could not persist the imported dashboard layout', err),
+  /** v1 -> v2, at most once per instance; with no v1 layout stored this is just the default. */
+  private migrate(): LayoutV2 {
+    if (this.migrated) return this.migrated;
+    const v1 = this.state.get<unknown>(LAYOUT_V1_KEY);
+    if (v1 === undefined) return defaultLayout();
+    this.migrated = migrateV1(v1);
+    Promise.resolve(this.state.update(LAYOUT_V2_KEY, this.migrated)).catch((err: unknown) =>
+      this.logger.warn('layout', 'could not persist the migrated dashboard layout', err),
     );
-    return this.seed;
+    return this.migrated;
   }
 
   private emitIfChanged(): void {

@@ -667,8 +667,14 @@ body {
 /* ─────────────────────────────────────────
    Chart sections
 ───────────────────────────────────────── */
+/* The section IS gridstack's `.grid-stack-item-content`: gridstack makes it position:absolute and
+   insets it by the grid margin, so it must not set `position` itself. `contain` is fine here (on a
+   grid ANCESTOR it would clip the dragged helper). The header + body stack as a flex column so the
+   chart body takes whatever height the panel's grid rows give it. */
 .wv-chart-section {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
   background: var(--w-bg-card);
   border: 1px solid var(--w-border);
   border-radius: var(--w-r2);
@@ -676,6 +682,8 @@ body {
   contain: layout paint;
   transition: border-color 0.15s, opacity 0.2s, box-shadow 0.2s, filter 0.25s;
 }
+/* gridstack's own rule makes the content `overflow-y: auto`; ours must win. */
+.grid-stack > .grid-stack-item > .wv-chart-section.grid-stack-item-content { overflow: hidden; }
 
 .wv-chart-section:hover {
   border-color: color-mix(in srgb, var(--w-te-blue) 45%, var(--w-border));
@@ -695,23 +703,19 @@ body {
   pointer-events: none;
 }
 
-.wv-chart-header {
+/* The header doubles as gridstack's pointer drag handle (gridConstants.ts: `.wv-panel-header`). */
+.wv-panel-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--w-s2);
   padding: var(--w-s3) var(--w-s4);
   border-bottom: 1px solid var(--w-border);
 }
 
-/* Move mode makes the header focusable for Alt+ArrowUp/Down reordering. */
-.wv-chart-header:focus-visible {
-  outline: 2px solid var(--w-accent);
-  outline-offset: -2px;
-}
-
 /* channel index code on the right of each header */
 .wv-charts-grid { counter-reset: wv-plate; }
-.wv-chart-header::after {
+.wv-panel-header::after {
   counter-increment: wv-plate;
   content: 'CH ' counter(wv-plate, decimal-leading-zero);
   font-family: var(--w-label-font);
@@ -736,13 +740,14 @@ body {
   color: var(--w-te-blue);
 }
 
+/* Fills the rest of the panel: the height comes from the panel's grid rows (gridConstants.ts), and
+   a ResizeObserver keeps the chart sized to it. */
 .wv-chart-body {
-  height: var(--w-chart-main);
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
   padding: var(--w-s2);
 }
-
-.wv-chart-body.mini { height: var(--w-chart-mini); }
-.wv-chart-body.heatmap { height: 120px; }
 
 /* ─────────────────────────────────────────
    Day-activity heatmap — GitHub contribution-graph style
@@ -829,26 +834,10 @@ body {
   flex-shrink: 0;
 }
 
-/* Analysis grid: column count driven by --wv-cols (set from config.dashboard.columns). */
-.wv-charts-grid {
-  display: grid;
-  grid-template-columns: repeat(var(--wv-cols, 2), 1fr);
-  gap: var(--w-s3);
-  align-items: start;
-}
-
-.wv-chart-section[data-span='1'] { grid-column: span 1; }
-.wv-chart-section[data-span='2'] { grid-column: span 2; }
-.wv-chart-section[data-span='3'] { grid-column: span 3; }
-.wv-chart-section[data-span='4'] { grid-column: span 4; }
-
-/* Panels with no data never render. */
-.wv-chart-section.wv-no-data { display: none !important; }
-
-/* Layout-hidden panels: gone normally, shown dimmed while editing. */
-.wv-chart-section.wv-hidden-panel { display: none; }
-.wv-charts-grid.wv-editing .wv-chart-section.wv-hidden-panel { display: block; opacity: 0.45; }
-.wv-charts-grid.wv-editing .wv-chart-section.wv-hidden-panel.wv-no-data { display: none; }
+/* Analysis grid: gridstack lays the panels out (4 columns, 24 px rows; see gridConstants.ts).
+   A panel that is hidden in the layout or has no data is taken OUT of the grid (and gets the
+   `hidden` attribute), so nothing here has to hide it. */
+.wv-charts-grid { min-height: 1px; }
 
 /* Edit-mode affordances. */
 .wv-analysis-bar {
@@ -895,20 +884,17 @@ body {
 }
 .wv-btn--sm { padding: var(--w-s1) var(--w-s2); font-size: 11px; }
 
-.wv-panel-tools { display: none; }
-.wv-charts-grid.wv-editing .wv-chart-section { outline: 1px dashed var(--w-border); }
-.wv-charts-grid.wv-editing .wv-panel-tools {
-  display: flex;
+/* The tools (grip + hide) exist only while editing; hidden controls are also out of the tab order. */
+.wv-panel-tools {
+  display: none;
   align-items: center;
-  gap: var(--w-s2);
-  padding: var(--w-s1) var(--w-s2);
-  background: var(--w-bg-hover);
-  border-bottom: 1px solid var(--w-border);
+  gap: var(--w-s1);
+  margin-left: auto;
 }
-/* The drag handle only does anything in move mode — de-emphasize it (and
-   drop the grab cursor) while resize mode is active instead. */
-.wv-panel-handle { cursor: grab; color: var(--w-fg-muted); }
-.wv-charts-grid[data-layout-mode='resize'] .wv-panel-handle { cursor: default; opacity: 0.35; }
+.wv-charts-grid.wv-editing .wv-panel-tools { display: inline-flex; }
+/* :where() keeps this outline below the lifted and dragging outlines in specificity. */
+:where(.wv-charts-grid.wv-editing) .wv-chart-section { outline: 1px dashed var(--w-border); }
+.wv-charts-grid.wv-editing .wv-panel-header { cursor: grab; }
 .wv-panel-btn {
   display: inline-flex;
   align-items: center;
@@ -919,72 +905,81 @@ body {
   padding: 2px;
   border-radius: var(--w-r1);
 }
-.wv-panel-btn:hover { color: var(--w-fg); background: var(--w-bg-card); }
-.wv-chart-section.wv-dragging { opacity: 0.6; }
-.wv-chart-section.wv-hidden-panel .wv-panel-btn[data-act='hide'] { color: var(--w-fg); opacity: 0.45; }
+.wv-panel-btn:hover { color: var(--w-fg); background: var(--w-bg-hover); }
+.wv-panel-grip { cursor: grab; }
+.wv-panel-grip[aria-pressed='true'] { color: var(--w-fg); background: var(--w-bg-hover); }
 
-/* Drop-target highlight during drag (move mode only). */
-.wv-chart-section.wv-drop-target {
-  outline: 2px solid var(--w-accent) !important;
-  background: color-mix(in srgb, var(--w-accent) 8%, var(--w-bg-card));
-}
-
-/* Brief opacity flash on resize to confirm the change. */
-.wv-chart-section.wv-resizing { opacity: 0.7; }
-
-/* Resize handles — only interactive (and visible) in resize mode, so they
-   never compete with move mode's native drag-and-drop on the same panel. */
-.wv-resize-handle { display: none; }
-.wv-charts-grid[data-layout-mode='resize'] .wv-resize-handle {
-  display: block;
-  position: absolute;
-  background: transparent;
-  z-index: 5;
-}
-.wv-charts-grid[data-layout-mode='resize'] .wv-resize-handle:hover,
-.wv-charts-grid[data-layout-mode='resize'] .wv-resize-handle:focus-visible {
-  background: color-mix(in srgb, var(--w-accent) 35%, transparent);
-}
-.wv-resize-handle--right {
-  top: 0;
-  right: 0;
-  bottom: 12px;
-  width: 6px;
-  cursor: ew-resize;
-}
-.wv-resize-handle--bottom {
-  left: 0;
-  right: 12px;
-  bottom: 0;
-  height: 6px;
-  cursor: ns-resize;
-}
-.wv-resize-handle--corner {
-  right: 0;
-  bottom: 0;
-  width: 12px;
-  height: 12px;
-  cursor: nwse-resize;
-  border-radius: var(--w-r1) 0 0 0;
+/* Keyboard lift mode: the lifted panel gets a solid accent outline (moving) or a dashed one (resizing). */
+.wv-chart-section.wv-lifted { outline: 2px solid var(--w-accent); outline-offset: -2px; }
+.wv-chart-section.wv-lifted[data-lift-mode='resize'] { outline-style: dashed; }
+.wv-layout-hint {
+  margin: var(--w-s2) 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--w-fg-muted);
+  max-width: 72ch;
 }
 
 /* ─────────────────────────────────────────
-   Per-panel height tiers (compact / normal / tall)
+   gridstack theme overrides. Its stylesheet hard-codes colours (placeholder rgba(0,0,0,.1),
+   resize-handle stroke #666, drag shadow rgba(0,0,0,.2)), which are invisible or wrong on dark
+   and high-contrast themes, so every colour below is a theme token.
 ───────────────────────────────────────── */
-:root {
-  --wv-h-compact: 120px;
-  --wv-h-tall: calc(var(--w-chart-main) * 1.75);
+.grid-stack > .grid-stack-placeholder > .placeholder-content {
+  background-color: color-mix(in srgb, var(--w-accent) 18%, transparent);
+  border: 1px dashed var(--w-accent);
+  border-radius: var(--w-r2);
 }
-.wv-chart-section[data-size='compact'] .wv-chart-body { height: var(--wv-h-compact); }
-.wv-chart-section[data-size='normal']  .wv-chart-body { height: var(--w-chart-main); }
-.wv-chart-section[data-size='tall']    .wv-chart-body { height: var(--wv-h-tall); }
-/* Mini-body panels respect compact by default, grow in tall mode. */
-.wv-chart-section[data-size] .wv-chart-body.mini         { height: var(--wv-h-compact); }
-.wv-chart-section[data-size] .wv-chart-body.heatmap      { height: var(--wv-h-compact); }
-.wv-chart-section[data-size='normal'] .wv-chart-body.mini    { height: var(--w-chart-mini); }
-.wv-chart-section[data-size='normal'] .wv-chart-body.heatmap { height: 120px; }
-.wv-chart-section[data-size='tall'] .wv-chart-body.mini      { height: var(--w-chart-main); }
-.wv-chart-section[data-size='tall'] .wv-chart-body.heatmap   { height: 200px; }
+.grid-stack > .grid-stack-item > .ui-resizable-se {
+  background-color: transparent;
+  background-image: linear-gradient(135deg, transparent 50%, var(--w-accent) 50%);
+  transform: none;
+  width: 14px;
+  height: 14px;
+}
+.ui-draggable-dragging > .grid-stack-item-content,
+.ui-resizable-resizing > .grid-stack-item-content {
+  box-shadow: none;
+  opacity: 0.85;
+  outline: 2px solid var(--w-accent);
+}
+
+/* gridstack animates with 0.3 s transitions (we turn that off in its options) and wiggles/pulses
+   "armed" touch handles; neither consults prefers-reduced-motion, so do it here. */
+@media (prefers-reduced-motion: reduce) {
+  .grid-stack-animate,
+  .grid-stack-animate .grid-stack-item { transition: none !important; }
+  .grid-stack-item.ui-draggable-armed,
+  .grid-stack-item > .ui-resizable-handle.ui-resizable-armed { animation: none !important; }
+  .wv-chart-section { transition: none; }
+}
+
+/* High-contrast themes: --w-border already resolves to VS Code's contrast border (theme.css); keep the
+   drag placeholder and the lifted outline on the contrast colour as well. */
+body.vscode-high-contrast .grid-stack > .grid-stack-placeholder > .placeholder-content,
+body.vscode-high-contrast-light .grid-stack > .grid-stack-placeholder > .placeholder-content {
+  border: 2px dashed var(--vscode-contrastActiveBorder, var(--w-accent));
+  background-color: transparent;
+}
+body.vscode-high-contrast .wv-chart-section.wv-lifted,
+body.vscode-high-contrast-light .wv-chart-section.wv-lifted {
+  outline-color: var(--vscode-contrastActiveBorder, var(--w-accent));
+}
+
+/* Windows forced-colors mode: system colours only. */
+@media (forced-colors: active) {
+  .wv-chart-section { border-color: CanvasText; }
+  .wv-chart-section.wv-lifted { outline-color: Highlight; }
+  .grid-stack > .grid-stack-placeholder > .placeholder-content {
+    background-color: transparent;
+    border: 2px dashed Highlight;
+  }
+  .grid-stack > .grid-stack-item > .ui-resizable-se {
+    background-image: linear-gradient(135deg, transparent 50%, Highlight 50%);
+  }
+  .ui-draggable-dragging > .grid-stack-item-content,
+  .ui-resizable-resizing > .grid-stack-item-content { outline-color: Highlight; }
+}
 
 /* ─────────────────────────────────────────
    Model spotlight — dims all non-model panels
@@ -1002,9 +997,7 @@ body {
 ───────────────────────────────────────── */
 @media (max-width: 700px) {
   .wv-dashboard { padding: var(--w-s3) var(--w-s3) var(--w-s6); gap: var(--w-s3); }
-  .wv-charts-grid { grid-template-columns: 1fr; }
-  /* Single column on narrow screens — every panel spans the one column. */
-  .wv-chart-section { grid-column: span 1 !important; }
+  /* The grid itself drops to one column at this width (gridstack's 700 px breakpoint, gridConstants.ts). */
   .wv-kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .wv-header { flex-wrap: wrap; }
   .wv-filter-bar { flex-wrap: wrap; }

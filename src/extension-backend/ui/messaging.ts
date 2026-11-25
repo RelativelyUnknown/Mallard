@@ -3,7 +3,6 @@
  * Pure — no `vscode`, no DOM — so it can be bundled into both sides.
  */
 import {
-  DashboardLayout,
   DatePreset,
   Filter,
   PaletteMode,
@@ -15,6 +14,8 @@ import {
   UsageSnapshot,
   UserConfig,
 } from '../domain/types';
+import type { LayoutV2 } from '../domain/contracts';
+import { isLayoutV2 } from '../domain/layout';
 
 export type CommandId = 'openDashboard' | 'signIn' | 'disableExtension' | 'enableCopilotTelemetry' | 'setGitHubPat';
 
@@ -25,7 +26,7 @@ export type ThemeKind = 'light' | 'dark' | 'high-contrast' | 'high-contrast-ligh
 export type WebviewBoundMsg =
   | { type: 'snapshot'; payload: UsageSnapshot }
   | { type: 'config'; value: UserConfig }
-  | { type: 'layout'; value: DashboardLayout }
+  | { type: 'layout'; value: LayoutV2 }
   | { type: 'restriction'; value: RestrictionState }
   | { type: 'theme'; kind: ThemeKind; palette: PaletteMode }
   // Sidebar-only: pulse the budget section when an alert fires.
@@ -36,7 +37,7 @@ export type HostBoundMsg =
   | { type: 'refresh' }
   | { type: 'setFilter'; value: Filter }
   | { type: 'setConfig'; value: Partial<UserConfig> }
-  | { type: 'setLayout'; value: DashboardLayout }
+  | { type: 'setLayout'; value: LayoutV2 }
   | { type: 'openConfig' }
   | { type: 'command'; id: CommandId }
   | { type: 'restrictSnooze'; minutes: number }
@@ -156,22 +157,6 @@ function isConfigPatch(v: unknown): v is Partial<UserConfig> {
   return true;
 }
 
-/** A layout is an array of panel objects, each with a string id (and well-typed optional fields). */
-function isLayout(v: unknown): v is DashboardLayout {
-  return (
-    Array.isArray(v) &&
-    v.length <= MAX_LIST_ITEMS &&
-    v.every(
-      (p) =>
-        isPlainObject(p) &&
-        typeof p.id === 'string' &&
-        (p.span === undefined || isFiniteNumber(p.span)) &&
-        (p.hidden === undefined || typeof p.hidden === 'boolean') &&
-        (p.size === undefined || typeof p.size === 'string'),
-    )
-  );
-}
-
 export function isHostBoundMsg(m: unknown): m is HostBoundMsg {
   if (!isObject(m) || typeof m.type !== 'string') return false;
   switch (m.type) {
@@ -184,7 +169,7 @@ export function isHostBoundMsg(m: unknown): m is HostBoundMsg {
     case 'setConfig':
       return isConfigPatch(m.value);
     case 'setLayout':
-      return isLayout(m.value);
+      return isLayoutV2(m.value);
     case 'restrictSnooze':
       return typeof m.minutes === 'number' && m.minutes > 0 && m.minutes <= 60 * 24 * 7;
     case 'command':
@@ -208,7 +193,7 @@ export function isWebviewBoundMsg(m: unknown): m is WebviewBoundMsg {
     case 'config':
       return isObject(m.value);
     case 'layout':
-      return Array.isArray(m.value);
+      return isLayoutV2(m.value);
     case 'restriction':
       return isObject(m.value);
     case 'alertFired':

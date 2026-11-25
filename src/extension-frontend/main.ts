@@ -1,6 +1,9 @@
 import './styles/fonts.css';
 import './styles/reset.css';
 import './styles/theme.css';
+// gridstack's own stylesheet comes BEFORE ours so dashboard.css can restyle its placeholder,
+// resize handle and drag shadow with theme tokens (same specificity: later wins).
+import 'gridstack/dist/gridstack.css';
 import './styles/dashboard.css';
 // Bundle the codicon font+CSS into the webview build so it ships inside the
 // VSIX. Linking it live from node_modules 404s once packaged (node_modules is
@@ -10,11 +13,10 @@ import '@vscode/codicons/dist/codicon.css';
 import { onMessage, post } from './api';
 import { state, setState, subscribe } from './store';
 import { lazyChart } from './lazyMount';
-import { mountLayout } from './layout';
-import {
-  DashboardLayout,
-  DEFAULT_DASHBOARD_LAYOUT,
-} from '../extension-backend/domain/types';
+import { mountDashboardGrid } from './dashboardGrid';
+import { GridstackEngine } from './gridstackEngine';
+import { collectPanels, LAYOUT_HINT_ID, panelItemHtml } from './panels';
+import { observeResize } from './resizeFrame';
 import { applyTheme } from './charts/echarts';
 import { applyPalette, setForcedScheme } from './theme';
 import { filterPatchFromSnapshot, postFilter, reresolveRelativeRange } from './filterSync';
@@ -91,25 +93,6 @@ function updateThemeToggleUI(scheme: 'light' | 'dark'): void {
 
 // ── Full dashboard ──────────────────────────────────────────────────────────
 
-function panelHtml(
-  id: string,
-  icon: string,
-  title: string,
-  bodyId: string,
-  ariaLabel: string,
-  bodyClass = '',
-): string {
-  const descId = `desc-${bodyId}`;
-  return `
-    <section class="wv-chart-section" data-panel="${id}" aria-label="${title}">
-      <div class="wv-chart-header">
-        <span class="wv-chart-title"><i class="codicon ${icon}"></i> ${title}</span>
-      </div>
-      <p id="${descId}" class="wv-sr-only"></p>
-      <div class="wv-chart-body ${bodyClass}" id="${bodyId}" role="img" aria-label="${ariaLabel}" aria-describedby="${descId}"></div>
-    </section>`;
-}
-
 function mountDashboard(root: HTMLElement): void {
   root.innerHTML = `
     <div class="wv-dashboard">
@@ -154,20 +137,19 @@ function mountDashboard(root: HTMLElement): void {
             <button class="wv-btn wv-btn--sm" id="layout-reset" hidden>
               <i class="codicon codicon-discard"></i> Reset layout
             </button>
-            <button class="wv-btn wv-btn--sm" id="layout-resize" aria-pressed="false">
-              <i class="codicon codicon-arrow-both"></i> Resize
-            </button>
-            <button class="wv-btn wv-btn--sm" id="layout-move" aria-pressed="false">
-              <i class="codicon codicon-move"></i> Move
+            <button class="wv-btn wv-btn--sm" id="layout-edit" aria-pressed="false">
+              <i class="codicon codicon-edit"></i> Edit layout
             </button>
           </span>
         </div>
+        <p class="wv-layout-hint" id="${LAYOUT_HINT_ID}" hidden>
+          Drag a panel by its header, or resize it from an edge or corner. With the keyboard, focus a panel's move
+          handle and press Space or Enter to lift it. Arrow keys then move it, R switches between moving and
+          resizing, Space or Enter drops it, and Escape cancels.
+        </p>
+        <div class="wv-sr-only" id="wv-layout-live" role="status" aria-live="polite" aria-atomic="true"></div>
         <div class="wv-section-label">More views</div>
-        <div class="wv-charts-grid" id="charts-grid">
-          ${CHART_REGISTRY.map((d) =>
-            panelHtml(d.id, d.icon, d.title, d.bodyId, d.ariaLabel, d.bodyClass ?? ''),
-          ).join('')}
-        </div>
+        <div class="grid-stack wv-charts-grid" id="charts-grid">${CHART_REGISTRY.map(panelItemHtml).join('')}</div>
       </div>
     </div>`;
 
@@ -243,85 +225,50 @@ function mountDashboard(root: HTMLElement): void {
   const alertConfig = mountAlertConfigPanel(document.getElementById('alert-config')!);
   const content = document.getElementById('content')!;
 
-  // Section elements (the dockable/resizable panels) keyed by panel id.
-  const section = (id: string) =>
-    document.querySelector<HTMLElement>(`.wv-chart-section[data-panel="${id}"]`)!;
-  const sections: Record<string, HTMLElement> = Object.fromEntries(
-    CHART_REGISTRY.map((d) => [d.id, section(d.id)]),
-  );
-
-  const resizeAll = () => {
-    for (const c of charts.values()) c.resize();
-  };
-
   rerenderAllChartsForTheme = () => {
     for (const c of charts.values()) c.rerenderForTheme();
   };
 
-  // Dynamic scaling + docking: the layout manager reorders, resizes (span), and
-  // shows/hides panels; every change is persisted via setLayout.
-  const layoutMgr = mountLayout(document.getElementById('charts-grid')!, sections, (next) => {
-    post({ type: 'setLayout', value: next });
-    requestAnimationFrame(resizeAll);
-  });
-  layoutMgr.apply(state().layout);
-
-  // Resize and move are independent, mutually exclusive modes — entering
-  // one exits the other (only one interaction is active on the grid at a
-  // time, so resize handles and drag-to-reorder never compete).
-  let mode: 'none' | 'resize' | 'move' = 'none';
-  const resizeBtn = document.getElementById('layout-resize')!;
-  const moveBtn = document.getElementById('layout-move')!;
-  const resetBtn = document.getElementById('layout-reset')!;
-
-  function setMode(next: 'none' | 'resize' | 'move'): void {
-    mode = mode === next ? 'none' : next;
-    layoutMgr.setMode(mode);
-    resizeBtn.setAttribute('aria-pressed', String(mode === 'resize'));
-    moveBtn.setAttribute('aria-pressed', String(mode === 'move'));
-    const editing = mode !== 'none';
-    resetBtn.hidden = !editing;
-    requestAnimationFrame(resizeAll);
+  // Each chart follows its own panel body: gridstack changes a panel's box on a drag or keyboard
+  // resize, a column switch and a re-add, and ResizeObserver reports every one of them.
+  for (const def of CHART_REGISTRY) {
+    observeResize(document.getElementById(def.bodyId)!, () => charts.get(def.id)!.resize());
   }
 
-  // "Add chart" picker: lists panels currently hidden in the layout (the
-  // extra charts start life hidden); choosing one unhides it in place.
-  const titleById = new Map(CHART_REGISTRY.map((d) => [d.id, d.title]));
+  // The analysis grid: gridstack widgets, edit mode, hide/show and keyboard lift mode. Every change
+  // the user makes is persisted through setLayout (the host stores it in globalState).
+  const { items, titles } = collectPanels(CHART_REGISTRY, chartsGrid);
+  const grid = mountDashboardGrid({
+    root: chartsGrid,
+    items,
+    titles,
+    engine: new GridstackEngine(),
+    controls: {
+      edit: document.getElementById('layout-edit')!,
+      reset: document.getElementById('layout-reset')!,
+      add: document.getElementById('layout-add')!,
+      hint: document.getElementById(LAYOUT_HINT_ID)!,
+      live: document.getElementById('wv-layout-live')!,
+    },
+    onPersist: (layout) => post({ type: 'setLayout', value: layout }),
+  });
+  grid.apply(state().layout);
+
+  // "Add chart" picker: lists the panels hidden in the layout (the extra
+  // charts start life hidden); choosing one adds it back to the grid.
   mountAddChartMenu({
     wrap: document.getElementById('add-chart-wrap')!,
     button: document.getElementById('layout-add')!,
     menu: document.getElementById('add-chart-menu')!,
-    hiddenPanels: () =>
-      state().layout
-        .filter((pnl) => pnl.hidden && titleById.has(pnl.id))
-        .map((pnl) => ({ id: pnl.id, title: titleById.get(pnl.id)! })),
-    onPick: (id) => {
-      const next = state().layout.map((q) => (q.id === id ? { ...q, hidden: false } : q));
-      post({ type: 'setLayout', value: next });
-    },
-  });
-
-  resizeBtn.addEventListener('click', () => setMode('resize'));
-  moveBtn.addEventListener('click', () => setMode('move'));
-
-  // Layout persists straight into config.json via setLayout, so resetting is
-  // just writing the default layout back.
-  resetBtn.addEventListener('click', () => {
-    post({ type: 'setLayout', value: DEFAULT_DASHBOARD_LAYOUT });
+    hiddenPanels: () => grid.hiddenPanels(),
+    onPick: (id) => grid.show(id),
   });
 
   alertConfig.update(state().config);
 
-  let resizeFrame: number | undefined;
-  const resizeObserver = new ResizeObserver(() => {
-    if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
-    resizeFrame = requestAnimationFrame(resizeAll);
-  });
-  for (const el of Object.values(sections)) resizeObserver.observe(el);
-
   emptyState.update(false);
 
-  let appliedLayout: DashboardLayout | null = null;
+  let appliedLayout = state().layout;
 
   // Per-chart payload trackers for diff-based render skipping.
   // Charts only re-render when their specific input data changes.
@@ -333,13 +280,8 @@ function mountDashboard(root: HTMLElement): void {
     alertConfig.update(s.config);
     if (s.layout !== appliedLayout) {
       appliedLayout = s.layout;
-      layoutMgr.apply(s.layout);
-      requestAnimationFrame(resizeAll);
+      grid.apply(s.layout);
     }
-
-    // Apply configurable column count to the CSS grid.
-    const cols = Math.min(4, Math.max(1, s.config.dashboard?.columns ?? 2));
-    chartsGrid.style.setProperty('--wv-cols', String(cols));
 
     // Model spotlight state — derived from the filter bar's model dropdown
     // (the single source of truth for "focus"), not separate state.
@@ -366,7 +308,7 @@ function mountDashboard(root: HTMLElement): void {
       const focusedModelsKey = focusedModelsList.join(',');
       const ctx = { metric, focusedModels: focusedModelsList };
       for (const def of CHART_REGISTRY) {
-        if (def.noData) sections[def.id]!.classList.toggle('wv-no-data', def.noData(snapshot));
+        if (def.noData) grid.setNoData(def.id, def.noData(snapshot));
         const slice = def.select(snapshot);
         const dirty =
           def.isDirty(prevSlices.get(def.id), slice) ||
