@@ -132,7 +132,9 @@ function comparisonOf(op: string, left: unknown, right: unknown): Parsed<Compari
   let variable: string;
   let literal: unknown;
   let direction: FlatOp;
-  if (isVar(left) && isVar(right)) return fail(`it compares two variables (${left.var} and ${right.var})`);
+  if (isVar(left) && isVar(right)) {
+    return fail(`it compares two variables (${left.var} and ${right.var}), and flat rules compare a metric with a number`);
+  }
   if (isVar(left)) [variable, literal, direction] = [left.var, right, flatOp];
   else if (isVar(right)) [variable, literal, direction] = [right.var, left, SWAPPED[flatOp]];
   else return fail('it compares two literal values, so it does not depend on any metric');
@@ -267,13 +269,9 @@ export function convertLegacyRules(
   for (const rule of rules) {
     const skip = (reason: string): void => void skipped.push({ id: rule.id, reason });
     const gate = gateReason(rule, groups, options.now);
-    if (gate) {
-      skip(gate);
-      continue;
-    }
     const trigger = triggerComparisons(rule);
-    if (!trigger.ok) {
-      skip(trigger.reason);
+    if (gate || !trigger.ok) {
+      skip([gate, trigger.ok ? undefined : trigger.reason].filter(Boolean).join('; '));
       continue;
     }
     const shared: Shared = { notify: rule.notify, restrict: rule.restrict };
