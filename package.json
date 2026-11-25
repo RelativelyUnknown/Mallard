@@ -370,6 +370,7 @@
   "dependencies": {
     "@duckdb/node-api": "^1.5.3-r.3",
     "echarts": "^6.1.0",
+    "gridstack": "14.1.1",
     "mqtt": "^5.15.1",
     "neverthrow": "^8.2.0",
     "p-retry": "^8.0.0",
