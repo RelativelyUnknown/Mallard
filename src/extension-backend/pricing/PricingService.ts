@@ -11,8 +11,11 @@
  *
  * All payloads are validated before caching — never executed.
  */
+import { createHash } from 'crypto';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import * as vscode from 'vscode';
+import type { PricingSnapshot } from '../domain/contracts';
 import { ModelTokenPrice, PricingManifest, TokenPrices } from '../domain/pricing';
 import { fetchJson } from './httpJson';
 
@@ -126,6 +129,17 @@ function isValidTokenPrice(p: unknown): p is ModelTokenPrice {
   return ['input', 'output'].every((k) => typeof r[k] === 'number' && Number.isFinite(r[k]) && (r[k] as number) > 0);
 }
 
+/** JSON with object keys sorted at every level (and `undefined` members dropped), so equal content always serialises to the same text. */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  const rec = value as Record<string, unknown>;
+  const members = Object.keys(rec)
+    .sort()
+    .filter((k) => rec[k] !== undefined)
+    .map((k) => `${JSON.stringify(k)}:${stableStringify(rec[k])}`);
+  return `{${members.join(',')}}`;
+}
+
 async function fetchManifest(url: string): Promise<PricingManifest> {
   const parsed = await fetchJson(url);
   if (!isValidManifest(parsed)) throw new Error('Invalid manifest shape');
@@ -137,6 +151,15 @@ export class PricingService {
   private readonly bundled: PricingManifest;
   private tokenPrices_: TokenPrices = {};
   private refreshTimer?: ReturnType<typeof setInterval>;
+  /** Hash of the prices last announced (or present at construction); see {@link onDidChange}. */
+  private announced: string;
+  private readonly _onDidChange = new vscode.EventEmitter<string>();
+  /**
+   * Fires with the new {@link version} when `load()` or a refresh changed the
+   * prices. A refresh that returns the same content (a re-fetched manifest, a
+   * metadata-only change, a re-ordered feed) does not fire.
+   */
+  readonly onDidChange = this._onDidChange.event;
 
   constructor(
     private readonly storageDir: string,
@@ -146,6 +169,7 @@ export class PricingService {
   ) {
     this.manifest = bundled;
     this.bundled = bundled;
+    this.announced = this.version;
   }
 
   get pricePerCredit(): number {
@@ -160,6 +184,39 @@ export class PricingService {
    * successful fetch (callers fall back to credit-multiplier estimates). */
   get tokenPrices(): TokenPrices | undefined {
     return Object.keys(this.tokenPrices_).length > 0 ? this.tokenPrices_ : undefined;
+  }
+
+  /**
+   * Content hash of everything that prices a row: the credit multipliers,
+   * `pricePerCredit` and the per-token feed. Key order is irrelevant and
+   * metadata (`version`, `updatedAt`) is left out, so it changes only when a
+   * price does. Keys read caches that hold priced results.
+   */
+  get version(): string {
+    const prices = {
+      models: this.manifest.models,
+      pricePerCredit: this.manifest.pricePerCredit,
+      tokenPrices: this.tokenPrices_,
+    };
+    return createHash('sha1').update(stableStringify(prices)).digest('hex');
+  }
+
+  /** Everything needed to price a stored row at read time, as of now. */
+  snapshot(): PricingSnapshot {
+    return {
+      manifest: this.manifest,
+      tokenPrices: this.tokenPrices,
+      pricePerCredit: this.pricePerCredit,
+      version: this.version,
+    };
+  }
+
+  /** Fire {@link onDidChange} when the prices differ from the last announced ones. */
+  private notifyIfChanged(): void {
+    const version = this.version;
+    if (version === this.announced) return;
+    this.announced = version;
+    this._onDidChange.fire(version);
   }
 
   allPrices(): ReadonlyArray<{ modelId: string; multiplier: number }> {
@@ -188,6 +245,7 @@ export class PricingService {
     if (!cachedTokenPrices || cachedTokenPrices.ageMs >= REFRESH_INTERVAL_MS) {
       await this.withTimeout(this.tryTokenPricesRefresh(), this.firstFetchWaitMs);
     }
+    this.notifyIfChanged();
   }
 
   /** Resolve when `p` settles or after `ms`, whichever is first (never rejects). */
@@ -211,6 +269,7 @@ export class PricingService {
 
   dispose(): void {
     if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this._onDidChange.dispose();
   }
 
   /** Delete the cached pricing data from disk (used by the full-reset command). */
@@ -248,6 +307,7 @@ export class PricingService {
       // this build (e.g. a stale CDN or a rolled-back main).
       if (isOlder(fetched, this.bundled)) return;
       this.manifest = fetched;
+      this.notifyIfChanged();
       await this.cache(fetched);
     } catch {
       // Network failures are silent — we continue with the current manifest.
@@ -299,6 +359,7 @@ export class PricingService {
         const prices = parse(await fetchJson(url));
         if (Object.keys(prices).length > 0) {
           this.tokenPrices_ = prices;
+          this.notifyIfChanged();
           await this.cacheTokenPrices(prices);
           return;
         }
