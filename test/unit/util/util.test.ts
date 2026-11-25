@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'fs/promises';
 import { IntervalManager } from '../../../src/extension-backend/util/IntervalManager';
 import { JsonFileStore } from '../../../src/extension-backend/util/JsonFileStore';
 import { opt } from '../../../src/extension-backend/util/lang';
@@ -110,24 +110,6 @@ describe('util/JsonFileStore — failures are logged, not thrown', () => {
       assert.deepEqual(calls.map((c) => c.level), ['warn']);
       assert.match(calls[0]!.msg, /failed to persist/);
       assert.deepEqual(await readdir(dir), ['state.json'], 'the temp file was cleaned up');
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('backup() copies the file to <file>.<suffix>, and reports (not throws) when there is nothing to copy', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'mallard-jsonstore-'));
-    try {
-      const { calls, logger } = recorder();
-      const store = new JsonFileStore<{ a: number }>(dir, 'state.json', logger);
-      assert.equal(store.backup('bak'), undefined, 'no source file yet');
-      assert.deepEqual(calls.map((c) => c.level), ['warn']);
-      assert.match(calls[0]!.msg, /failed to back up/);
-
-      const text = store.write({ a: 3 })!;
-      const dest = store.backup('bak');
-      assert.equal(dest, join(dir, 'state.json.bak'));
-      assert.equal(await readFile(dest!, 'utf8'), text);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

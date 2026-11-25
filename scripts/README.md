@@ -1,5 +1,21 @@
 # scripts
 
+## gen-settings-docs.ts
+
+Regenerates the settings tables in `docs/reference/settings.md` from the one
+settings table, `src/extension-backend/config/settings.ts` (the text between the
+`<!-- BEGIN settings:… -->` / `<!-- END settings:… -->` markers; the prose around
+them is hand-written):
+
+```bash
+bun run docs:settings          # rewrite the generated blocks
+bun run docs:settings:check    # exit 1 if the file is out of date (also run by the unit tests)
+```
+
+After adding or changing a setting, update the matching property in
+`package.json` too (`test/unit/app/settingsManifest.test.ts` says exactly what
+differs), then run `bun run docs:settings`.
+
 ## render-assets.mjs
 
 Regenerates every committed Mallard brand raster from the canonical duck SVG

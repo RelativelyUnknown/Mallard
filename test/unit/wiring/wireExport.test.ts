@@ -1,6 +1,5 @@
 import { strict as assert } from 'assert';
-import * as vscode from 'vscode';
-import { DEFAULT_USER_CONFIG } from '../../../src/extension-backend/domain/types';
+import type * as vscode from 'vscode';
 import type { UsageEvent, UserConfig } from '../../../src/extension-backend/domain/types';
 import { readConfig } from '../../../src/extension-backend/config';
 import type { MallardConfig } from '../../../src/extension-backend/config';
@@ -10,33 +9,20 @@ import type { StreamBatch } from '../../../src/extension-backend/export/payload'
 import { STREAM_BATCH_MAX_EVENTS } from '../../../src/extension-backend/export/payload';
 import { SECRET_KEYS } from '../../../src/extension-backend/app/credentials';
 import { streamInsertedEvents, wireExport } from '../../../src/extension-backend/wiring/wireExport';
-import { makeEvent } from '../helpers';
+import { makeEvent, makeFakeConfig } from '../helpers';
 
-type Mutable<T> = { -readonly [K in keyof T]: T[K] };
-const ws = vscode.workspace as Mutable<typeof vscode.workspace>;
-type ConfigChangeCb = (e: { affectsConfiguration(key: string): boolean }) => void;
 type SecretCb = (e: { key: string }) => void;
 
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 
 describe('wireExport', () => {
-  const orig = {
-    onDidChangeConfiguration: ws.onDidChangeConfiguration,
-    createExporter: AuthProvider.prototype.createExporter,
-  };
+  const orig = { createExporter: AuthProvider.prototype.createExporter };
   afterEach(() => {
-    ws.onDidChangeConfiguration = orig.onDidChangeConfiguration;
     AuthProvider.prototype.createExporter = orig.createExporter;
   });
 
-  /** A context, a fake user-config store and a createExporter stub that records what each build was given. */
+  /** A context, a fake config service and a createExporter stub that records what each build was given. */
   function setup(initialExport: UserConfig['export'] = {}) {
-    const settingsCbs: ConfigChangeCb[] = [];
-    ws.onDidChangeConfiguration = ((cb: ConfigChangeCb) => {
-      settingsCbs.push(cb);
-      return { dispose() {} };
-    }) as unknown as typeof ws.onDidChangeConfiguration;
-
     const secretCbs: SecretCb[] = [];
     const context = {
       subscriptions: [] as Array<{ dispose(): void }>,
@@ -48,15 +34,7 @@ describe('wireExport', () => {
       },
     } as unknown as vscode.ExtensionContext;
 
-    const userConfigCbs: Array<(c: UserConfig) => void> = [];
-    let userConfig: UserConfig = { ...DEFAULT_USER_CONFIG, ...(initialExport ? { export: initialExport } : {}) };
-    const userConfigStore = {
-      get: () => userConfig,
-      onDidChange: (cb: (c: UserConfig) => void) => {
-        userConfigCbs.push(cb);
-        return { dispose() {} };
-      },
-    };
+    const userConfig = makeFakeConfig({ ...(initialExport ? { export: initialExport } : {}) });
 
     const builds: Array<{ cfg: MallardConfig; exportCfg: unknown; exporter: TestExporter }> = [];
     AuthProvider.prototype.createExporter = async function (this: unknown) {
@@ -69,25 +47,26 @@ describe('wireExport', () => {
     const started: Array<() => void> = [];
     const store: { writer: { onInserted?: (events: UsageEvent[]) => void } } = { writer: {} };
     const activationCfg = { ...readConfig(), server: { url: 'https://activation.example' } };
-    const freshCfg = { ...readConfig(), server: { url: 'https://fresh.example' } };
+    /** The settings as they are NOW (what every rebuild reads). */
+    let fresh: MallardConfig = { ...readConfig(), server: { url: 'https://fresh.example' } };
 
     return {
       context,
       started,
       store,
       builds,
-      settingsCbs,
       secretCbs,
-      userConfigCbs,
+      userConfig,
       activationCfg,
-      setUserConfig: (next: UserConfig) => {
-        userConfig = next;
-        for (const cb of userConfigCbs) cb(next);
+      /** A settings change: new values, then the one config event. */
+      changeSettings: (patch: Partial<MallardConfig>) => {
+        fresh = { ...fresh, ...patch };
+        userConfig.fire();
       },
       wire: () =>
         wireExport(
           { context, storageDir: '/unused', started },
-          { cfg: activationCfg, readConfig: () => freshCfg, userConfig: userConfigStore, store },
+          { cfg: activationCfg, readConfig: () => fresh, userConfig, store },
         ),
     };
   }
@@ -104,13 +83,13 @@ describe('wireExport', () => {
     }
   }
 
-  it('builds the first exporter from the activation settings and the config.json export block', async () => {
-    const t = setup({ webhookTargets: [{ name: 'team', url: 'https://t.example' }] });
+  it('builds the first exporter from the activation settings and the export targets setting', async () => {
+    const t = setup({ webhookTargets: [{ id: 'team', name: 'Team', url: 'https://t.example' }] });
     const { exporter } = await t.wire();
 
     assert.equal(t.builds.length, 1);
     assert.equal(t.builds[0]!.cfg, t.activationCfg);
-    assert.deepEqual(t.builds[0]!.exportCfg, { webhookTargets: [{ name: 'team', url: 'https://t.example' }] });
+    assert.deepEqual(t.builds[0]!.exportCfg, { webhookTargets: [{ id: 'team', name: 'Team', url: 'https://t.example' }] });
     assert.equal(exporter.current, t.builds[0]!.exporter);
   });
 
@@ -118,16 +97,28 @@ describe('wireExport', () => {
     const t = setup();
     const { exporter } = await t.wire();
 
-    for (const cb of t.settingsCbs) cb({ affectsConfiguration: (k) => k === 'mallard.palette' });
+    t.changeSettings({ palette: 'theme', refreshIntervalMinutes: 30 });
     await tick();
-    assert.equal(t.builds.length, 1, 'an unrelated setting does nothing');
+    assert.equal(t.builds.length, 1, 'settings the exporter never captured do nothing');
 
-    for (const cb of t.settingsCbs) cb({ affectsConfiguration: (k) => k === 'mallard.export.transport' });
+    t.changeSettings({ export: { transport: 'webhook' } });
     await tick();
     assert.equal(t.builds.length, 2);
     assert.equal(t.builds[1]!.cfg.server.url, 'https://fresh.example', 'rebuilds read the settings as they are now');
     assert.equal(exporter.current, t.builds[1]!.exporter);
     assert.equal(t.builds[0]!.exporter.disposed, true);
+
+    for (const patch of [
+      { server: { url: 'https://other.example' } },
+      { webhook: { auth: 'bearer' as const } },
+      { mqtt: { url: 'wss://b.example/mqtt', username: 'u' } },
+      { shared: { certificate: { file: 'c.pem', keyFile: 'k.pem', caFile: 'ca.pem' } } },
+    ]) {
+      const before: number = t.builds.length;
+      t.changeSettings(patch);
+      await tick();
+      assert.equal(t.builds.length, before + 1, `a change to ${Object.keys(patch)[0]} rebuilds`);
+    }
   });
 
   it('rebuilds when an export secret changes, but not for other secrets', async () => {
@@ -143,24 +134,24 @@ describe('wireExport', () => {
     assert.equal(t.builds.length, 2);
   });
 
-  it('rebuilds when the config.json export block changes, and only then', async () => {
-    const t = setup({ webhookTargets: [{ name: 'a', url: 'https://a.example' }] });
+  it('rebuilds when the export targets setting changes, and only then', async () => {
+    const t = setup({ webhookTargets: [{ id: 'a', name: 'A', url: 'https://a.example' }] });
     await t.wire();
 
-    t.setUserConfig({ ...DEFAULT_USER_CONFIG, monthlyBudget: 99, export: { webhookTargets: [{ name: 'a', url: 'https://a.example' }] } });
+    await t.userConfig.set({ monthlyBudget: 99 });
     await tick();
-    assert.equal(t.builds.length, 1, 'same export block: no rebuild');
+    assert.equal(t.builds.length, 1, 'same targets: no rebuild');
 
-    t.setUserConfig({ ...DEFAULT_USER_CONFIG, export: { webhookTargets: [{ name: 'b', url: 'https://b.example' }] } });
+    await t.userConfig.set({ export: { webhookTargets: [{ id: 'b', name: 'B', url: 'https://b.example' }] } });
     await tick();
     assert.equal(t.builds.length, 2);
-    assert.deepEqual(t.builds[1]!.exportCfg, { webhookTargets: [{ name: 'b', url: 'https://b.example' }] });
+    assert.deepEqual(t.builds[1]!.exportCfg, { webhookTargets: [{ id: 'b', name: 'B', url: 'https://b.example' }] });
 
-    t.setUserConfig({ ...DEFAULT_USER_CONFIG, export: { webhookTargets: [{ name: 'b', url: 'https://b.example' }] } });
+    await t.userConfig.set({ export: { webhookTargets: [{ id: 'b', name: 'B', url: 'https://b.example' }] } });
     await tick();
     assert.equal(t.builds.length, 2, 'the change is remembered, so repeating it is a no-op');
 
-    t.setUserConfig({ ...DEFAULT_USER_CONFIG }); // block removed entirely
+    await t.userConfig.set({ export: {} }); // all targets removed
     await tick();
     assert.equal(t.builds.length, 3);
   });
@@ -168,7 +159,7 @@ describe('wireExport', () => {
   it('registers its subscriptions and a cleanup that closes the exporter', async () => {
     const t = setup();
     const { exporter } = await t.wire();
-    assert.equal(t.context.subscriptions.length, 3, 'settings, secrets and config.json watchers');
+    assert.equal(t.context.subscriptions.length, 2, 'the settings and secrets watchers');
     assert.equal(t.started.length, 1);
 
     t.started[0]!();

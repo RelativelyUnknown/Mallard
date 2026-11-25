@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import { UsageService } from '../../../src/extension-backend/app/UsageService';
 import type { IEventSnapshotReader, SnapshotSourceData } from '../../../src/extension-backend/store/EventReader';
 import type { IngestService } from '../../../src/extension-backend/ingest/IngestService';
-import type { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
+import type { IConfigService } from '../../../src/extension-backend/app/ConfigService';
 import type { PricingService } from '../../../src/extension-backend/pricing/PricingService';
 import type { CurrencyService } from '../../../src/extension-backend/pricing/CurrencyService';
 import type { UsageSnapshot } from '../../../src/extension-backend/domain/types';
@@ -70,7 +70,7 @@ function makeService(data: SnapshotSourceData) {
       version: 1 as const,
     }),
     onDidChange: () => ({ dispose() {} }),
-  } as unknown as UserConfigStore;
+  } as unknown as IConfigService;
   const currency = { currentRates: () => ({}) } as unknown as CurrencyService;
   const svc = new UsageService(
     reader, pricing, ingest, userConfig, currency, undefined,

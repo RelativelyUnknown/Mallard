@@ -72,8 +72,8 @@ describe('FanoutMetricExporter — per-target queues', () => {
 });
 
 describe('webhookTargetSlots — per-target credential slots', () => {
-  it('produces api-key, bearer, and signing slots per target, namespaced by name', () => {
-    const slots = webhookTargetSlots([{ name: 'team' }, { name: 'ci' }]);
+  it('produces api-key, bearer, and signing slots per target, namespaced by id', () => {
+    const slots = webhookTargetSlots([{ id: 'team', name: 'Team' }, { id: 'ci', name: 'CI' }]);
     assert.equal(slots.length, 6);
     const keys = slots.map((s) => s.key);
     assert.ok(keys.includes(`${SECRET_KEYS.webhookApiKey}:team`));

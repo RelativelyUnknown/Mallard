@@ -1,18 +1,17 @@
 /**
  * Wires metric export: builds the exporter, rebuilds it in place when anything
- * it captured changes (settings, credentials, config.json fan-out targets), and
- * streams every batch of freshly ingested events to it.
+ * it captured changes (settings, credentials, the fan-out targets), and streams
+ * every batch of freshly ingested events to it.
  */
-import { EXPORT_CONFIG_KEYS, MallardConfig, readConfig as readSettings } from '../config';
+import { MallardConfig, readConfig as readSettings } from '../config';
 import { isExportSecretKey } from '../app/credentials';
-import type { UserConfigStore } from '../app/UserConfigStore';
+import { IConfigService, watchValue } from '../app/ConfigService';
 import type { UsageEvent } from '../domain/types';
 import { AuthProvider } from '../export/AuthProvider';
 import { ExporterRebuilder } from '../export/ExporterRebuilder';
 import type { Exporter } from '../export/MetricExporter';
 import { buildStreamBatch, chunkEvents } from '../export/payload';
 import { defaultLogger, Logger } from '../util/logger';
-import { onSettingsChanged } from '../util/vscodeSettings';
 import type { WiringScope } from './scope';
 
 export interface ExportWiring {
@@ -25,7 +24,7 @@ export interface ExportWiringDeps {
   cfg: MallardConfig;
   /** Settings as they are NOW, used by every rebuild. */
   readConfig?: () => MallardConfig;
-  userConfig: Pick<UserConfigStore, 'get' | 'onDidChange'>;
+  userConfig: Pick<IConfigService, 'get' | 'onDidChange'>;
   /** The store whose ingest callback receives the stream; only `writer.onInserted` is set. */
   store: { writer: { onInserted?: (events: UsageEvent[]) => void } };
 }
@@ -34,7 +33,7 @@ export async function wireExport(scope: WiringScope, deps: ExportWiringDeps): Pr
   const { context, started } = scope;
   const { cfg, userConfig, store, readConfig = readSettings } = deps;
 
-  // Extra webhook/MQTT targets from config.json fan the export out to
+  // Extra webhook/MQTT targets from the settings fan the export out to
   // multiple destinations.
   const build = (settings: MallardConfig): Promise<Exporter> =>
     new AuthProvider(settings, context, userConfig.get().export ?? {}).createExporter();
@@ -43,28 +42,21 @@ export async function wireExport(scope: WiringScope, deps: ExportWiringDeps): Pr
   started.push(() => exporter.close());
 
   const scheduleRebuild = (): void => exporter.scheduleRebuild();
+  // Everything the exporter captures when built: transport/auth/URL/certificate
+  // settings and the fan-out targets. Changes rebuild it in place (they used to
+  // silently require a window reload); unrelated settings changes do not.
+  const exportInputs = () => {
+    const { server, export: exp, webhook, mqtt, shared } = readConfig();
+    return { server, export: exp, webhook, mqtt, shared, targets: userConfig.get().export ?? {} };
+  };
   context.subscriptions.push(
-    // Transport/auth/URL/cert changes rebuild the exporter in place — they used
-    // to silently require a window reload.
-    onSettingsChanged(EXPORT_CONFIG_KEYS, scheduleRebuild),
+    watchValue(userConfig.onDidChange, exportInputs, scheduleRebuild),
     // The exporter captures its credentials when it is built, so setting,
     // changing or clearing a webhook key / bearer token / signing secret / MQTT
     // password has to rebuild it — previously the old secret kept being sent
     // until the window was reloaded.
     context.secrets.onDidChange((e) => {
       if (isExportSecretKey(e.key)) scheduleRebuild();
-    }),
-  );
-  // Fanout target changes live in config.json (export.webhookTargets /
-  // export.mqttTargets) rather than settings — watch the export block too so
-  // "Mallard: Configure Export Fanout Targets" applies without a reload.
-  let lastExportBlock = JSON.stringify(userConfig.get().export ?? {});
-  context.subscriptions.push(
-    userConfig.onDidChange((c) => {
-      const next = JSON.stringify(c.export ?? {});
-      if (next === lastExportBlock) return;
-      lastExportBlock = next;
-      scheduleRebuild();
     }),
   );
 

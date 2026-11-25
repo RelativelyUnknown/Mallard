@@ -19,10 +19,8 @@ describe('isHostBoundMsg', () => {
     assert.equal(isHostBoundMsg({ type: 'setFilter', value: 'bad' }), false);
   });
 
-  it('accepts "setConfig" with object value', () => {
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: {} }), true);
-  });
-  it('rejects "setConfig" without value', () => {
+  it('rejects "setConfig": the webview can no longer patch the configuration', () => {
+    assert.equal(isHostBoundMsg({ type: 'setConfig', value: {} }), false);
     assert.equal(isHostBoundMsg({ type: 'setConfig' }), false);
   });
 

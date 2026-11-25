@@ -40,7 +40,7 @@ describe('security — isHostBoundMsg', () => {
     assert.deepEqual(
       [...VALID_TYPES].sort(),
       [
-        'command', 'openConfig', 'ready', 'refresh', 'restrictSnooze', 'setConfig',
+        'command', 'openConfig', 'ready', 'refresh', 'restrictSnooze',
         'setCurrency', 'setFilter', 'setLayout', 'toggleModelFilter',
       ],
     );

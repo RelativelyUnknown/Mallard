@@ -31,7 +31,7 @@ import { IngestService } from '../ingest/IngestService';
 import { PricingService } from '../pricing/PricingService';
 import { CurrencyService } from '../pricing/CurrencyService';
 import type { IEventSnapshotReader, SnapshotSourceData } from '../store/EventReader';
-import { UserConfigStore } from './UserConfigStore';
+import type { IConfigService } from './ConfigService';
 import { AlertService } from './AlertService';
 import { activeBranch } from '../util/repo';
 import { defaultVscodeHost, VscodeHost } from '../util/vscodeHost';
@@ -116,7 +116,7 @@ export class UsageService implements vscode.Disposable {
     private readonly reader: IEventSnapshotReader,
     private readonly pricing: PricingService,
     private readonly ingest: IngestService,
-    private readonly userConfig: UserConfigStore,
+    private readonly userConfig: IConfigService,
     private readonly currency: CurrencyService,
     private readonly github?: IBillingProvider,
     host: VscodeHost = defaultVscodeHost,
@@ -127,7 +127,14 @@ export class UsageService implements vscode.Disposable {
     if (github) {
       this.subs.push(github.onDidChange(() => this.background('GitHub billing refresh', this.refreshGitHub())));
     }
-    this.subs.push(userConfig.onDidChange(() => this.background('recompute after config change', this.compute())));
+    // One event for every `mallard.*` change, wherever it was made: the refresh
+    // interval may have moved, and budgets, display and currency all feed the snapshot.
+    this.subs.push(
+      userConfig.onDidChange(() => {
+        this.scheduleTimer();
+        this.background('recompute after config change', this.compute());
+      }),
+    );
   }
 
   /** Fire-and-forget with the failure logged instead of an unhandled rejection. */
@@ -200,11 +207,6 @@ export class UsageService implements vscode.Disposable {
     this.scheduleTimer();
     this.background('GitHub billing refresh', this.refreshGitHub());
     this.background('initial ingest', this.ingest.start().then(() => this.compute()));
-  }
-
-  onConfigChanged(): void {
-    this.scheduleTimer();
-    this.background('recompute after settings change', this.compute());
   }
 
   async refresh(): Promise<void> {
@@ -304,8 +306,7 @@ export class UsageService implements vscode.Disposable {
 
     const branch = activeBranch();
 
-    // Currency lives in config.json only (set from the dashboard; the old
-    // mallard.currency setting is no longer contributed).
+    // `mallard.currency`: set from Settings or the dashboard's currency selector.
     const displayCurrency = userConfig.currency ?? 'USD';
     const fxRates = this.currency.currentRates();
     const fxRate = displayCurrency !== 'USD' ? (fxRates[displayCurrency] ?? 1) : 1;
@@ -348,7 +349,7 @@ export class UsageService implements vscode.Disposable {
     data: SnapshotSourceData,
     opts: {
       now: number;
-      userConfig: ReturnType<UserConfigStore['get']>;
+      userConfig: ReturnType<IConfigService['get']>;
       branch: string | undefined;
       displayCurrency: string;
       fxRate: number;
@@ -487,7 +488,7 @@ export class UsageService implements vscode.Disposable {
   }
 
   private scheduleTimer(): void {
-    // readConfig() already clamps refreshIntervalMinutes to [1, 60]
+    // readConfig() already clamps refreshIntervalMinutes to its [1, 60] range
     const mins = readConfig().refreshIntervalMinutes;
     this.timer.schedule(() => this.background('scheduled refresh', this.refresh()), mins * 60_000);
   }

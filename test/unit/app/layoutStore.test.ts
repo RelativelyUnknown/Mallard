@@ -3,34 +3,29 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { LAYOUT_STATE_KEY, LayoutStore } from '../../../src/extension-backend/app/LayoutStore';
-import { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
 import { wipeAllData } from '../../../src/extension-backend/app/uninstall';
 import { DASHBOARD_PANELS } from '../../../src/extension-backend/domain/types';
-import type { ConfigPanelLayout, DashboardLayout } from '../../../src/extension-backend/domain/types';
-import { makeMemento } from '../helpers';
+import type { ConfigDashboard, ConfigPanelLayout, DashboardLayout } from '../../../src/extension-backend/domain/types';
+import { makeFakeConfig, makeMemento } from '../helpers';
 
 const LEGACY_PANELS: ConfigPanelLayout[] = [
   { id: 'models', gridColumn: 'span 3', hidden: true },
   { id: 'daily', size: 'tall' },
 ];
 
-async function configDir(dashboard?: unknown): Promise<string> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-layout-store-'));
-  if (dashboard !== undefined) {
-    await fs.writeFile(path.join(dir, 'config.json'), JSON.stringify({ dashboard }), 'utf8');
-  }
-  return dir;
+/** A config whose (legacy, no longer settable) `dashboard` block is `dashboard` — what LayoutStore's fallback reads. */
+function configWith(dashboard?: ConfigDashboard) {
+  return makeFakeConfig(dashboard === undefined ? {} : { dashboard });
 }
 
 const byId = (layout: DashboardLayout, id: string) => layout.find((p) => p.id === id);
 
-describe('LayoutStore — globalState persistence and the one-time config.json seed', () => {
+describe('LayoutStore — globalState persistence and its legacy dashboard-block fallback (the config.json import now seeds the key itself)', () => {
   const opened: Array<{ dispose(): void }> = [];
   afterEach(() => {
     for (const d of opened.splice(0)) d.dispose();
   });
-  function open(dir: string, state = makeMemento(), logger = silentLogger()) {
-    const userConfig = new UserConfigStore(dir);
+  function open(userConfig = configWith(), state = makeMemento(), logger = silentLogger()) {
     const layout = new LayoutStore(userConfig, state, logger);
     opened.push(layout, userConfig);
     return { userConfig, layout, state };
@@ -48,7 +43,7 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
 
   describe('seeding', () => {
     it('imports config.json dashboard.panels once and stores it under mallard.layout.v1', async () => {
-      const { layout, state } = open(await configDir({ panels: LEGACY_PANELS }));
+      const { layout, state } = open(configWith({ panels: LEGACY_PANELS }));
 
       const seeded = layout.get();
       assert.equal(byId(seeded, 'models')?.span, 3);
@@ -61,22 +56,21 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
     });
 
     it('seeds the default layout when config.json has no dashboard block', async () => {
-      const { layout, state } = open(await configDir());
+      const { layout, state } = open();
       assert.deepEqual(layout.get().map((p) => p.id), [...DASHBOARD_PANELS]);
       assert.equal(state.updates.length, 1);
       assert.ok(state.get(LAYOUT_STATE_KEY));
     });
 
     it('never re-reads config.json panels once seeded, in this session or after a reload', async () => {
-      const dir = await configDir({ panels: LEGACY_PANELS });
-      const first = open(dir);
+      const first = open(configWith({ panels: LEGACY_PANELS }));
       first.layout.get();
 
       await first.userConfig.set({ dashboard: { panels: [{ id: 'sankey', gridColumn: 'span 4' }] } });
       assert.equal(byId(first.layout.get(), 'sankey')?.span, 1, 'a later config.json edit is ignored');
       assert.equal(first.state.updates.length, 1);
 
-      const reloaded = open(dir, first.state); // same globalState, as after a window reload
+      const reloaded = open(configWith({ panels: LEGACY_PANELS }), first.state); // same globalState, as after a window reload
       assert.deepEqual(reloaded.layout.get(), first.layout.get());
       assert.equal(first.state.updates.length, 1, 'the reload did not seed again');
     });
@@ -84,7 +78,7 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
     it('does not touch an existing layout key', async () => {
       const stored: DashboardLayout = [{ id: 'weekday', span: 4, hidden: false, size: 'compact' }];
       const state = makeMemento({ [LAYOUT_STATE_KEY]: stored });
-      const { layout } = open(await configDir({ panels: LEGACY_PANELS }), state);
+      const { layout } = open(configWith({ panels: LEGACY_PANELS }), state);
 
       const got = layout.get();
       assert.equal(got[0]?.id, 'weekday');
@@ -97,7 +91,7 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
       const state = makeMemento();
       state.update = () => Promise.reject(new Error('disk full'));
       const logger = silentLogger();
-      const { layout } = open(await configDir({ panels: LEGACY_PANELS }), state, logger);
+      const { layout } = open(configWith({ panels: LEGACY_PANELS }), state, logger);
       await new Promise((r) => setImmediate(r));
 
       assert.equal(byId(layout.get(), 'models')?.span, 3, 'the imported layout is still in force');
@@ -108,7 +102,7 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
 
   describe('set()', () => {
     it('stores the normalized layout, leaves config.json dashboard.panels alone, and emits', async () => {
-      const { layout, state, userConfig } = open(await configDir({ panels: LEGACY_PANELS }));
+      const { layout, state, userConfig } = open(configWith({ panels: LEGACY_PANELS }));
       const fired: DashboardLayout[] = [];
       layout.onDidChange((l) => fired.push(l));
 
@@ -122,7 +116,7 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
     });
 
     it('does not emit when the layout is unchanged', async () => {
-      const { layout } = open(await configDir());
+      const { layout } = open();
       const fired: DashboardLayout[] = [];
       layout.onDidChange((l) => fired.push(l));
       await layout.set(layout.get());
@@ -130,7 +124,7 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
     });
 
     it('drops invalid entries and keeps unknown ids, like any stored layout', async () => {
-      const { layout, state } = open(await configDir());
+      const { layout, state } = open();
       await layout.set([
         { id: 'daily', span: 99, hidden: false },
         { id: 'daily', span: 1, hidden: true }, // duplicate
@@ -145,7 +139,7 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
 
   describe('dashboard.columns (still read from config.json)', () => {
     it('clamps a stored layout to the configured columns and re-emits when they change', async () => {
-      const { layout, userConfig } = open(await configDir());
+      const { layout, userConfig } = open();
       await layout.set(layout.get().map((p) => (p.id === 'daily' ? { ...p, span: 4 } : p)));
       const fired: DashboardLayout[] = [];
       layout.onDidChange((l) => fired.push(l));
@@ -160,7 +154,7 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
 
   describe('reset()', () => {
     it('clears the stored key and returns to the defaults without re-importing config.json', async () => {
-      const { layout, state } = open(await configDir({ panels: LEGACY_PANELS }));
+      const { layout, state } = open(configWith({ panels: LEGACY_PANELS }));
       layout.get();
       await layout.set([...layout.get()].reverse());
       const fired: DashboardLayout[] = [];
@@ -177,7 +171,7 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
     });
 
     it('is a quiet no-op when the layout is already the default', async () => {
-      const { layout } = open(await configDir());
+      const { layout } = open();
       const fired: DashboardLayout[] = [];
       layout.onDidChange((l) => fired.push(l));
       await layout.reset();
@@ -185,8 +179,9 @@ describe('LayoutStore — globalState persistence and the one-time config.json s
     });
 
     it('"Prepare for Uninstall" leaves no layout key behind', async () => {
-      const dir = await configDir({ panels: LEGACY_PANELS });
-      const { layout, state, userConfig } = open(dir);
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-layout-store-'));
+      const userConfig = configWith({ panels: LEGACY_PANELS });
+      const { layout, state } = open(userConfig);
       await layout.set([...layout.get()].reverse());
       assert.ok(state.data.has(LAYOUT_STATE_KEY));
 

@@ -300,6 +300,15 @@ describe('components — remaining branch coverage', () => {
 
     h.update({ ...DEFAULT_USER_CONFIG, rules: [] });
     assert.equal(count(), 'No rules configured');
+
+    // The rules are now the flat `mallard.alerts.rules` setting.
+    const flat = { id: 'r1', metric: 'today.credits', op: '>', value: 1, cooldown: '1h', severity: 'info' } as const;
+    h.update({ ...DEFAULT_USER_CONFIG, flatRules: [flat] });
+    assert.equal(count(), '1 rule configured');
+    h.update({ ...DEFAULT_USER_CONFIG, flatRules: [flat, { ...flat, id: 'r2' }] });
+    assert.equal(count(), '2 rules configured');
+    h.update({ ...DEFAULT_USER_CONFIG, flatRules: [] });
+    assert.equal(count(), 'No rules configured');
     el.remove();
   });
 

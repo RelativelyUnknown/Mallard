@@ -1,7 +1,7 @@
 /**
  * Durable backlog for metric exports that failed to send. Persisted as a
  * JSON file in the extension's storage directory, following the same
- * pattern as UserConfigStore/RestrictionEngine: best-effort read/write, a
+ * pattern as RestrictionEngine: best-effort read/write, a
  * malformed file degrades to an empty queue rather than throwing.
  *
  * No `vscode` or `mqtt` imports on purpose — this stays a plain class so it

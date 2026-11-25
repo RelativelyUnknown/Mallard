@@ -1,6 +1,6 @@
 /**
- * Shared best-effort JSON file persistence. Three stores (RestrictionEngine,
- * ExportQueue, UserConfigStore) used to hand-roll the same readFileSync/
+ * Shared best-effort JSON file persistence. The stores (RestrictionEngine,
+ * ExportQueue) used to hand-roll the same readFileSync/
  * writeFileSync + try/catch idiom; this centralises it with logging instead
  * of silence. Failure semantics stay the owners': read() returns undefined on
  * any failure (missing file, bad JSON) so each caller applies its own
@@ -9,7 +9,7 @@
  * Writes are atomic (temp file + rename), so a crash or a concurrent reader
  * never sees a half-written file.
  */
-import { copyFileSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs';
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs';
 import * as path from 'path';
 import { defaultLogger, Logger } from './logger';
 
@@ -70,18 +70,6 @@ export class JsonFileStore<T> {
       } catch {
         /* the temp file may never have been created */
       }
-      return undefined;
-    }
-  }
-
-  /** Copy the current file to `<file>.<suffix>`; returns the copy's path, or undefined on failure. */
-  backup(suffix: string): string | undefined {
-    const dest = `${this.file}.${suffix}`;
-    try {
-      copyFileSync(this.file, dest);
-      return dest;
-    } catch (err) {
-      this.logger.warn('store', `failed to back up ${this.file} to ${dest}`, err);
       return undefined;
     }
   }

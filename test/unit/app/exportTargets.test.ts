@@ -2,7 +2,6 @@ import { strict as assert } from 'assert';
 import * as vscode from 'vscode';
 import { configureExportTargets } from '../../../src/extension-backend/app/exportTargets';
 import { SECRET_KEYS } from '../../../src/extension-backend/app/credentials';
-import type { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
 import type { ExportConfig, UserConfig } from '../../../src/extension-backend/domain/types';
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
@@ -13,9 +12,10 @@ function makeUserConfig(exportCfg: ExportConfig = {}) {
   return {
     patches: [] as Partial<UserConfig>[],
     get: () => current as UserConfig,
-    set: async function (this: { patches: Partial<UserConfig>[] }, patch: Partial<UserConfig>) {
+    // Like ConfigService.update: only the lists the patch mentions are written; the other list stays.
+    update: async function (this: { patches: Partial<UserConfig>[] }, patch: Partial<UserConfig>) {
       this.patches.push(patch);
-      current = { ...current, ...patch };
+      current = { ...current, export: { ...current.export, ...patch.export } };
     },
   };
 }
@@ -56,11 +56,12 @@ describe('configureExportTargets', () => {
     }) as never;
     win.showInformationMessage = (async () => undefined) as never;
 
-    await configureExportTargets(secrets as never, cfg as unknown as UserConfigStore);
+    await configureExportTargets(secrets as never, cfg);
 
     assert.deepEqual(cfg.get().export?.webhookTargets, [
-      { name: 'team', url: 'https://mallard.team.example.com' },
+      { id: 'team', name: 'team', url: 'https://mallard.team.example.com' },
     ]);
+    assert.deepEqual(cfg.patches.map((p) => Object.keys(p.export ?? {})), [['webhookTargets']], 'only the whole webhook list is written');
     // Validators enforce the schema's name charset and the URL scheme.
     const nameValidate = nameValidators[0]!;
     assert.ok(nameValidate('bad name!'), 'rejects invalid characters');
@@ -71,7 +72,7 @@ describe('configureExportTargets', () => {
   });
 
   it('rejects a duplicate target name', async () => {
-    const cfg = makeUserConfig({ webhookTargets: [{ name: 'team', url: 'https://a.example.com' }] });
+    const cfg = makeUserConfig({ webhookTargets: [{ id: 'team', name: 'team', url: 'https://a.example.com' }] });
     const secrets = makeSecrets();
     let nameValidate: ((v: string) => string | undefined) | undefined;
     win.showQuickPick = (async (items: readonly vscode.QuickPickItem[]) =>
@@ -81,7 +82,7 @@ describe('configureExportTargets', () => {
       return undefined; // dismiss
     }) as never;
 
-    await configureExportTargets(secrets as never, cfg as unknown as UserConfigStore);
+    await configureExportTargets(secrets as never, cfg);
     assert.ok(nameValidate!('team'), 'duplicate name rejected');
     assert.equal(nameValidate!('other'), undefined);
     assert.equal(cfg.patches.length, 0, 'dismissal writes nothing');
@@ -89,8 +90,8 @@ describe('configureExportTargets', () => {
 
   it('removes a target and clears its namespaced secrets', async () => {
     const cfg = makeUserConfig({
-      webhookTargets: [{ name: 'team', url: 'https://a.example.com' }],
-      mqttTargets: [{ name: 'broker', url: 'wss://b.example.com/mqtt' }],
+      webhookTargets: [{ id: 'team', name: 'Team', url: 'https://a.example.com' }],
+      mqttTargets: [{ id: 'broker', name: 'Broker', url: 'wss://b.example.com/mqtt' }],
     });
     const secrets = makeSecrets();
     await secrets.set(`${SECRET_KEYS.webhookApiKey}:team`, 'k');
@@ -100,24 +101,24 @@ describe('configureExportTargets', () => {
     win.showQuickPick = (async (items: readonly unknown[]) => {
       if (firstPick) {
         firstPick = false;
-        return (items as ReadonlyArray<{ target?: { name: string } }>).find(
-          (i) => i.target?.name === 'team',
+        return (items as ReadonlyArray<{ target?: { id: string } }>).find(
+          (i) => i.target?.id === 'team',
         );
       }
       return 'Remove target';
     }) as never;
     win.showInformationMessage = (async () => undefined) as never;
 
-    await configureExportTargets(secrets as never, cfg as unknown as UserConfigStore);
+    await configureExportTargets(secrets as never, cfg);
 
     assert.deepEqual(cfg.get().export?.webhookTargets, []);
-    assert.deepEqual(cfg.get().export?.mqttTargets, [{ name: 'broker', url: 'wss://b.example.com/mqtt' }]);
+    assert.deepEqual(cfg.get().export?.mqttTargets, [{ id: 'broker', name: 'Broker', url: 'wss://b.example.com/mqtt' }]);
     assert.equal(secrets.values.has(`${SECRET_KEYS.webhookApiKey}:team`), false, 'team secrets cleared');
     assert.equal(secrets.values.has(`${SECRET_KEYS.mqttPassword}:broker`), true, 'other targets untouched');
   });
 
   it('sets a credential for a webhook target via the slot picker', async () => {
-    const cfg = makeUserConfig({ webhookTargets: [{ name: 'team', url: 'https://a.example.com' }] });
+    const cfg = makeUserConfig({ webhookTargets: [{ id: 'team', name: 'Team', url: 'https://a.example.com' }] });
     const secrets = makeSecrets();
     // One slot pre-configured so the picker renders both status icons.
     await secrets.set(`${SECRET_KEYS.webhookBearerToken}:team`, 'existing');
@@ -125,8 +126,8 @@ describe('configureExportTargets', () => {
     win.showQuickPick = (async (items: readonly unknown[]) => {
       pick++;
       if (pick === 1) {
-        return (items as ReadonlyArray<{ target?: { name: string } }>).find(
-          (i) => i.target?.name === 'team',
+        return (items as ReadonlyArray<{ target?: { id: string } }>).find(
+          (i) => i.target?.id === 'team',
         );
       }
       if (pick === 2) return 'Set credentials…';
@@ -138,21 +139,21 @@ describe('configureExportTargets', () => {
     win.showInputBox = (async () => 'super-secret') as never;
     win.showInformationMessage = (async () => undefined) as never;
 
-    await configureExportTargets(secrets as never, cfg as unknown as UserConfigStore);
+    await configureExportTargets(secrets as never, cfg);
     assert.equal(secrets.values.get(`${SECRET_KEYS.webhookApiKey}:team`), 'super-secret');
-    assert.equal(cfg.patches.length, 0, 'credential flows never rewrite config.json');
+    assert.equal(cfg.patches.length, 0, 'credential flows never rewrite the settings');
   });
 
   it('prompts the single MQTT password slot directly and clears it on blank input', async () => {
-    const cfg = makeUserConfig({ mqttTargets: [{ name: 'broker', url: 'wss://b.example.com/mqtt' }] });
+    const cfg = makeUserConfig({ mqttTargets: [{ id: 'broker', name: 'Broker', url: 'wss://b.example.com/mqtt' }] });
     const secrets = makeSecrets();
     await secrets.set(`${SECRET_KEYS.mqttPassword}:broker`, 'old');
     let pick = 0;
     win.showQuickPick = (async (items: readonly unknown[]) => {
       pick++;
       if (pick === 1) {
-        return (items as ReadonlyArray<{ target?: { name: string } }>).find(
-          (i) => i.target?.name === 'broker',
+        return (items as ReadonlyArray<{ target?: { id: string } }>).find(
+          (i) => i.target?.id === 'broker',
         );
       }
       return 'Set credentials…';
@@ -160,7 +161,7 @@ describe('configureExportTargets', () => {
     win.showInputBox = (async () => '') as never; // blank clears
     win.showInformationMessage = (async () => undefined) as never;
 
-    await configureExportTargets(secrets as never, cfg as unknown as UserConfigStore);
+    await configureExportTargets(secrets as never, cfg);
     assert.equal(pick, 2, 'a single slot skips the slot picker');
     assert.equal(secrets.values.has(`${SECRET_KEYS.mqttPassword}:broker`), false, 'blank input clears');
   });
@@ -175,17 +176,17 @@ describe('configureExportTargets', () => {
     win.showInformationMessage = (async (_msg: string, ...actions: string[]) =>
       actions[0]) as never; // accept "Set Credentials…" (and the save toast)
 
-    await configureExportTargets(secrets as never, cfg as unknown as UserConfigStore);
-    assert.deepEqual(cfg.get().export?.mqttTargets, [{ name: 'broker', url: 'wss://b.example.com/mqtt' }]);
+    await configureExportTargets(secrets as never, cfg);
+    assert.deepEqual(cfg.get().export?.mqttTargets, [{ id: 'broker', name: 'broker', url: 'wss://b.example.com/mqtt' }]);
     assert.equal(secrets.values.get(`${SECRET_KEYS.mqttPassword}:broker`), 'connect-pw');
   });
 
-  it('handles a config.json without an export block (dismissed picker)', async () => {
+  it('handles a config without an export block (dismissed picker)', async () => {
     const cfg = makeUserConfig();
     delete (cfg.get() as { export?: ExportConfig }).export;
     const secrets = makeSecrets();
     win.showQuickPick = (async () => undefined) as never; // dismiss
-    await configureExportTargets(secrets as never, cfg as unknown as UserConfigStore);
+    await configureExportTargets(secrets as never, cfg);
     assert.equal(cfg.patches.length, 0);
   });
 
@@ -197,25 +198,25 @@ describe('configureExportTargets', () => {
     win.showQuickPick = (async (items: readonly vscode.QuickPickItem[]) =>
       (items as ReadonlyArray<{ action?: string }>).find((i) => i.action === 'add-webhook')) as never;
     win.showInputBox = (async () => inputs.shift()) as never;
-    await configureExportTargets(secrets as never, cfg as unknown as UserConfigStore);
+    await configureExportTargets(secrets as never, cfg);
     assert.equal(cfg.patches.length, 0);
   });
 
   it('dismissing the manage menu changes nothing', async () => {
-    const cfg = makeUserConfig({ webhookTargets: [{ name: 'team', url: 'https://a.example.com' }] });
+    const cfg = makeUserConfig({ webhookTargets: [{ id: 'team', name: 'Team', url: 'https://a.example.com' }] });
     const secrets = makeSecrets();
     let pick = 0;
     win.showQuickPick = (async (items: readonly unknown[]) => {
       pick++;
       if (pick === 1) {
-        return (items as ReadonlyArray<{ target?: { name: string } }>).find(
-          (i) => i.target?.name === 'team',
+        return (items as ReadonlyArray<{ target?: { id: string } }>).find(
+          (i) => i.target?.id === 'team',
         );
       }
       return undefined; // dismiss the action menu
     }) as never;
 
-    await configureExportTargets(secrets as never, cfg as unknown as UserConfigStore);
+    await configureExportTargets(secrets as never, cfg);
     assert.equal(cfg.patches.length, 0);
   });
 });

@@ -1,13 +1,11 @@
 /**
  * Guards for the security-relevant parts of package.json that no other test
- * reads: setting scopes, workspace-trust capabilities and the config.json
- * schema association.
+ * reads: setting scopes and the workspace-trust capabilities. (The settings
+ * themselves are checked against the table in settingsManifest.test.ts.)
  */
 import { strict as assert } from 'assert';
-import { promises as fs, readFileSync } from 'fs';
-import * as os from 'os';
+import { readFileSync } from 'fs';
 import * as path from 'path';
-import { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
 
 interface Manifest {
   description: string;
@@ -19,16 +17,9 @@ interface Manifest {
   };
   contributes: {
     configuration: { properties: Record<string, { scope?: string }> };
-    jsonValidation: Array<{ fileMatch: string | string[]; url: string }>;
   };
 }
 const pkg = JSON.parse(readFileSync(path.join(__dirname, '../../../package.json'), 'utf8')) as Manifest;
-
-// Matches the only glob form the manifest uses: a leading `**/` followed by a literal path suffix.
-function matchesGlob(glob: string, file: string): boolean {
-  assert.ok(glob.startsWith('**/') && !glob.includes('*', 3), `unsupported glob in manifest: ${glob}`);
-  return file.endsWith(`/${glob.slice(3)}`);
-}
 
 describe('package.json — setting scopes', () => {
   const props = pkg.contributes.configuration.properties;
@@ -38,8 +29,9 @@ describe('package.json — setting scopes', () => {
       'mallard.server.url',
       'mallard.export.transport',
       'mallard.webhook.auth',
+      'mallard.export.webhookTargets',
+      'mallard.export.mqttTargets',
       'mallard.mqtt.url',
-      'mallard.mqtt.auth',
       'mallard.mqtt.username',
       'mallard.shared.certificate.file',
       'mallard.shared.certificate.keyFile',
@@ -64,36 +56,13 @@ describe('package.json — workspace trust', () => {
     const t = pkg.capabilities.untrustedWorkspaces;
     assert.equal(t.supported, 'limited');
     assert.ok(t.description.length > 20);
-    for (const key of ['mallard.copilotLogPath', 'mallard.copilotOtelPath', 'mallard.githubBilling.org']) {
-      assert.ok(t.restrictedConfigurations?.includes(key), key);
-    }
+    // The only workspace-overridable setting; githubBilling.org is application-scoped now, so a workspace cannot set it at all.
+    assert.deepEqual(t.restrictedConfigurations, ['mallard.copilotOtelPath']);
   });
 
   it('declares its virtual-workspace limits instead of leaving them implicit', () => {
     assert.equal(pkg.capabilities.virtualWorkspaces.supported, 'limited');
     assert.ok((pkg.capabilities.virtualWorkspaces.description ?? '').length > 20);
-  });
-});
-
-describe('package.json — config.json schema association', () => {
-  it('fileMatch matches where UserConfigStore really writes config.json', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-manifest-'));
-    // <globalStorage>/<publisher>.<name>/config.json
-    const storage = path.join(root, 'globalStorage', `${pkg.publisher}.${pkg.name}`);
-    const store = new UserConfigStore(storage);
-    const file = store.uri.fsPath.replace(/\\/g, '/');
-    store.dispose();
-    const patterns = pkg.contributes.jsonValidation.flatMap((v) =>
-      Array.isArray(v.fileMatch) ? v.fileMatch : [v.fileMatch],
-    );
-    assert.ok(
-      patterns.some((p) => matchesGlob(p, file)),
-      `none of ${patterns.join(', ')} matches ${file}`,
-    );
-    assert.ok(
-      !patterns.some((p) => matchesGlob(p, '/home/u/project/mallard/config.json')),
-      'must not capture an unrelated project file',
-    );
   });
 });
 

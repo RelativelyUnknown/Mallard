@@ -8,10 +8,13 @@ describe('messaging — isHostBoundMsg', () => {
     }
   });
 
-  it('requires an object value for setFilter/setConfig', () => {
+  it('requires an object value for setFilter', () => {
     assert.equal(isHostBoundMsg({ type: 'setFilter', value: { models: [] } }), true);
     assert.equal(isHostBoundMsg({ type: 'setFilter', value: 'nope' }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { monthlyBudget: 1 } }), true);
+  });
+
+  it('no longer has a setConfig message: settings are edited in the Settings UI, the dashboard only sets the currency', () => {
+    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { monthlyBudget: 1 } }), false);
     assert.equal(isHostBoundMsg({ type: 'setConfig' }), false);
   });
 

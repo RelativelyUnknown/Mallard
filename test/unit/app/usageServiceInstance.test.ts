@@ -4,12 +4,12 @@ import { UsageService } from '../../../src/extension-backend/app/UsageService';
 import type { IEventSnapshotReader, SnapshotSourceData } from '../../../src/extension-backend/store/EventReader';
 import { PricingService } from '../../../src/extension-backend/pricing/PricingService';
 import { IngestService } from '../../../src/extension-backend/ingest/IngestService';
-import { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
 import { CurrencyService } from '../../../src/extension-backend/pricing/CurrencyService';
 import type { VscodeHost } from '../../../src/extension-backend/util/vscodeHost';
 import type { IBillingProvider } from '../../../src/extension-backend/billing/IBillingProvider';
 import type { AlertRule } from '../../../src/extension-backend/domain/types';
 import { okAsync, errAsync } from 'neverthrow';
+import { FakeConfig, makeFakeConfig } from '../helpers';
 import * as os from 'os';
 import * as path from 'path';
 import { promises as fs } from 'fs';
@@ -51,7 +51,7 @@ describe('UsageService — start/refresh/fireAlerts/scheduleTimer', () => {
   let dir: string;
   let pricing: PricingService;
   let ingest: IngestService;
-  let userConfig: UserConfigStore;
+  let userConfig: FakeConfig;
   let currency: CurrencyService;
   const origGetConfig = ws.getConfiguration;
 
@@ -61,7 +61,7 @@ describe('UsageService — start/refresh/fireAlerts/scheduleTimer', () => {
       version: 1, pricePerCredit: 0.04, updatedAt: new Date().toISOString(), models: { 'gpt-4o': 1 },
     });
     ingest = new IngestService([]);
-    userConfig = new UserConfigStore(dir);
+    userConfig = makeFakeConfig();
     currency = new CurrencyService(dir);
     ws.getConfiguration = (() => ({
       get: (_k: string, fallback: unknown) => fallback,
@@ -118,11 +118,22 @@ describe('UsageService — start/refresh/fireAlerts/scheduleTimer', () => {
     svc.dispose();
   });
 
-  it('onConfigChanged reschedules the timer and recomputes', async () => {
+  it('a configuration change reschedules the refresh timer (the interval may have changed) and recomputes', async () => {
+    const asked: number[] = [];
+    ws.getConfiguration = (() => ({
+      get: (key: string) => (key === 'refreshIntervalMinutes' ? (asked.push(asked.length + 1), 7) : undefined),
+      update: () => Promise.resolve(),
+    })) as unknown as typeof ws.getConfiguration;
+    let snapshots = 0;
     const svc = new UsageService(makeReader(), pricing, ingest, userConfig, currency);
+    svc.onDidChangeSnapshot(() => snapshots++);
     await svc.start();
     await new Promise((r) => setTimeout(r, 50));
-    assert.doesNotThrow(() => svc.onConfigChanged());
+    const [timersBefore, snapshotsBefore] = [asked.length, snapshots];
+    userConfig.fire();
+    await new Promise((r) => setTimeout(r, 50));
+    assert.ok(asked.length > timersBefore, 'the refresh interval was read again');
+    assert.ok(snapshots > snapshotsBefore, 'and a new snapshot was computed');
     svc.dispose();
   });
 
@@ -186,7 +197,7 @@ describe('UsageService — GitHub billing + alert rule notify', () => {
   let dir: string;
   let pricing: PricingService;
   let ingest: IngestService;
-  let userConfig: UserConfigStore;
+  let userConfig: FakeConfig;
   let currency: CurrencyService;
   const origGetConfig = ws.getConfiguration;
 
@@ -196,7 +207,7 @@ describe('UsageService — GitHub billing + alert rule notify', () => {
       version: 1, pricePerCredit: 0.04, updatedAt: new Date().toISOString(), models: { 'gpt-4o': 1 },
     });
     ingest = new IngestService([]);
-    userConfig = new UserConfigStore(dir);
+    userConfig = makeFakeConfig();
     currency = new CurrencyService(dir);
     ws.getConfiguration = (() => ({
       get: (_k: string, fallback: unknown) => fallback,
@@ -209,9 +220,7 @@ describe('UsageService — GitHub billing + alert rule notify', () => {
   });
 
   it('applies the config.json currency with a fallback FX rate of 1 when unknown', async () => {
-    const dir2 = await tmpDir();
-    const eurConfig = new UserConfigStore(dir2);
-    await eurConfig.set({ currency: 'EUR' });
+    const eurConfig = makeFakeConfig({ currency: 'EUR' });
     const svc = new UsageService(makeReader(), pricing, ingest, eurConfig, currency);
     await svc.start();
     await new Promise((r) => setTimeout(r, 50));
@@ -220,7 +229,6 @@ describe('UsageService — GitHub billing + alert rule notify', () => {
     assert.equal(svc.current?.pricePerCredit, pricing.pricePerCredit);
     svc.dispose();
     eurConfig.dispose();
-    await fs.rm(dir2, { recursive: true, force: true });
   });
 
   it('billing-only updates re-emit without re-reading the store', async () => {

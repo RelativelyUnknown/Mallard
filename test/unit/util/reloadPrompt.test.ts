@@ -2,35 +2,30 @@ import { strict as assert } from 'assert';
 import * as vscode from 'vscode';
 import {
   promptReloadWindow,
-  RELOAD_REQUIRED_CONFIG_KEYS,
   watchReloadRequiredSettings,
 } from '../../../src/extension-backend/util/reloadPrompt';
 
-type ConfigChangeCb = (e: { affectsConfiguration(key: string): boolean }) => void;
-
 describe('reloadPrompt', () => {
-  const ws = vscode.workspace as unknown as { onDidChangeConfiguration: unknown };
+  const ws = vscode.workspace as unknown as { getConfiguration: unknown };
   const win = vscode.window as unknown as { showInformationMessage: unknown };
   const cmds = vscode.commands as unknown as { executeCommand: unknown };
   const orig = {
-    on: ws.onDidChangeConfiguration,
+    cfg: ws.getConfiguration,
     show: win.showInformationMessage,
     exec: cmds.executeCommand,
   };
   afterEach(() => {
-    ws.onDidChangeConfiguration = orig.on;
+    ws.getConfiguration = orig.cfg;
     win.showInformationMessage = orig.show;
     cmds.executeCommand = orig.exec;
   });
 
-  function arm(answer: string | undefined) {
-    let cb: ConfigChangeCb | undefined;
+  /** `settings` is what getConfiguration('mallard').get() answers (short keys); `change()` is the one config event. */
+  function arm(answer: string | undefined, settings: Record<string, unknown> = {}) {
     const shown: string[] = [];
     const executed: string[] = [];
-    ws.onDidChangeConfiguration = (fn: ConfigChangeCb) => {
-      cb = fn;
-      return { dispose() {} };
-    };
+    const emitter = new vscode.EventEmitter<void>();
+    ws.getConfiguration = () => ({ get: (key: string) => settings[key], update: () => Promise.resolve() });
     win.showInformationMessage = (msg: string) => {
       shown.push(msg);
       return Promise.resolve(answer);
@@ -39,22 +34,16 @@ describe('reloadPrompt', () => {
       executed.push(id);
       return Promise.resolve();
     };
-    return { fire: (key: string) => cb?.({ affectsConfiguration: (k) => k === key }), shown, executed };
+    return { event: emitter.event, change: () => emitter.fire(), settings, shown, executed };
   }
 
   const flush = () => new Promise((r) => setImmediate(r));
 
-  it('covers the activation-time settings', () => {
-    assert.deepEqual(
-      [...RELOAD_REQUIRED_CONFIG_KEYS].sort(),
-      ['mallard.dataRetentionDays', 'mallard.enabledConnectors'],
-    );
-  });
-
   it('prompts and reloads when enabledConnectors changes and the user accepts', async () => {
-    const h = arm('Reload Window');
-    const sub = watchReloadRequiredSettings();
-    h.fire('mallard.enabledConnectors');
+    const h = arm('Reload Window', { enabledConnectors: ['copilot'] });
+    const sub = watchReloadRequiredSettings(h.event);
+    h.settings['enabledConnectors'] = ['copilot', 'claude-code'];
+    h.change();
     await flush();
     assert.equal(h.shown.length, 1, 'one prompt shown');
     assert.deepEqual(h.executed, ['workbench.action.reloadWindow']);
@@ -63,21 +52,26 @@ describe('reloadPrompt', () => {
 
   it('prompts but does not reload when the user dismisses', async () => {
     const h = arm(undefined);
-    const sub = watchReloadRequiredSettings();
-    h.fire('mallard.dataRetentionDays');
+    const sub = watchReloadRequiredSettings(h.event);
+    h.settings['dataRetentionDays'] = 120;
+    h.change();
     await flush();
     assert.equal(h.shown.length, 1);
     assert.deepEqual(h.executed, []);
     sub.dispose();
   });
 
-  it('ignores unrelated settings', async () => {
+  it('ignores a change that does not move an activation-time setting (including an out-of-range value that sanitises to the same one)', async () => {
     const h = arm('Reload Window');
-    const sub = watchReloadRequiredSettings();
-    h.fire('mallard.palette');
+    const sub = watchReloadRequiredSettings(h.event);
+    h.settings['palette'] = 'theme';
+    h.change();
+    h.settings['dataRetentionDays'] = 99999; // clamps to 365: a change
+    h.change();
+    h.settings['dataRetentionDays'] = 365; // same effective value as above
+    h.change();
     await flush();
-    assert.equal(h.shown.length, 0);
-    assert.deepEqual(h.executed, []);
+    assert.equal(h.shown.length, 1, 'only the one real change prompts');
     sub.dispose();
   });
 

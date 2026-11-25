@@ -372,6 +372,41 @@ describe('PricingService — lifecycle and clearCache', () => {
   });
 });
 
+describe('PricingService — setRemoteUrl (mallard.pricingManifestUrl applies live)', () => {
+  const fresh = (pricePerCredit: number): PricingManifest => ({
+    version: 1,
+    pricePerCredit,
+    updatedAt: new Date().toISOString(),
+    models: { 'gpt-4o': 3 },
+  });
+
+  it('starts using a newly configured URL straight away, and stops fetching once it is cleared', async () => {
+    const dir = await tmpDir();
+    const restore = stubHttpsGet({ 'custom.example': fresh(0.07), 'other.example': fresh(0.2) });
+    try {
+      const svc = new PricingService(dir, BUNDLED, ''); // blank at startup: no remote refresh
+      await svc.load();
+      assert.equal(svc.pricePerCredit, 0.04);
+
+      svc.setRemoteUrl('https://custom.example/manifest.json');
+      await new Promise((r) => setTimeout(r, 100));
+      assert.equal(svc.pricePerCredit, 0.07, 'the new URL was fetched without a reload');
+
+      svc.setRemoteUrl('');
+      svc.setRemoteUrl('https://other.example/manifest.json');
+      await new Promise((r) => setTimeout(r, 100));
+      assert.equal(svc.pricePerCredit, 0.2, 'a later change replaces the earlier URL');
+
+      svc.setRemoteUrl('');
+      assert.equal(svc.pricePerCredit, 0.2, 'blank turns the remote refresh off and keeps the current manifest');
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('PricingService — response size cap', () => {
   /** Stub https.get with a body larger than the cap; destroy(err) propagates
    *  to the request 'error' listener like a real aborted request, and a

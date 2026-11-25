@@ -124,40 +124,46 @@ describe('GitHubSession — onDidChangeSession listener', () => {
 });
 
 describe('GitHubSession — getOrg()', () => {
-  const ws = vscode.workspace as Mutable<typeof vscode.workspace>;
-  const origGetConfig = ws.getConfiguration;
-  afterEach(() => { ws.getConfiguration = origGetConfig; });
-
-  it('returns the workspace-scoped org when a folder is given', () => {
-    ws.getConfiguration = ((section: string, _scope?: unknown) => ({
-      get: (key: string) => (section === 'mallard' && key === 'githubBilling.org' ? 'ws-org' : undefined),
-      update: () => Promise.resolve(),
-    })) as unknown as typeof ws.getConfiguration;
+  it('returns the org set by configure(), trimmed, for every folder (the setting is user-level)', () => {
     const s = new GitHubSession(makeSecrets());
-    s.configure({ mode: 'vscode-session', org: 'config-org' });
-    assert.equal(s.getOrg({} as vscode.WorkspaceFolder), 'ws-org');
-    s.dispose();
-  });
-
-  it('falls back to the config-level org when no scope or no ws setting', () => {
-    ws.getConfiguration = (() => ({
-      get: () => undefined,
-      update: () => Promise.resolve(),
-    })) as unknown as typeof ws.getConfiguration;
-    const s = new GitHubSession(makeSecrets());
-    s.configure({ mode: 'vscode-session', org: 'config-org' });
+    s.configure({ mode: 'vscode-session', org: ' config-org ' });
     assert.equal(s.getOrg(), 'config-org');
-    assert.equal(s.getOrg({} as vscode.WorkspaceFolder), 'config-org');
+    assert.equal(s.getOrg({} as vscode.WorkspaceFolder), 'config-org', 'a workspace folder cannot change it');
     s.dispose();
   });
 
-  it('returns undefined when no org is configured anywhere', () => {
-    ws.getConfiguration = (() => ({
-      get: () => undefined,
-      update: () => Promise.resolve(),
-    })) as unknown as typeof ws.getConfiguration;
+  it('ignores a workspace-level mallard.githubBilling.org: only configure() decides', () => {
+    const ws = vscode.workspace as Mutable<typeof vscode.workspace>;
+    const orig = ws.getConfiguration;
+    ws.getConfiguration = (() => {
+      throw new Error('getOrg must not read the workspace configuration');
+    }) as unknown as typeof ws.getConfiguration;
+    try {
+      const s = new GitHubSession(makeSecrets());
+      s.configure({ mode: 'vscode-session', org: 'user-org' });
+      assert.equal(s.getOrg({} as vscode.WorkspaceFolder), 'user-org');
+      s.dispose();
+    } finally {
+      ws.getConfiguration = orig;
+    }
+  });
+
+  it('returns undefined when no org is configured (unset or blank)', () => {
     const s = new GitHubSession(makeSecrets());
     assert.equal(s.getOrg(), undefined);
+    s.configure({ mode: 'vscode-session' });
+    assert.equal(s.getOrg(), undefined);
+    s.configure({ mode: 'vscode-session', org: '  ' });
+    assert.equal(s.getOrg(), undefined);
+    s.dispose();
+  });
+
+  it('configure() fires onDidChange so the billing cache is dropped and refetched for the new org', () => {
+    const s = new GitHubSession(makeSecrets());
+    let fired = 0;
+    s.onDidChange(() => fired++);
+    s.configure({ mode: 'vscode-session', org: 'acme' });
+    assert.equal(fired, 1);
     s.dispose();
   });
 });

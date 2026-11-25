@@ -3,6 +3,7 @@
  * Shared, pure data model for Mallard. Imported by BOTH the extension host and
  * the webview bundle — must never import `vscode` or any Node/DOM API.
  */
+import type { FlatAlertRule } from './contracts';
 
 export type Granularity = 'day' | 'week' | 'month';
 
@@ -236,47 +237,40 @@ export interface DisplayPrefs {
 }
 
 export interface UserConfig {
-  /**
-   * Monthly USD budget; 0 = no budget set. This top-level value is the one
-   * UsageService and the built-in alerts read; `budget.monthlyUsd` below is
-   * accepted and persisted by mergeConfig but never consulted.
-   */
+  /** Monthly USD budget; 0 = no budget set. */
   monthlyBudget: number;
-  /**
-   * Premium requests included in the plan; colours the spend gauge. Top-level
-   * wins over `budget.includedCredits` for the same reason as `monthlyBudget`.
-   */
+  /** Premium requests included in the plan; colours the spend gauge. */
   includedCredits: number;
   /** Warn once a day when daily credits exceed this; 0 = off. */
   dailyCreditAlert: number;
   alerts: AlertConfig;
-  /** Optional v2 fields (added in §4 of the design). */
+  /**
+   * The old rules language. It is no longer configurable: `ConfigService`
+   * always reports the defaults here (the importer hands a pre-settings
+   * `config.json`'s values to the alert stream through `ImportResult`), and the
+   * evaluators that still read these fields go away with the flat alerts.
+   */
   version?: 1 | 2;
   vars?: Record<string, number | string | boolean | (string | number)[]>;
   groups?: AlertGroup[];
   rules?: AlertRule[];
-  /** Alternative spelling of the two top-level budget fields; see their docs — currently unused at runtime. */
-  budget?: { monthlyUsd: number; includedCredits: number };
-  /** Per-branch credit caps keyed by branch name. Used in restriction rules. */
+  /** The validated `mallard.alerts.rules` setting (flat threshold rules). */
+  flatRules?: FlatAlertRule[];
+  /** Per-branch credit caps keyed by branch name (`mallard.branchBudgets`). */
   branchBudgets?: Record<string, number>;
-  /**
-   * Dashboard block of config.json. Only `columns` is still live (read-only);
-   * `panels` is a legacy layout that is imported once into globalState
-   * (`mallard.layout.v1`) and never read or written again.
-   */
+  /** Not part of the settings: only the legacy layout in an imported `config.json` used it. */
   dashboard?: ConfigDashboard;
-  /** GitHub billing auth configuration (PAT or VS Code session). */
+  /** GitHub billing auth configuration (`mallard.githubBilling.*`). */
   githubBilling?: GitHubBillingConfig;
-  /** Dashboard display preferences (chart windows, top-N). */
+  /** Dashboard display preferences (`mallard.display.*`). */
   display?: DisplayPrefs;
-  /** Display currency (ISO code, e.g. "EUR"). Dashboard-editable, so it lives
-   *  here in UserConfigStore rather than VS Code settings. */
+  /** Display currency, an ISO code such as "EUR" (`mallard.currency`). */
   currency?: string;
-  /** Metric export extras beyond the mallard.* settings. */
+  /** Extra export fan-out targets (`mallard.export.webhookTargets` / `mqttTargets`). */
   export?: ExportConfig;
 }
 
-/** Metric export configuration block in config.json. */
+/** Extra metric export destinations, from the `mallard.export.*Targets` settings. */
 export interface ExportConfig {
   /**
    * Additional webhook servers to mirror every metric payload to, on top of
@@ -295,9 +289,12 @@ export interface ExportConfig {
 /** One extra export destination (webhook server or MQTT broker). */
 export interface ExportTarget {
   /**
-   * Unique name for this target (e.g. "team"). Also namespaces the target's
-   * credentials in SecretStorage — set them via "Mallard: Manage Credentials".
+   * Stable id (letters, digits, dot, underscore, dash; unique across both
+   * lists). Namespaces the target's credentials in SecretStorage and its retry
+   * queue file, so it must not change once credentials are set.
    */
+  id: string;
+  /** Label shown in the pickers; may be edited freely. */
   name: string;
   /**
    * Endpoint URL: https:// base URL for webhook targets, wss:// URL for MQTT
@@ -306,10 +303,7 @@ export interface ExportTarget {
   url: string;
 }
 
-/**
- * GitHub billing authentication and scope configuration.
- * All fields are machine-scoped and never synced.
- */
+/** GitHub billing authentication and scope configuration (user-level settings). */
 export interface GitHubBillingConfig {
   /**
    * Auth mode:
@@ -336,13 +330,6 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   vars: {},
   groups: [],
   rules: [],
-  budget: { monthlyUsd: 0, includedCredits: 300 },
-};
-
-/** Opinionated first-install config. Only written when config.json does not yet exist. */
-export const SEED_USER_CONFIG: Partial<UserConfig> = {
-  dailyCreditAlert: 50,
-  alerts: { velocityEnabled: true, velocityCreditsPerHour: 100 },
 };
 
 export interface RestrictionState {

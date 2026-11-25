@@ -8,7 +8,7 @@ function emitter<T>() {
   return { event: (l: (v: T) => void) => (ls.push(l), { dispose() {} }), fire: (v: T) => ls.forEach((l) => l(v)) };
 }
 
-function harness(over: { refresh?: () => Promise<void>; set?: () => Promise<void> } = {}) {
+function harness(over: { refresh?: () => Promise<void>; update?: () => Promise<void> } = {}) {
   let receive: ((m: unknown) => void) | undefined;
   const setFilterCalls: unknown[] = [];
   const webview = {
@@ -24,8 +24,7 @@ function harness(over: { refresh?: () => Promise<void>; set?: () => Promise<void
     },
     userConfig: {
       get: () => ({}),
-      set: over.set ?? (async () => {}),
-      uri: vscode.Uri.file('/x'),
+      update: over.update ?? (async () => {}),
       onDidChange: emitter<unknown>().event,
     },
     layout: { get: () => [], set: async () => {}, onDidChange: emitter<unknown>().event },
@@ -59,7 +58,7 @@ describe('dashboardBridge — hardening', () => {
 
   it('logs a failing config write the same way', async () => {
     const h = harness({
-      set: async () => {
+      update: async () => {
         throw new Error('disk full');
       },
     });
