@@ -165,6 +165,8 @@ export interface Replay {
   converted: FlatAlertRule[];
   skipped: Array<{ id: string; reason: string }>;
   rules: FlatAlertRule[];
+  /** The `snoozeUntil` the recorded snoozed rule carried (05:00 local on 1 Feb, as an ISO instant). */
+  snoozeUntil: string;
   /** The cooldown state after the last step (what AlertService would have persisted). */
   cooldowns: FlatCooldownState;
 }
@@ -198,7 +200,8 @@ export async function replayFlat(tz: string): Promise<Replay> {
     const times = ALERT_SCRIPT.map((s) => localInstant(s.local));
     const snapshots = await recordSnapshots(times);
     // The snoozed rule is un-snoozed at the 05:30 step; the importer sees the rules as of the first step.
-    const legacy = legacyAlertRules(new Date(localInstant('2026-02-01T05:00')).toISOString());
+    const snoozeUntil = new Date(localInstant('2026-02-01T05:00')).toISOString();
+    const legacy = legacyAlertRules(snoozeUntil);
     const { converted, skipped } = convertLegacyRules(legacy, [], { now: times[0]! });
     const rules = [...builtinFlatRules(ALERT_CONFIG, BRANCH), ...converted];
     const withoutVelocity = rules.filter((r) => r.id !== 'restrict-velocity');
@@ -235,6 +238,6 @@ export async function replayFlat(tz: string): Promise<Replay> {
         restrictionWithoutVelocity: noVelocity.state(now),
       });
     }
-    return { steps, converted, skipped, rules, cooldowns };
+    return { steps, converted, skipped, rules, snoozeUntil, cooldowns };
   });
 }

@@ -86,7 +86,7 @@ for (const tz of GOLDEN_TZS) {
       ]);
       assert.deepEqual(replay.skipped, [
         { id: 'needs-signin', reason: 'requiresAuth: flat rules cannot depend on being signed in to GitHub' },
-        { id: 'restrict-snoozed', reason: 'it is snoozed until 2026-02-01T05:00:00.000Z' },
+        { id: 'restrict-snoozed', reason: `it is snoozed until ${replay.snoozeUntil}` },
       ]);
       assert.deepEqual(parseFlatRules(replay.rules).errors, [], 'every rule validates against the schema');
     });
@@ -122,17 +122,16 @@ for (const tz of GOLDEN_TZS) {
     });
 
     it('D8: month keys are YYYY-MM, so the 80 % alert re-fires on the first snapshot of a new month', () => {
+      // After the last step (09:35 on 1 Feb) each key has been pruned by its own rule's cooldown: the 24 h daily key of
+      // 31 Jan is still blocking, while the 4 h 100 % key, the 45 min escalation key and the 1 h / 15 min keys are gone.
       assert.deepEqual(Object.keys(replay.cooldowns).sort(), [
         'builtin:branch:feature/x',
-        'builtin:budget:100@2026-01',
         'builtin:budget:80@2026-02',
+        'builtin:daily@2026-01-31',
         'builtin:daily@2026-02-01',
         'busy-day@2026-02-01',
-        'month-escalation:3@2026-01',
         'restrict-velocity',
-        'sonnet-heavy',
-        'velocity-rule',
-      ].sort(), 'the January keys of a 24 h or shorter cooldown were pruned, the February ones carry the month');
+      ]);
       const at = (local: string) => replay.steps[ALERT_SCRIPT.findIndex((s) => s.local === local)]!.toasts;
       assert.ok(at('2026-01-31T22:00').includes('builtin:budget:80'));
       assert.ok(at('2026-02-01T01:00').includes('builtin:budget:80'), 'only 3 h after the January firing, but a new month key');
