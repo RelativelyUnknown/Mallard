@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import * as vscode from 'vscode';
-import { readConfig, readCopilotOtel, RELEVANT_CONFIG_KEYS } from '../../src/extension-backend/config';
+import { readConfig, readCopilotOtel, readEnabledConnectors, RELEVANT_CONFIG_KEYS } from '../../src/extension-backend/config';
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 const ws = vscode.workspace as Mutable<typeof vscode.workspace>;
@@ -122,5 +122,22 @@ describe('readCopilotOtel', () => {
     assert.equal(readCopilotOtel().kind, 'sqlite');
     withOtel({}, { copilotOtelPath: '/y/spans.log' });
     assert.equal(readCopilotOtel().kind, 'ndjson');
+  });
+});
+
+describe('readEnabledConnectors', () => {
+  const originalGetConfiguration = ws.getConfiguration;
+  afterEach(() => { ws.getConfiguration = originalGetConfiguration; });
+
+  it('enables both connectors when the setting is unset', () => {
+    withSettings({});
+    assert.deepEqual(readEnabledConnectors(), ['copilot', 'claude-code']);
+  });
+
+  it('returns exactly the configured ids, including an empty list', () => {
+    withSettings({ enabledConnectors: ['claude-code'] });
+    assert.deepEqual(readEnabledConnectors(), ['claude-code']);
+    withSettings({ enabledConnectors: [] });
+    assert.deepEqual(readEnabledConnectors(), []);
   });
 });
