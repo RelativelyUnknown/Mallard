@@ -1,0 +1,310 @@
+/**
+ * Legacy importer: converts the old JSON rules (`config.json` `rules`) into
+ * flat rules, and reports, with a precise reason, every rule it cannot convert.
+ * Pure; a one-time migration step, not a runtime path.
+ *
+ * Converted:
+ *   - `conditions` with ONE entry (`match` "all" or "any"; "none" negates it);
+ *   - `thresholds`: each level becomes its own rule `<id>:<n>` (n counts from
+ *     1) with that level's severity and cooldown (falling back to the rule's
+ *     cooldown, then 1 h). The `<id>:<n>` ids form an escalation ladder (see
+ *     flatAlerts.ts), so only the highest matching level toasts, as before;
+ *   - `when` that is ONE comparison (`> >= < <= == !=`) of a `{var}` against a
+ *     literal, on either side.
+ *   Precedence is the legacy one: `thresholds` (non-empty) > `when` >
+ *   `conditions`; the lower forms are ignored, exactly as the old evaluator did.
+ *   `severity`, `cooldown`, `notify` and `restrict` carry over (`restrict: {}`
+ *   becomes `restrict: true`). The custom `message` is NOT carried: flat rules
+ *   have a fixed message, so a rule with a template message converts like any
+ *   other.
+ *   `restrict.reEnableWhen` becomes `clearBelow` when it is `<` or `<=` of the
+ *   same metric against a literal (strictly below, so a `<=` differs only at
+ *   exactly that value). Any other `reEnableWhen` skips the rule: converting it
+ *   without would silently change when the restriction clears.
+ *
+ * Skipped, with a reason: `and`/`or`/`not`, a bare `var` or boolean `when`,
+ * `in` and `matches`, several conditions, `match: "none"`, comparisons of two
+ * variables or two literals, a non-numeric literal, `vars`, `groups` and the
+ * `active` gate, `requiresAuth`, a `snoozeUntil` still in the future, any
+ * variable without a flat metric (see {@link mapLegacyVar}), and a repeated id.
+ *
+ * Variable mapping (`model["gpt-4.1"].credits` becomes `model:gpt-4.1.credits`):
+ * `today.credits|cost`, `month.credits|cost` (also `budget.usedCredits|usedCost`,
+ * which are the same numbers), `budget.percentOfBudget|percentOfIncluded`,
+ * `forecast.projectedCredits|projectedCost`, `velocity.creditsPerHour`,
+ * `window7d.credits`, `currentBranchCredits`, and `model.<key>.credits|cost`,
+ * `repo.<key>.credits|cost`.
+ */
+import type { FlatAlertMetric, FlatAlertRule } from './contracts';
+import { parseVarPath, toNumeric } from './expr/jsonCondition';
+import { DEFAULT_FLAT_COOLDOWN } from './flatAlerts';
+import { parseDurationMs } from './alertRules';
+import type { AlertGroup, AlertRule, JsonCondition, ThresholdLevel } from './types';
+
+export interface LegacyImportResult {
+  converted: FlatAlertRule[];
+  skipped: Array<{ id: string; reason: string }>;
+}
+
+export interface LegacyImportOptions {
+  /**
+   * The current time. With it, a `snoozeUntil` that has passed (or is not a
+   * date) no longer blocks the conversion; without it any `snoozeUntil` that
+   * parses as a date does.
+   */
+  now?: number;
+}
+
+type FlatOp = FlatAlertRule['op'];
+type Comparison = { metric: FlatAlertMetric; op: FlatOp; value: number };
+type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string };
+
+const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, reason });
+
+// ── Variable mapping ─────────────────────────────────────────────────────────
+
+const DIRECT_METRICS = new Set<string>([
+  'today.credits',
+  'today.cost',
+  'month.credits',
+  'month.cost',
+  'budget.percentOfBudget',
+  'budget.percentOfIncluded',
+  'forecast.projectedCredits',
+  'forecast.projectedCost',
+  'velocity.creditsPerHour',
+  'window7d.credits',
+]);
+
+/** Legacy paths that are the same number as a flat metric. */
+const ALIASES = new Map<string, FlatAlertMetric>([
+  ['budget.usedCredits', 'month.credits'],
+  ['budget.usedCost', 'month.cost'],
+]);
+
+/** Why a path with no flat metric is unsupported, by what it starts or ends with. */
+const UNSUPPORTED: Array<[RegExp, string]> = [
+  [/^vars(\.|\[|$)/, 'user variables (vars) are not supported'],
+  [/^group(\.|\[|$)/, 'rule groups are not supported'],
+  [/^(billing|signedIn)(\.|\[|$)/, 'GitHub billing values are not flat metrics'],
+  [/^now(\.|\[|$)/, 'time-of-day values (now.*) are not flat metrics'],
+  [/^(topModel|topSurface|topRepo|surface)(\.|\[|$)/, 'top-model, top-repo and per-surface values are not flat metrics'],
+  [/^branchBudgets(\.|\[|$)/, 'per-branch caps are the branchBudgets setting, not a metric'],
+  [/(^|\.)tokens$/, 'token counts are not flat metrics'],
+];
+
+/** The flat metric for a legacy var path, or why there is none. */
+export function mapLegacyVar(path: string): Parsed<FlatAlertMetric> {
+  const segments = parseVarPath(path);
+  if (!segments) return fail(`"${path}" is not a valid variable path`);
+  const [first, second, third, ...rest] = segments;
+  const pair = `${first}.${second}`;
+  if (segments.length === 1 && first === 'currentBranchCredits') return { ok: true, value: 'currentBranchCredits' };
+  if (segments.length === 2 && DIRECT_METRICS.has(pair)) return { ok: true, value: pair as FlatAlertMetric };
+  const alias = segments.length === 2 ? ALIASES.get(pair) : undefined;
+  if (alias) return { ok: true, value: alias };
+  if ((first === 'model' || first === 'repo') && second && (third === 'credits' || third === 'cost') && rest.length === 0) {
+    return { ok: true, value: `${first}:${second}.${third}` };
+  }
+  const reason = UNSUPPORTED.find(([pattern]) => pattern.test(path))?.[1];
+  return fail(reason ? `"${path}": ${reason}` : `"${path}" has no flat-alert metric`);
+}
+
+// ── Single comparisons ───────────────────────────────────────────────────────
+
+/** The same comparison with its operands swapped. */
+const SWAPPED: Record<FlatOp, FlatOp> = { '>': '<', '>=': '<=', '<': '>', '<=': '>=', '==': '==', '!=': '!=' };
+const FLAT_OPS = new Set<string>(Object.keys(SWAPPED));
+
+function isVar(operand: unknown): operand is { var: string } {
+  return typeof operand === 'object' && operand !== null && typeof (operand as { var?: unknown }).var === 'string';
+}
+
+function literalNumber(operand: unknown): Parsed<number> {
+  const n = toNumeric(operand);
+  return n === null ? fail(`the value ${JSON.stringify(operand)} is not a number`) : { ok: true, value: n };
+}
+
+/** `var op literal` (or `literal op var`, which is flipped) as a flat comparison. */
+function comparisonOf(op: string, left: unknown, right: unknown): Parsed<Comparison> {
+  if (!FLAT_OPS.has(op)) return fail(`the operator "${op}" is not supported (use > >= < <= == !=)`);
+  const flatOp = op as FlatOp;
+  let variable: string;
+  let literal: unknown;
+  let direction: FlatOp;
+  if (isVar(left) && isVar(right)) return fail(`it compares two variables (${left.var} and ${right.var})`);
+  if (isVar(left)) [variable, literal, direction] = [left.var, right, flatOp];
+  else if (isVar(right)) [variable, literal, direction] = [right.var, left, SWAPPED[flatOp]];
+  else return fail('it compares two literal values, so it does not depend on any metric');
+  const metric = mapLegacyVar(variable);
+  if (!metric.ok) return metric;
+  const value = literalNumber(literal);
+  if (!value.ok) return value;
+  return { ok: true, value: { metric: metric.value, op: direction, value: value.value } };
+}
+
+/** A `when` / `reEnableWhen` condition as one flat comparison. */
+function conditionComparison(cond: JsonCondition): Parsed<Comparison> {
+  if (typeof cond === 'boolean') return fail(`it is the constant condition ${String(cond)}`);
+  const key = Object.keys(cond)[0] ?? '';
+  if (key === 'and' || key === 'or' || key === 'not') {
+    return fail(`it uses "${key}", and flat rules are a single comparison of one metric`);
+  }
+  if (key === 'var') return fail('it is a truthy check on a variable, which has no flat equivalent');
+  const operands: unknown = (cond as unknown as Record<string, unknown>)[key];
+  if (!Array.isArray(operands) || operands.length !== 2) return fail('it is not a comparison of two operands');
+  return comparisonOf(key, operands[0], operands[1]);
+}
+
+function levelComparison(level: { field: string; op: string; value: unknown }): Parsed<Comparison> {
+  if (level.op === 'in' || level.op === 'matches') return fail(`the operator "${level.op}" is not supported`);
+  return comparisonOf(level.op, { var: level.field }, level.value);
+}
+
+// ── Rules ────────────────────────────────────────────────────────────────────
+
+interface Shared {
+  notify: boolean | undefined;
+  restrict: AlertRule['restrict'];
+}
+
+/** `restrict.reEnableWhen` as the `clearBelow` of a rule on `metric`. */
+function clearBelowOf(restrict: NonNullable<AlertRule['restrict']>, metric: FlatAlertMetric): Parsed<number | undefined> {
+  if (restrict.reEnableWhen === undefined) return { ok: true, value: undefined };
+  const parsed = conditionComparison(restrict.reEnableWhen);
+  if (!parsed.ok) return fail(`restrict.reEnableWhen cannot be converted (${parsed.reason})`);
+  const { metric: reEnableMetric, op, value } = parsed.value;
+  if (reEnableMetric !== metric || (op !== '<' && op !== '<=')) {
+    return fail(`restrict.reEnableWhen must be "${metric} <" (or "<=") a number to become clearBelow`);
+  }
+  return { ok: true, value };
+}
+
+function validCooldown(...candidates: Array<string | undefined>): string {
+  const found = candidates.find((c): c is string => c !== undefined && parseDurationMs(c) !== null);
+  return found ?? DEFAULT_FLAT_COOLDOWN;
+}
+
+function flatRule(
+  id: string,
+  comparison: Comparison,
+  severity: FlatAlertRule['severity'],
+  cooldown: string,
+  shared: Shared,
+): Parsed<FlatAlertRule> {
+  const clear = shared.restrict ? clearBelowOf(shared.restrict, comparison.metric) : { ok: true as const, value: undefined };
+  if (!clear.ok) return clear;
+  return {
+    ok: true,
+    value: {
+      id,
+      metric: comparison.metric,
+      op: comparison.op,
+      value: comparison.value,
+      cooldown,
+      severity,
+      ...(shared.notify !== undefined ? { notify: shared.notify } : {}),
+      ...(shared.restrict ? { restrict: true } : {}),
+      ...(clear.value !== undefined ? { clearBelow: clear.value } : {}),
+    },
+  };
+}
+
+/** Why the gates (`requiresAuth`, `active`, `snoozeUntil`) rule out a conversion, if they do. */
+function gateReason(rule: AlertRule, groups: readonly AlertGroup[], now: number | undefined): string | undefined {
+  if (rule.requiresAuth) return 'requiresAuth: flat rules cannot depend on being signed in to GitHub';
+  if (rule.active !== undefined) {
+    const path = isVar(rule.active) ? parseVarPath(rule.active.var) : null;
+    const ref = path?.length === 2 && path[0] === 'group' ? path[1] : undefined;
+    if (ref === undefined) return 'it has an "active" gate, and flat rules have no extra conditions';
+    const group = groups.find((g) => g.id === ref);
+    const state = typeof group?.active === 'boolean' ? ` (currently ${group.active ? 'on' : 'off'})` : '';
+    return `it belongs to the rule group "${ref}"${state}, and groups are not supported`;
+  }
+  if (rule.snoozeUntil) {
+    const until = new Date(rule.snoozeUntil).getTime();
+    if (!isNaN(until) && (now === undefined || until > now)) return `it is snoozed until ${rule.snoozeUntil}`;
+  }
+  return undefined;
+}
+
+function triggerComparisons(rule: AlertRule): Parsed<Array<{ comparison: Comparison; level?: ThresholdLevel }>> {
+  if (rule.thresholds?.length) {
+    const out: Array<{ comparison: Comparison; level: ThresholdLevel }> = [];
+    for (const [i, level] of rule.thresholds.entries()) {
+      const parsed = levelComparison(level);
+      if (!parsed.ok) return fail(`threshold level ${i + 1}: ${parsed.reason}`);
+      out.push({ comparison: parsed.value, level });
+    }
+    return { ok: true, value: out };
+  }
+  if (rule.when !== undefined) {
+    const parsed = conditionComparison(rule.when);
+    return parsed.ok ? { ok: true, value: [{ comparison: parsed.value }] } : fail(`"when": ${parsed.reason}`);
+  }
+  const conditions = rule.conditions ?? [];
+  if (conditions.length === 0) return fail('it has no thresholds, "when" or conditions');
+  if (conditions.length > 1) return fail(`it has ${conditions.length} conditions, and flat rules are a single comparison`);
+  if (rule.match === 'none') return fail('match "none" negates the condition, which flat rules cannot express');
+  const parsed = levelComparison(conditions[0]!);
+  return parsed.ok ? { ok: true, value: [{ comparison: parsed.value }] } : fail(`condition: ${parsed.reason}`);
+}
+
+/**
+ * Convert the legacy rules. `groups` (the document's rule groups) only sharpens
+ * the reason given for a rule gated on one. Rules are independent: one that
+ * cannot be converted never affects its siblings.
+ */
+export function convertLegacyRules(
+  rules: readonly AlertRule[],
+  groups: readonly AlertGroup[] = [],
+  options: LegacyImportOptions = {},
+): LegacyImportResult {
+  const converted: FlatAlertRule[] = [];
+  const skipped: LegacyImportResult['skipped'] = [];
+  const taken = new Set<string>();
+
+  for (const rule of rules) {
+    const skip = (reason: string): void => void skipped.push({ id: rule.id, reason });
+    const gate = gateReason(rule, groups, options.now);
+    if (gate) {
+      skip(gate);
+      continue;
+    }
+    const trigger = triggerComparisons(rule);
+    if (!trigger.ok) {
+      skip(trigger.reason);
+      continue;
+    }
+    const shared: Shared = { notify: rule.notify, restrict: rule.restrict };
+    const made: FlatAlertRule[] = [];
+    let failure: string | undefined;
+    for (const [i, { comparison, level }] of trigger.value.entries()) {
+      const id = level ? `${rule.id}:${i + 1}` : rule.id;
+      const built = flatRule(
+        id,
+        comparison,
+        level ? level.severity : rule.severity,
+        validCooldown(level?.cooldown, rule.cooldown),
+        shared,
+      );
+      if (!built.ok) {
+        failure = level ? `threshold level ${i + 1}: ${built.reason}` : built.reason;
+        break;
+      }
+      made.push(built.value);
+    }
+    if (failure !== undefined) {
+      skip(failure);
+      continue;
+    }
+    const clash = made.find((m) => taken.has(m.id));
+    if (clash) {
+      skip(`its id "${clash.id}" is already used by another converted rule`);
+      continue;
+    }
+    for (const m of made) taken.add(m.id);
+    converted.push(...made);
+  }
+  return { converted, skipped };
+}

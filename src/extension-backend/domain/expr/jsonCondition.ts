@@ -160,7 +160,7 @@ function isNumericText(v: string): boolean {
 }
 
 /** A finite number, or null when the value is not (canonically) numeric. */
-function toNumeric(v: unknown): number | null {
+export function toNumeric(v: unknown): number | null {
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
   if (typeof v === 'string' && isNumericText(v)) {
     const n = Number(v);
@@ -178,7 +178,7 @@ function looseEquals(a: unknown, b: unknown): boolean {
 }
 
 /** The shared comparison — see the semantics block in the file header. */
-function compare(left: unknown, right: unknown, op: string): boolean {
+export function compare(left: unknown, right: unknown, op: string): boolean {
   if (isNil(left) || isNil(right)) return op === '!=';
   if (op === '==') return looseEquals(left, right);
   if (op === '!=') return !looseEquals(left, right);
