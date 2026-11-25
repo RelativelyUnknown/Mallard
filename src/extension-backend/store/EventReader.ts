@@ -1,6 +1,7 @@
 import { DuckDBConnection } from '@duckdb/node-api';
 import { z } from 'zod';
 import { CostCategory, SourceKind, Surface, UsageEvent } from '../domain/types';
+import type { SnapshotSourceData } from '../domain/snapshotSource';
 import { bucketKey, nextBucketStart, startOf } from '../util/time';
 import {
   AggregateResult,
@@ -21,39 +22,9 @@ import { FilterClauseBuilder } from './FilterClauseBuilder';
 
 // ── SnapshotSourceData ─────────────────────────────────────────────────────────
 
-/**
- * The normalized data bundle the snapshot engine produces. There is one engine
- * (readFilteredSnapshot); the no-filter dashboard load is its memoized
- * empty-filter case (readSnapshotCache), so both return the same shape and can
- * never disagree.
- */
-export interface SnapshotSourceData {
-  totals: {
-    all:   { credits: number; cost: number; tokens: number; eventCount: number };
-    mtd:   { credits: number; cost: number; tokens: number; eventCount: number };
-    today: { credits: number; cost: number; tokens: number; eventCount: number };
-  };
-  /** Events whose cost is estimated (log-derived) rather than authoritative. */
-  estimatedEventCount: number;
-  /** day_start = epoch ms of local midnight, DST-correct. */
-  daily:      Array<{
-    dayStart: number; credits: number; cost: number; tokens: number; eventCount: number;
-    /** Per-day cost split by category (USD), for the category-trend chart. */
-    catInput: number; catOutput: number; catCacheRead: number; catCacheCreation: number; catThinking: number; catTool: number;
-  }>;
-  models:     Array<{ modelId: string; credits: number; cost: number; tokens: number }>;
-  repos:      Array<{ repo: string; credits: number; cost: number; tokens: number; heuristicShare: number }>;
-  /** Per-language spend; language is 'unknown' for rows without one. */
-  languages:  Array<{ language: string; credits: number; cost: number; tokens: number }>;
-  /** hour_local = 0-23 in session timezone (DST-correct). */
-  hourly:     Array<{ hourLocal: number; credits: number }>;
-  categories: Array<{ category: string; cost: number }>;
-  sankey:     Array<{ model: string; surface: string; count: number; credits: number }>;
-  /** Distinct values; in the filtered path scoped to the range filter only. */
-  dims:       { models: string[]; surfaces: string[]; sources: string[]; repos: string[] };
-  /** Credits per weekday, index 0=Sun … 6=Sat. */
-  weekday:    number[];
-}
+// The type lives with the pure engine that builds it (domain/snapshotSource.ts);
+// re-exported so the readers' importers keep their path.
+export type { SnapshotSourceData };
 
 // ── FactRow ────────────────────────────────────────────────────────────────────
 
