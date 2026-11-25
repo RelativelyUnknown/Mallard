@@ -7,7 +7,6 @@ on:
       - "src/extension-backend/**"
       - "src/extension-frontend/**"
       - "test/**"
-      - "schemas/**"
       - "media/**"
       - "package.json"
       - "bun.lock"
