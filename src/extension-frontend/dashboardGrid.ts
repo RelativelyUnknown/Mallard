@@ -80,6 +80,8 @@ export function mountDashboardGrid(opts: DashboardGridOptions): DashboardGrid {
   /** JSON of the layout last handed to onPersist: the host's echo of it must not be applied again. */
   let lastPosted: string | undefined;
   let pending: LayoutV2 | undefined;
+  /** Depth of our own engine calls: gravity moves other panels (and gridstack emits `change`) when one is removed or added. */
+  let quiet = 0;
 
   function announce(message: string): void {
     // Clear first so repeating the same message is announced again.
@@ -127,6 +129,15 @@ export function mountDashboardGrid(opts: DashboardGridOptions): DashboardGrid {
   /** Bring the engine in line with the model: remove what should be gone, add what should be there, move what differs. */
   function reconcile(): void {
     if (lift.isLifted()) return; // finished by onEnd
+    quiet++;
+    try {
+      reconcileNow();
+    } finally {
+      quiet--;
+    }
+  }
+
+  function reconcileNow(): void {
     const toAdd: Array<{ id: string; el: HTMLElement; rect: PanelRect }> = [];
     const toLoad: PanelRect[] = [];
     let changed = false;
@@ -220,7 +231,7 @@ export function mountDashboardGrid(opts: DashboardGridOptions): DashboardGrid {
   engine.onChange((info) => {
     if (info.ignorable || info.column !== COLUMNS) return;
     syncModel(info.rects);
-    if (!lift.isLifted()) schedulePersist();
+    if (!lift.isLifted() && quiet === 0) schedulePersist();
   });
   engine.onColumnChange((columns) => setNarrow(columns !== COLUMNS));
   setNarrow(engine.columns() !== COLUMNS);

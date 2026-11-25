@@ -130,7 +130,7 @@ describe('GridstackEngine (the gridstack adapter, in jsdom)', () => {
     late.hidden = true;
     ctx.engine.add('late', late, r('late', 3, 40, 9, 2));
     assert.equal(late.hidden, false);
-    assert.deepEqual(ctx.engine.rect('late'), r('late', 0, 40, 4, 7));
+    assert.deepEqual(ctx.engine.rect('late'), r('late', 0, 20, 4, 7), 'clamped to the grid, then pulled up under the last panel by gravity');
   });
 
   it('load() sanitises, ignores unknown ids and unregistered panels, and creates no widget for them', () => {
@@ -154,13 +154,15 @@ describe('GridstackEngine (the gridstack adapter, in jsdom)', () => {
     assert.deepEqual(seen, [{ n: 3, column: 4, ignorable: false }]);
   });
 
-  it('does not emit change for registerAll, add, unregister or load (the controller relies on that)', () => {
-    let n = 0;
-    ctx.engine.onChange(() => n++);
-    ctx.engine.unregister('b');
-    ctx.engine.add('b', ctx.els.b, r('b', 2, 0, 2, 13));
+  it('load() never emits change; unregister/add do when gravity moves another panel (so the controller silences its own calls)', () => {
+    const seen: string[][] = [];
+    ctx.engine.onChange((i) => seen.push(i.rects.map((p) => `${p.id}:${p.y}`)));
     ctx.engine.load([r('a', 1, 0, 1, 7)]);
-    assert.equal(n, 0);
+    assert.deepEqual(seen, []);
+    ctx.engine.unregister('b');
+    assert.deepEqual(seen.at(-1), ['a:0', 'c:7'], 'c floated up into the freed space');
+    ctx.engine.add('b', ctx.els.b, r('b', 2, 0, 2, 13));
+    assert.equal(seen.length, 2);
   });
 
   it('switches to one column below 700 px, reports it, and restores the wide layout exactly on the way back', () => {

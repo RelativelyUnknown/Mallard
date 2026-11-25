@@ -143,7 +143,7 @@ export function attachLiftKeyboard(root: HTMLElement, engine: GridEngine, o: Lif
     panel.classList.add('wv-lifted');
     panel.dataset.liftMode = 'move';
     o.onStart?.(id);
-    o.announce(`${o.titleOf(id)} lifted. ${where(rect)}. Use arrow keys to move, R to resize, Space to drop, Escape to cancel.`);
+    o.announce(`${o.titleOf(id)} lifted. ${where(rect).replace('column', 'Column')}. Use arrow keys to move, R to resize, Space to drop, Escape to cancel.`);
   }
 
   function end(result: 'drop' | 'cancel'): void {
