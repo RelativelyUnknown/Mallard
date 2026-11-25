@@ -93,16 +93,11 @@ export function withFrozenDateSync<T>(now: number, fn: () => T): T {
  * exactly like `new Date(y, m, d, h, mi)`.
  */
 export function localInstant(wall: string): number {
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(wall);
-  if (!m) throw new Error(`bad local wall time: ${wall}`);
-  return new Date(
-    Number(m[1]),
-    Number(m[2]) - 1,
-    Number(m[3]),
-    Number(m[4] ?? 0),
-    Number(m[5] ?? 0),
-    Number(m[6] ?? 0),
-  ).getTime();
+  const [date = '', time = '00:00'] = wall.split('T');
+  const [y, mo, d] = date.split('-').map(Number);
+  const [h = 0, mi = 0, sec = 0] = time.split(':').map(Number);
+  if (![y, mo, d, h, mi, sec].every((n) => Number.isInteger(n))) throw new Error(`bad local wall time: ${wall}`);
+  return new Date(y!, mo! - 1, d!, h, mi, sec).getTime();
 }
 
 /** `YYYY-MM-DDTHH:mm:ss.sssZ` for an epoch ms (annotation only). */

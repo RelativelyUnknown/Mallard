@@ -5,11 +5,9 @@
  *
  * Import it FIRST in any script entry point.
  */
-import * as path from 'path';
-
 try {
   require.resolve('vscode');
 } catch {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require(path.join(__dirname, '..', '..', 'unit', 'setup', 'vscode-mock.cjs'));
+  require('../../unit/setup/vscode-mock.cjs');
 }

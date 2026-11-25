@@ -355,6 +355,8 @@
     "test:unit": "mocha",
     "test:coverage": "c8 mocha",
     "bench": "tsx test/bench/benchmark.ts",
+    "golden:record": "tsx test/golden/record.ts",
+    "golden:fixtures": "tsx test/golden/generate-fixtures.ts",
     "compile-tests": "tsc -p tsconfig.host.json --outDir out",
     "pretest": "bun run compile-tests && bun run compile && bun run check-types && bun run lint",
     "test": "vscode-test",

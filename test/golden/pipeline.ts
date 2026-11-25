@@ -236,6 +236,8 @@ export interface World {
   readonly sqliteAvailable: boolean;
   /** Every event the store accepted, as the connectors mapped them (full UsageEvent objects). */
   readonly freshRaw: readonly UsageEvent[];
+  /** The same events grouped by `onInserted` call (one per connector pass): what the exporter is handed. */
+  readonly insertCalls: ReadonlyArray<readonly UsageEvent[]>;
   events(): NormalizedEvent[];
   stored(): Promise<NormalizedEvent[]>;
   labelId(id: string): string;
@@ -308,12 +310,15 @@ export async function openWorld(opts: { tz: string; now?: number; retentionDays?
     await copyTree(path.join(FIXTURES, 'copilot'), copilotDir);
     const pricing = await loadPricing();
 
-    const warnings: string[] = [];
-    const logger: Logger = { ...SILENT, warn: (_t, m) => void warnings.push(String(m)) };
-    const store = await EventStore.open(path.join(root, 'db'), opts.retentionDays, logger);
+    const store = await EventStore.open(path.join(root, 'db'), opts.retentionDays, SILENT);
 
     const raw: UsageEvent[] = [];
-    store.writer.onInserted = (events) => void raw.push(...events.map((e) => ({ ...e })));
+    const insertCalls: UsageEvent[][] = [];
+    store.writer.onInserted = (events) => {
+      const copy = events.map((e) => ({ ...e }));
+      insertCalls.push(copy);
+      raw.push(...copy);
+    };
 
     const otel = (name: string, kind: CopilotOtelSource['kind']): CopilotOtelSource => ({ kind, path: path.join(copilotDir, name) });
     const connectors: Array<[string, { start(): Promise<void>; getStatus(): string; dispose(): void }]> = [
@@ -363,8 +368,10 @@ export async function openWorld(opts: { tz: string; now?: number; retentionDays?
       root,
       pricing,
       passes,
-      sqliteAvailable: !warnings.some((w) => /sqlite/i.test(w)),
+      // The span DB is read through DuckDB's sqlite extension; offline, that read fails quietly and yields no rows.
+      sqliteAvailable: raw.some((e) => e.id.startsWith('local:cp:')),
       freshRaw: raw,
+      insertCalls,
       labelId,
       events: () => raw.map((e) => normalize(e, labelId)).sort(byTsThenId),
       stored: async () => withTz(tz, async () => (await store.reader.find()).map((e) => normalize(e, labelId)).sort(byTsThenId)),
@@ -609,18 +616,21 @@ export async function exportJson(world: World): Promise<Json[]> {
 }
 
 /**
- * The exact payloads the exporter would send for the freshly ingested events:
- * chunked (oldest first, 100 per batch) and built by `buildStreamBatch`, with
+ * The exact payloads the exporter would send for the freshly ingested events,
+ * in the order container.ts produces them: per `onInserted` call (one per
+ * connector pass), chunked oldest-first at 100 and built by `buildStreamBatch`, with
  * the clock frozen at `now` (including `new Date()`, which supplies
  * `tz_offset_minutes`) and the machine id supplied by the vscode mock.
  */
 export function streamBatch(world: World, opts: { now: number }): StreamBatch[] {
   return withTzSync(world.tz, () =>
     withFrozenDateSync(opts.now, () =>
-      chunkEvents(world.freshRaw).map((chunk) => {
-        const batch = buildStreamBatch(chunk);
-        return { ...batch, events: batch.events.map((e) => ({ ...e, id: world.labelId(e.id) })) };
-      }),
+      world.insertCalls.flatMap((events) =>
+        chunkEvents(events).map((chunk) => {
+          const batch = buildStreamBatch(chunk);
+          return { ...batch, events: batch.events.map((e) => ({ ...e, id: world.labelId(e.id) })) };
+        }),
+      ),
     ),
   );
 }
@@ -650,6 +660,9 @@ const ALERT_SCRIPT: ScriptStep[] = [
   { local: '2026-01-31T21:30', today: 30, todayCost: 1.2, mtd: 170, mtdCost: 70, branchCredits: 25 },
   { local: '2026-01-31T22:00', today: 60, todayCost: 2.4, mtd: 200, mtdCost: 82, branchCredits: 38 },
   { local: '2026-01-31T22:30', today: 95, todayCost: 3.8, mtd: 235, mtdCost: 85, branchCredits: 41 },
+  // Irregular spacing: with 5+ samples in the window the built-in (first-to-last) and rule (least-squares) velocities disagree.
+  { local: '2026-01-31T22:40', today: 125, todayCost: 5, mtd: 240, mtdCost: 85.5, branchCredits: 42 },
+  { local: '2026-01-31T22:45', today: 132, todayCost: 5.3, mtd: 245, mtdCost: 86, branchCredits: 42 },
   { local: '2026-01-31T23:00', today: 160, todayCost: 6.4, mtd: 300, mtdCost: 99, branchCredits: 45 },
   { local: '2026-01-31T23:30', today: 165, todayCost: 6.6, mtd: 306, mtdCost: 101, branchCredits: 46, action: 'snooze-restriction-30m' },
   { local: '2026-02-01T00:00', today: 5, todayCost: 0.2, mtd: 5, mtdCost: 2, branchCredits: 0 },
@@ -675,6 +688,7 @@ function alertRules(snoozeUntil: string): AlertRule[] {
       ],
     },
     { id: 'sonnet-heavy', severity: 'info', cooldown: '1h', message: 'Sonnet used {{ model["claude-sonnet-4-5-20250929"].credits }} credits', when: { '>': [{ var: `model["${SONNET_ID}"].credits` }, 120] } },
+    { id: 'velocity-rule', severity: 'info', cooldown: '15m', message: 'Rule velocity {{velocity.creditsPerHour}} cr/h', when: { '>': [{ var: 'velocity.creditsPerHour' }, 90] } },
     { id: 'needs-signin', severity: 'warning', requiresAuth: true, message: 'Signed-in only rule', conditions: [{ field: 'today.credits', op: '>', value: 0 }] },
     { id: 'restrict-over-budget', severity: 'critical', message: 'Budget exceeded', when: { '>=': [{ var: 'budget.percentOfBudget' }, 1] }, restrict: { reEnableWhen: { '<': [{ var: 'budget.percentOfBudget' }, 0.9] } } },
     { id: 'restrict-heavy-day', severity: 'critical', message: 'Heavy day', conditions: [{ field: 'today.credits', op: '>', value: 150 }], restrict: {} },
