@@ -1,0 +1,37 @@
+{
+  "activatedAt": "2026-11-25T05:39:02.274Z",
+  "info": {
+    "vscodeVersion": "1.100.3",
+    "appName": "Visual Studio Code",
+    "uiKind": 1,
+    "remoteName": null,
+    "platform": "linux",
+    "arch": "x64",
+    "pid": 8870,
+    "execPath": "/home/user/Mallard/.claude/worktrees/agent-a46488cff5c2483b2/spikes/s1-s4/.vscode-test/vscode-linux-x64-1.100.3/code",
+    "processType": "utility",
+    "versions": {
+      "node": "20.19.0",
+      "electron": "34.5.1",
+      "chrome": "132.0.6834.210",
+      "v8": "13.2.152.41-electron.0",
+      "sqlite": null
+    },
+    "execArgv": [
+      "--dns-result-order=ipv4first",
+      "--expose-gc"
+    ],
+    "NODE_OPTIONS": null,
+    "ELECTRON_RUN_AS_NODE": "1",
+    "globalStorage": "/tmp/claude-0/-home-user-Mallard/0c0b2e31-d5db-5616-acab-078f14e6d5bc/scratchpad/s1s4/tmp/vsc-1.100.3-trusted-1795585138115/user-data/User/globalStorage/spike.mallard-spike",
+    "extensionKind": 1
+  },
+  "sqliteLoads": false,
+  "sqliteLoadError": {
+    "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+    "message": "No such built-in module: node:sqlite"
+  },
+  "sqliteExports": null,
+  "warningsEmittedByRequire": [],
+  "activationMs": 1
+}

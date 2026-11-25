@@ -1,0 +1,652 @@
+{
+  "info": {
+    "vscodeVersion": "1.130.0",
+    "appName": "Visual Studio Code",
+    "uiKind": 1,
+    "remoteName": null,
+    "platform": "linux",
+    "arch": "x64",
+    "pid": 15094,
+    "execPath": "/home/user/Mallard/.claude/worktrees/agent-a46488cff5c2483b2/spikes/s1-s4/.vscode-test/vscode-linux-x64-1.130.0/code",
+    "processType": "utility",
+    "versions": {
+      "node": "24.18.0",
+      "electron": "42.6.0",
+      "chrome": "148.0.7778.280",
+      "v8": "14.8.178.38-electron.0",
+      "sqlite": "3.53.1"
+    },
+    "execArgv": [
+      "--dns-result-order=ipv4first",
+      "--experimental-network-inspection",
+      "--expose-gc"
+    ],
+    "NODE_OPTIONS": null,
+    "ELECTRON_RUN_AS_NODE": "1",
+    "globalStorage": "/tmp/s1t/vmwvp78cn/user-data/User/globalStorage/spike.mallard-spike",
+    "extensionKind": 1
+  },
+  "activatedByStartup": true,
+  "sqliteLoads": true,
+  "activation": {
+    "activatedAt": "2026-11-25T05:43:49.864Z",
+    "info": {
+      "vscodeVersion": "1.130.0",
+      "appName": "Visual Studio Code",
+      "uiKind": 1,
+      "remoteName": null,
+      "platform": "linux",
+      "arch": "x64",
+      "pid": 15094,
+      "execPath": "/home/user/Mallard/.claude/worktrees/agent-a46488cff5c2483b2/spikes/s1-s4/.vscode-test/vscode-linux-x64-1.130.0/code",
+      "processType": "utility",
+      "versions": {
+        "node": "24.18.0",
+        "electron": "42.6.0",
+        "chrome": "148.0.7778.280",
+        "v8": "14.8.178.38-electron.0",
+        "sqlite": "3.53.1"
+      },
+      "execArgv": [
+        "--dns-result-order=ipv4first",
+        "--experimental-network-inspection",
+        "--expose-gc"
+      ],
+      "NODE_OPTIONS": null,
+      "ELECTRON_RUN_AS_NODE": "1",
+      "globalStorage": "/tmp/s1t/vmwvp78cn/user-data/User/globalStorage/spike.mallard-spike",
+      "extensionKind": 1
+    },
+    "sqliteLoads": true,
+    "sqliteLoadError": null,
+    "sqliteExports": [
+      "DatabaseSync",
+      "Session",
+      "StatementSync",
+      "backup",
+      "constants"
+    ],
+    "warningsEmittedByRequire": [],
+    "activationMs": 0
+  },
+  "results": {
+    "single": [
+      {
+        "id": "1a",
+        "item": "new DatabaseSync(path) in globalStorage-like dir",
+        "pass": true,
+        "evidence": {
+          "dbPath": "/tmp/s1t/vmwvp78cn/user-data/User/globalStorage/spike.mallard-spike/s1-1795585429948/single/events.sqlite",
+          "existsAfterOpen": true
+        }
+      },
+      {
+        "id": "1b",
+        "item": "exec PRAGMA journal_mode=WAL (+ read back)",
+        "pass": true,
+        "evidence": "wal"
+      },
+      {
+        "id": "1c",
+        "item": "exec PRAGMA busy_timeout=5000 (+ read back)",
+        "pass": true,
+        "evidence": 5000
+      },
+      {
+        "id": "1d",
+        "item": "exec PRAGMA synchronous=NORMAL (+ read back = 1)",
+        "pass": true,
+        "evidence": 1
+      },
+      {
+        "id": "1e",
+        "item": "WAL file artefacts appear next to the db after a write",
+        "pass": true,
+        "evidence": [
+          "events.sqlite",
+          "events.sqlite-shm",
+          "events.sqlite-wal"
+        ]
+      },
+      {
+        "id": "3a",
+        "item": "ON CONFLICT(id) DO UPDATE SET a = max(a, excluded.a)",
+        "pass": true,
+        "evidence": {
+          "prompt": 12,
+          "completion": 20
+        }
+      },
+      {
+        "id": "3a2",
+        "item": "ON CONFLICT upsert with NULL prior value: max(NULL, x) semantics",
+        "pass": true,
+        "evidence": {
+          "withoutCoalesce": null,
+          "withCoalesce": 9,
+          "note": "scalar max() with a NULL arg yields NULL"
+        }
+      },
+      {
+        "id": "3b",
+        "item": "json_extract / ->> / json_each",
+        "pass": true,
+        "evidence": {
+          "json_extract": 42,
+          "arrow": 42,
+          "json_each": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "id": "3c",
+        "item": "strftime / date(...,'localtime') / unixepoch()",
+        "pass": true,
+        "evidence": {
+          "utcHour": "2023-11-14 22",
+          "dow": "2",
+          "localDay": "2023-11-14",
+          "epochS": "1700000000",
+          "unixepoch": 1700000000
+        }
+      },
+      {
+        "id": "3d",
+        "item": "BEGIN IMMEDIATE / COMMIT / ROLLBACK via exec; isTransaction where available",
+        "pass": true,
+        "evidence": {
+          "isTransactionDuringTx": true,
+          "rolledBackRows": 0,
+          "committedRows": 1
+        }
+      },
+      {
+        "id": "3e",
+        "item": "PRAGMA data_version readable (integer, stable without foreign commits)",
+        "pass": true,
+        "evidence": {
+          "first": 2,
+          "second": 2,
+          "note": "own-connection commits do NOT change data_version; see two-process test"
+        }
+      },
+      {
+        "id": "3f",
+        "item": "INSERT ... RETURNING (run() vs get()/all())",
+        "pass": true,
+        "evidence": {
+          "single": {
+            "id": "ret1",
+            "ts": 5
+          },
+          "multi": [
+            "ret2",
+            "ret3"
+          ]
+        }
+      },
+      {
+        "id": "3g",
+        "item": "window functions (SUM OVER, row_number, lag)",
+        "pass": true,
+        "evidence": {
+          "sample": {
+            "day": "d3",
+            "model": "a",
+            "credits": 3,
+            "running": 6,
+            "rk": 1,
+            "prev": 2
+          },
+          "rows": 5
+        }
+      },
+      {
+        "id": "3h",
+        "item": "sqlite_version() and compile options",
+        "pass": true,
+        "evidence": {
+          "sqlite_version": "3.53.1",
+          "threadsafe": [
+            "THREADSAFE=1"
+          ],
+          "json": [],
+          "fts": [
+            "ENABLE_FTS3",
+            "ENABLE_FTS3_PARENTHESIS",
+            "ENABLE_FTS5"
+          ],
+          "count": 49
+        }
+      },
+      {
+        "id": "3i",
+        "item": "statement caching: prepare once, run many (perf smoke: 20k rows in one tx)",
+        "pass": true,
+        "evidence": {
+          "rows": 20000,
+          "insertMs": 15
+        }
+      },
+      {
+        "id": "7a",
+        "item": "INTEGER > 2^31 (token counts, epoch ms) round-trips as JS number by default",
+        "pass": true,
+        "evidence": {
+          "tokens_3e9": {
+            "v": 3000000000,
+            "t": "integer"
+          },
+          "epoch_ms": {
+            "v": 1763000000000,
+            "t": "integer"
+          },
+          "pow40": {
+            "v": 1099511627776,
+            "t": "integer"
+          },
+          "maxsafe": {
+            "v": 9007199254740991,
+            "t": "integer"
+          },
+          "jsTypeofTokens": "number"
+        }
+      },
+      {
+        "id": "7b",
+        "item": "how JS numbers bind: typeof(?) for integer-valued Number, fractional, BigInt",
+        "pass": true,
+        "evidence": {
+          "int5": "real",
+          "big3e9": "real",
+          "frac": "real",
+          "bigint": "integer",
+          "string": "text",
+          "nul": "null"
+        }
+      },
+      {
+        "id": "7c",
+        "item": "INTEGER above 2^53 read with default settings",
+        "pass": true,
+        "evidence": {
+          "2pow53p1": {
+            "threw": "ERR_OUT_OF_RANGE: Value is too large to be represented as a JavaScript number: 9007199254740993"
+          },
+          "maxint64": {
+            "threw": "ERR_OUT_OF_RANGE: Value is too large to be represented as a JavaScript number: 9223372036854775807"
+          }
+        }
+      },
+      {
+        "id": "7d",
+        "item": "INTEGER above 2^53 with setReadBigInts(true) is exact",
+        "pass": true,
+        "evidence": {
+          "value": "9223372036854775807",
+          "type": "bigint"
+        }
+      },
+      {
+        "id": "7e",
+        "item": "aggregates: sum() of INTEGER stays exact; sum overflow of int64; total() is float",
+        "pass": true,
+        "evidence": {
+          "sumTypeof": "number",
+          "sum": 1766000000000,
+          "total": 1766000000000,
+          "sumOverflow": "ERR_SQLITE_ERROR: integer overflow"
+        }
+      },
+      {
+        "id": "7f",
+        "item": "JS Number > 2^53 binds as REAL, INTEGER affinity converts it, reading it back then throws",
+        "pass": true,
+        "evidence": {
+          "storedAsBigInt": "1152921504606846976",
+          "sqliteType": "integer",
+          "defaultRead": "ERR_OUT_OF_RANGE: Value is too large to be represented as a JavaScript number: 1152921504606846976"
+        }
+      },
+      {
+        "id": "7g",
+        "item": "GOTCHA: bound JS integers are REAL, so `x / ?` is float division and `x % ?` is float modulo",
+        "pass": true,
+        "evidence": {
+          "div": 3.5,
+          "mod": 1,
+          "divCast": 3,
+          "divBig": 3
+        }
+      },
+      {
+        "id": "7h",
+        "item": "GOTCHA: BigInt params above int64 throw; Number NaN/Infinity bind as NULL/real",
+        "pass": true,
+        "evidence": {
+          "bigintOverInt64": "ERR_INVALID_ARG_VALUE: BigInt value is too large to bind.",
+          "nan": {
+            "t": "null",
+            "v": null
+          }
+        }
+      },
+      {
+        "id": "3a3",
+        "item": "null-safe upsert: coalesce(max(a, excluded.a), a, excluded.a)",
+        "pass": true,
+        "evidence": {
+          "prompt": 5
+        }
+      },
+      {
+        "id": "1z",
+        "item": "close() then isOpen / use-after-close error",
+        "pass": true,
+        "evidence": {
+          "isOpenAfterClose": false,
+          "useAfterCloseError": "ERR_INVALID_STATE: database is not open"
+        }
+      }
+    ],
+    "twoProcess": [
+      {
+        "id": "4a",
+        "item": "writer commit in B is visible to A on the same connection (no reopen)",
+        "pass": true,
+        "evidence": {
+          "before": 0,
+          "after": 3,
+          "childNode": "24.18.0",
+          "childElectron": "42.6.0"
+        }
+      },
+      {
+        "id": "4b",
+        "item": "PRAGMA data_version changes in A after B commits; unchanged by A's own commit",
+        "pass": true,
+        "evidence": {
+          "d0": 3,
+          "afterForeignCommit": 4,
+          "afterOwnCommit": 4,
+          "repeat": 4,
+          "afterSecondForeign": 5
+        }
+      },
+      {
+        "id": "4c",
+        "item": "snapshot isolation: open read tx in A is not blocked by B writing, and keeps its snapshot",
+        "pass": true,
+        "evidence": {
+          "n0": 6,
+          "countInsideReadTx": 6,
+          "countAfterCommit": 7,
+          "writerWaitedMs": 0
+        }
+      },
+      {
+        "id": "4d",
+        "item": "busy_timeout honoured: A waits for B-held BEGIN IMMEDIATE and then succeeds",
+        "pass": true,
+        "evidence": {
+          "aWaitedMs": 630,
+          "expected": "~550 (B held 700 - 150 head start)"
+        }
+      },
+      {
+        "id": "4e",
+        "item": "busy_timeout honoured: A gives up with \"database is locked\" after ~timeout",
+        "pass": true,
+        "evidence": {
+          "aWaitedMs": 606,
+          "error": "ERR_SQLITE_ERROR: database is locked"
+        }
+      },
+      {
+        "id": "4f",
+        "item": "default busy_timeout=0 fails immediately (PRAGMA must be set on every connection)",
+        "pass": true,
+        "evidence": {
+          "waitedMs": 1,
+          "error": "ERR_SQLITE_ERROR: database is locked"
+        }
+      },
+      {
+        "id": "4g",
+        "item": "reverse direction: B waits (busy_timeout) for A-held BEGIN IMMEDIATE, then succeeds",
+        "pass": true,
+        "evidence": {
+          "bWaitedMs": 630
+        }
+      },
+      {
+        "id": "4h",
+        "item": "both processes run 20000 x (BEGIN IMMEDIATE; INSERT; COMMIT) concurrently (overlapping): zero busy failures, 40000 rows",
+        "pass": true,
+        "evidence": {
+          "aFailures": 0,
+          "bFailures": 0,
+          "rows": 40000,
+          "overlapMs": 414,
+          "aLoopMs": 636,
+          "bLoopMs": 444,
+          "aMaxTxMs": 182,
+          "bMaxTxMs": 36
+        }
+      },
+      {
+        "id": "4i",
+        "item": "B SIGKILLed mid-write-transaction: lock released, uncommitted rows invisible, A can write",
+        "pass": true,
+        "evidence": {
+          "uncommittedVisibleBeforeKill": 0,
+          "afterKill": 0,
+          "aWriteAfterKillMs": 0
+        }
+      },
+      {
+        "id": "4z",
+        "item": "child runtime",
+        "pass": true,
+        "evidence": {
+          "node": "24.18.0",
+          "electron": "42.6.0",
+          "pid": 15174
+        }
+      }
+    ],
+    "readonly": [
+      {
+        "id": "5a",
+        "item": "live WAL writer, writable dir: new DatabaseSync(p,{readOnly:true}) reads rows incl. un-checkpointed WAL content",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "rows": 100,
+          "journal_mode": "wal",
+          "walBytes": 32992,
+          "filesWhileLive": [
+            "spans.db",
+            "spans.db-shm",
+            "spans.db-wal"
+          ]
+        }
+      },
+      {
+        "id": "5b",
+        "item": "live writer keeps committing: the SAME read-only connection sees new commits; data_version changes",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "n0": 100,
+          "n1": 102,
+          "dv0": 2,
+          "dv1": 3
+        }
+      },
+      {
+        "id": "5c",
+        "item": "live writer holds an UNCOMMITTED write tx: read-only reader is not blocked and sees committed state only",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "uncommittedVisible": 0,
+          "readMs": 0
+        }
+      },
+      {
+        "id": "5d",
+        "item": "reader never creates/removes files while the writer is live (no -wal/-shm pollution)",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "before": [
+            "spans.db",
+            "spans.db-shm",
+            "spans.db-wal"
+          ],
+          "after": [
+            "spans.db",
+            "spans.db-shm",
+            "spans.db-wal"
+          ]
+        }
+      },
+      {
+        "id": "5e",
+        "item": "READ-ONLY FILESYSTEM + live writer (-wal/-shm exist): readOnly:true open + read",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "rows": 102
+        }
+      },
+      {
+        "id": "5f",
+        "item": "READ-ONLY FILESYSTEM + live writer, then writer commits: reader (same connection) sees new rows",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "n0": 102,
+          "n1": 103,
+          "sawNewCommit": true
+        }
+      },
+      {
+        "id": "5g",
+        "item": "NEGATIVE CONTROL: READ-ONLY FILESYSTEM + live writer with un-checkpointed WAL: immutable=1 URI (ignores -wal => stale/empty)",
+        "pass": false,
+        "status": "EXPECTED-FAIL",
+        "evidence": "ERR_SQLITE_ERROR: no such table: spans"
+      },
+      {
+        "id": "5h",
+        "item": "fallback VACUUM INTO from a read-only connection (consistent snapshot copy, live writer)",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "rows": 103,
+          "integrity": "ok",
+          "vacuumMs": 2
+        }
+      },
+      {
+        "id": "5i",
+        "item": "fallback copy db+wal+shm to temp dir while writer is live, then open the copy (torn-copy hunt: up to 40 copies under write load + checkpoints)",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "copies": 40,
+          "tornOrErrored": 0,
+          "monotonicViolations": 0,
+          "errors": [],
+          "loadFailures": 0,
+          "note": "racy by construction (no torn copy observed is not proof); VACUUM INTO (5h) is the safe snapshot"
+        }
+      },
+      {
+        "id": "5j",
+        "item": "readOnly:true reader of a live DB under write load: 2000 reads, zero errors; writer never blocked",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "reads": 2000,
+          "readErrors": 0,
+          "maxReadMs": 9,
+          "totalReadMs": 128,
+          "writerFailures": 0,
+          "writerMaxTxMs": 36
+        }
+      },
+      {
+        "id": "5k",
+        "item": "writer closed cleanly: -wal/-shm removed; then readOnly open of the bare WAL-mode file in a WRITABLE dir (does the reader leave files behind?)",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "filesAfterWriterClose": [
+            "spans.db"
+          ],
+          "filesWhileReaderOpen": [
+            "spans.db",
+            "spans.db-shm",
+            "spans.db-wal"
+          ],
+          "filesAfterReaderClose": [
+            "spans.db",
+            "spans.db-shm",
+            "spans.db-wal"
+          ],
+          "rows": 103,
+          "journal_mode": "wal"
+        }
+      },
+      {
+        "id": "5l",
+        "item": "READ-ONLY FILESYSTEM, no -wal/-shm, WAL-mode header: plain readOnly:true open",
+        "pass": false,
+        "status": "FAIL",
+        "evidence": "ERR_SQLITE_ERROR: unable to open database file"
+      },
+      {
+        "id": "5m",
+        "item": "READ-ONLY FILESYSTEM, no -wal/-shm: immutable=1 URI fallback",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "rows": 103
+        }
+      },
+      {
+        "id": "5n",
+        "item": "READ-ONLY FILESYSTEM, no -wal/-shm: copy db to temp dir and open the copy",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "rows": 103
+        }
+      },
+      {
+        "id": "5o",
+        "item": "rollback-journal (non-WAL) DB, writer committing in a loop: readOnly reader errors with busy_timeout 0 vs 2000 (informational)",
+        "pass": true,
+        "status": "PASS",
+        "evidence": {
+          "busyTimeout0": {
+            "reads": 3000,
+            "errs": 1319
+          },
+          "busyTimeout2000": {
+            "reads": 3000,
+            "errs": 0
+          },
+          "note": "Copilot DB journal mode unknown; WAL (5j) gave zero reader errors"
+        }
+      }
+    ]
+  },
+  "warnings": [],
+  "uriSupported": true
+}

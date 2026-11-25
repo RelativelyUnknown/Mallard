@@ -1,0 +1,16 @@
+{
+  "machine": {
+    "node": "v22.23.5",
+    "v8": "12.4.254.21-node.57",
+    "sqlite": "3.54.1",
+    "platform": "linux 6.18.44-fc-v880",
+    "arch": "x64",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "cpuCount": 4,
+    "cpuMHz": 0,
+    "totalMemGB": 15.7,
+    "tz": "America/Los_Angeles"
+  },
+  "at": "2026-11-25T05:59:28.622Z",
+  "ok": true
+}

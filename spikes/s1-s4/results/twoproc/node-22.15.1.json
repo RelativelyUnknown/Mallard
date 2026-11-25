@@ -1,0 +1,109 @@
+{
+  "node": "22.15.1",
+  "results": [
+    {
+      "id": "4a",
+      "item": "writer commit in B is visible to A on the same connection (no reopen)",
+      "pass": true,
+      "evidence": {
+        "before": 0,
+        "after": 3,
+        "childNode": "22.15.1",
+        "childElectron": null
+      }
+    },
+    {
+      "id": "4b",
+      "item": "PRAGMA data_version changes in A after B commits; unchanged by A's own commit",
+      "pass": true,
+      "evidence": {
+        "d0": 3,
+        "afterForeignCommit": 4,
+        "afterOwnCommit": 4,
+        "repeat": 4,
+        "afterSecondForeign": 5
+      }
+    },
+    {
+      "id": "4c",
+      "item": "snapshot isolation: open read tx in A is not blocked by B writing, and keeps its snapshot",
+      "pass": true,
+      "evidence": {
+        "n0": 6,
+        "countInsideReadTx": 6,
+        "countAfterCommit": 7,
+        "writerWaitedMs": 1
+      }
+    },
+    {
+      "id": "4d",
+      "item": "busy_timeout honoured: A waits for B-held BEGIN IMMEDIATE and then succeeds",
+      "pass": true,
+      "evidence": {
+        "aWaitedMs": 631,
+        "expected": "~550 (B held 700 - 150 head start)"
+      }
+    },
+    {
+      "id": "4e",
+      "item": "busy_timeout honoured: A gives up with \"database is locked\" after ~timeout",
+      "pass": true,
+      "evidence": {
+        "aWaitedMs": 602,
+        "error": "ERR_SQLITE_ERROR: database is locked"
+      }
+    },
+    {
+      "id": "4f",
+      "item": "default busy_timeout=0 fails immediately (PRAGMA must be set on every connection)",
+      "pass": true,
+      "evidence": {
+        "waitedMs": 1,
+        "error": "ERR_SQLITE_ERROR: database is locked"
+      }
+    },
+    {
+      "id": "4g",
+      "item": "reverse direction: B waits (busy_timeout) for A-held BEGIN IMMEDIATE, then succeeds",
+      "pass": true,
+      "evidence": {
+        "bWaitedMs": 631
+      }
+    },
+    {
+      "id": "4h",
+      "item": "both processes run 20000 x (BEGIN IMMEDIATE; INSERT; COMMIT) concurrently (overlapping): zero busy failures, 40000 rows",
+      "pass": true,
+      "evidence": {
+        "aFailures": 0,
+        "bFailures": 0,
+        "rows": 40000,
+        "overlapMs": 406,
+        "aLoopMs": 501,
+        "bLoopMs": 436,
+        "aMaxTxMs": 19,
+        "bMaxTxMs": 35
+      }
+    },
+    {
+      "id": "4i",
+      "item": "B SIGKILLed mid-write-transaction: lock released, uncommitted rows invisible, A can write",
+      "pass": true,
+      "evidence": {
+        "uncommittedVisibleBeforeKill": 0,
+        "afterKill": 0,
+        "aWriteAfterKillMs": 0
+      }
+    },
+    {
+      "id": "4z",
+      "item": "child runtime",
+      "pass": true,
+      "evidence": {
+        "node": "22.15.1",
+        "electron": null,
+        "pid": 19613
+      }
+    }
+  ]
+}

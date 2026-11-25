@@ -1,0 +1,19 @@
+{
+  "label": "1.104.3-trusted",
+  "version": "1.104.3",
+  "exe": "/home/user/Mallard/.claude/worktrees/agent-a46488cff5c2483b2/spikes/s1-s4/.vscode-test/vscode-linux-x64-1.104.3/code",
+  "exitCode": 0,
+  "untrusted": false,
+  "logWarningHits": [
+    {
+      "file": "logs/20261125T054241/window1/renderer.log",
+      "line": 186,
+      "text": "2026-11-25 05:42:47.178 [error] (node:13881) ExperimentalWarning: SQLite is an experimental feature and might change at any time"
+    }
+  ],
+  "stdoutWarningHits": [
+    "(node:13881) ExperimentalWarning: SQLite is an experimental feature and might change at any time"
+  ],
+  "userData": "/tmp/s1t/vmwvp5vif/user-data",
+  "workspace": "/tmp/s1t/vmwvp5vif/workspace"
+}

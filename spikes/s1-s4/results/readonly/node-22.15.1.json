@@ -1,0 +1,193 @@
+{
+  "node": "22.15.1",
+  "results": [
+    {
+      "id": "5a",
+      "item": "live WAL writer, writable dir: new DatabaseSync(p,{readOnly:true}) reads rows incl. un-checkpointed WAL content",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "rows": 100,
+        "journal_mode": "wal",
+        "walBytes": 32992,
+        "filesWhileLive": [
+          "spans.db",
+          "spans.db-shm",
+          "spans.db-wal"
+        ]
+      }
+    },
+    {
+      "id": "5b",
+      "item": "live writer keeps committing: the SAME read-only connection sees new commits; data_version changes",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "n0": 100,
+        "n1": 102,
+        "dv0": 2,
+        "dv1": 3
+      }
+    },
+    {
+      "id": "5c",
+      "item": "live writer holds an UNCOMMITTED write tx: read-only reader is not blocked and sees committed state only",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "uncommittedVisible": 0,
+        "readMs": 0
+      }
+    },
+    {
+      "id": "5d",
+      "item": "reader never creates/removes files while the writer is live (no -wal/-shm pollution)",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "before": [
+          "spans.db",
+          "spans.db-shm",
+          "spans.db-wal"
+        ],
+        "after": [
+          "spans.db",
+          "spans.db-shm",
+          "spans.db-wal"
+        ]
+      }
+    },
+    {
+      "id": "5e",
+      "item": "READ-ONLY FILESYSTEM + live writer (-wal/-shm exist): readOnly:true open + read",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "rows": 102
+      }
+    },
+    {
+      "id": "5f",
+      "item": "READ-ONLY FILESYSTEM + live writer, then writer commits: reader (same connection) sees new rows",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "n0": 102,
+        "n1": 103,
+        "sawNewCommit": true
+      }
+    },
+    {
+      "id": "5g",
+      "item": "NEGATIVE CONTROL: READ-ONLY FILESYSTEM + live writer with un-checkpointed WAL: immutable=1 URI (ignores -wal => stale/empty)",
+      "pass": false,
+      "status": "EXPECTED-FAIL",
+      "evidence": "ERR_SQLITE_ERROR: no such table: spans"
+    },
+    {
+      "id": "5h",
+      "item": "fallback VACUUM INTO from a read-only connection (consistent snapshot copy, live writer)",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "rows": 103,
+        "integrity": "ok",
+        "vacuumMs": 3
+      }
+    },
+    {
+      "id": "5i",
+      "item": "fallback copy db+wal+shm to temp dir while writer is live, then open the copy (torn-copy hunt: up to 40 copies under write load + checkpoints)",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "copies": 40,
+        "tornOrErrored": 0,
+        "monotonicViolations": 0,
+        "errors": [],
+        "loadFailures": 0,
+        "note": "racy by construction (no torn copy observed is not proof); VACUUM INTO (5h) is the safe snapshot"
+      }
+    },
+    {
+      "id": "5j",
+      "item": "readOnly:true reader of a live DB under write load: 2000 reads, zero errors; writer never blocked",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "reads": 2000,
+        "readErrors": 0,
+        "maxReadMs": 1,
+        "totalReadMs": 93,
+        "writerFailures": 0,
+        "writerMaxTxMs": 31
+      }
+    },
+    {
+      "id": "5k",
+      "item": "writer closed cleanly: -wal/-shm removed; then readOnly open of the bare WAL-mode file in a WRITABLE dir (does the reader leave files behind?)",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "filesAfterWriterClose": [
+          "spans.db"
+        ],
+        "filesWhileReaderOpen": [
+          "spans.db",
+          "spans.db-shm",
+          "spans.db-wal"
+        ],
+        "filesAfterReaderClose": [
+          "spans.db",
+          "spans.db-shm",
+          "spans.db-wal"
+        ],
+        "rows": 103,
+        "journal_mode": "wal"
+      }
+    },
+    {
+      "id": "5l",
+      "item": "READ-ONLY FILESYSTEM, no -wal/-shm, WAL-mode header: plain readOnly:true open",
+      "pass": false,
+      "status": "FAIL",
+      "evidence": "ERR_SQLITE_ERROR: unable to open database file"
+    },
+    {
+      "id": "5m",
+      "item": "READ-ONLY FILESYSTEM, no -wal/-shm: immutable=1 URI fallback",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "rows": 103
+      }
+    },
+    {
+      "id": "5n",
+      "item": "READ-ONLY FILESYSTEM, no -wal/-shm: copy db to temp dir and open the copy",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "rows": 103
+      }
+    },
+    {
+      "id": "5o",
+      "item": "rollback-journal (non-WAL) DB, writer committing in a loop: readOnly reader errors with busy_timeout 0 vs 2000 (informational)",
+      "pass": true,
+      "status": "PASS",
+      "evidence": {
+        "busyTimeout0": {
+          "reads": 3000,
+          "errs": 299
+        },
+        "busyTimeout2000": {
+          "reads": 3000,
+          "errs": 0
+        },
+        "note": "Copilot DB journal mode unknown; WAL (5j) gave zero reader errors"
+      }
+    }
+  ],
+  "uriSupported": true
+}

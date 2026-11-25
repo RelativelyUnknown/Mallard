@@ -1,0 +1,11 @@
+{
+  "label": "1.100.3-trusted",
+  "version": "1.100.3",
+  "exe": "/home/user/Mallard/.claude/worktrees/agent-a46488cff5c2483b2/spikes/s1-s4/.vscode-test/vscode-linux-x64-1.100.3/code",
+  "exitCode": 0,
+  "untrusted": false,
+  "logWarningHits": [],
+  "stdoutWarningHits": [],
+  "userData": "/tmp/claude-0/-home-user-Mallard/0c0b2e31-d5db-5616-acab-078f14e6d5bc/scratchpad/s1s4/tmp/vsc-1.100.3-trusted-1795585138115/user-data",
+  "workspace": "/tmp/claude-0/-home-user-Mallard/0c0b2e31-d5db-5616-acab-078f14e6d5bc/scratchpad/s1s4/tmp/vsc-1.100.3-trusted-1795585138115/workspace"
+}

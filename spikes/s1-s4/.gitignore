@@ -1,0 +1,4 @@
+node_modules/
+.vscode-test/
+.tmp/
+results/host/*/vscode-stdout.log

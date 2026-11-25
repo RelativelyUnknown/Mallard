@@ -1,0 +1,74 @@
+{
+  "version": "stable",
+  "query": "@ext:spike.mallard-spike",
+  "port": 9524,
+  "items": [
+    {
+      "label": "Spike:: Rules App",
+      "description": "Alert rules (application scope). Edit in settings.json.",
+      "links": [
+        "Edit in settings.json",
+        ""
+      ],
+      "editInSettingsJsonLink": true,
+      "controlKinds": [],
+      "isModified": false,
+      "html": 1852
+    },
+    {
+      "label": "Spike:: Rules Machine",
+      "description": "Alert rules (machine scope).",
+      "links": [
+        "Edit in settings.json",
+        ""
+      ],
+      "editInSettingsJsonLink": true,
+      "controlKinds": [],
+      "isModified": false,
+      "html": 1637
+    },
+    {
+      "label": "Spike:: Targets",
+      "description": "Export targets {name, url} (machine scope).",
+      "links": [
+        "Edit in settings.json",
+        ""
+      ],
+      "editInSettingsJsonLink": true,
+      "controlKinds": [],
+      "isModified": false,
+      "html": 1562
+    },
+    {
+      "label": "Spike:: Branch Budgets",
+      "description": "Per-branch credit budgets: { \"main\": 500 }.",
+      "links": [
+        "",
+        "",
+        "Add Item",
+        ""
+      ],
+      "editInSettingsJsonLink": false,
+      "controlKinds": [
+        "objectWidget"
+      ],
+      "isModified": false,
+      "html": 3000
+    },
+    {
+      "label": "Spike › Display:: Mode",
+      "description": "Enum with defaults for the table-vs-manifest check.",
+      "links": [
+        ""
+      ],
+      "editInSettingsJsonLink": false,
+      "controlKinds": [
+        "select"
+      ],
+      "isModified": false,
+      "html": 1981
+    }
+  ],
+  "notes": [],
+  "title": "[Extension Development Host] ws - Visual Studio Code [Superuser]"
+}

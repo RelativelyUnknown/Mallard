@@ -1,0 +1,279 @@
+{
+  "esbuild": "0.28.2",
+  "variants": [
+    {
+      "name": "cjs-node22-dev",
+      "bytes": 2561,
+      "metafileExternalImports": [
+        "require-call:node:sqlite",
+        "dynamic-import:node:sqlite"
+      ],
+      "keepsRequireCall": true,
+      "keepsImportCall": true,
+      "inlinedDriverCode": false
+    },
+    {
+      "name": "cjs-node22-min",
+      "bytes": 1332,
+      "metafileExternalImports": [
+        "require-call:node:sqlite",
+        "dynamic-import:node:sqlite"
+      ],
+      "keepsRequireCall": true,
+      "keepsImportCall": true,
+      "inlinedDriverCode": false
+    },
+    {
+      "name": "cjs-node20-min",
+      "bytes": 1332,
+      "metafileExternalImports": [
+        "require-call:node:sqlite",
+        "dynamic-import:node:sqlite"
+      ],
+      "keepsRequireCall": true,
+      "keepsImportCall": true,
+      "inlinedDriverCode": false
+    },
+    {
+      "name": "cjs-node22.13",
+      "bytes": 2561,
+      "metafileExternalImports": [
+        "require-call:node:sqlite",
+        "dynamic-import:node:sqlite"
+      ],
+      "keepsRequireCall": true,
+      "keepsImportCall": true,
+      "inlinedDriverCode": false
+    },
+    {
+      "name": "esm-node22",
+      "bytes": 1752,
+      "metafileExternalImports": [
+        "require-call:node:sqlite",
+        "dynamic-import:node:sqlite"
+      ],
+      "keepsRequireCall": true,
+      "keepsImportCall": true,
+      "inlinedDriverCode": false
+    }
+  ],
+  "run": [
+    {
+      "runtime": "v20.19.0",
+      "bundle": "cjs-node22-min",
+      "node": "20.19.0",
+      "realRequire": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "dynamicImport": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      }
+    },
+    {
+      "runtime": "v22.12.0",
+      "bundle": "cjs-node22-min",
+      "node": "22.12.0",
+      "realRequire": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "dynamicImport": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      }
+    },
+    {
+      "runtime": "v22.13.0",
+      "bundle": "cjs-node22-min",
+      "node": "22.13.0",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.13.1",
+      "bundle": "cjs-node22-min",
+      "node": "22.13.1",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.14.0",
+      "bundle": "cjs-node22-min",
+      "node": "22.14.0",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.15.1",
+      "bundle": "cjs-node22-min",
+      "node": "22.15.1",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.16.0",
+      "bundle": "cjs-node22-min",
+      "node": "22.16.0",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.17.0",
+      "bundle": "cjs-node22-min",
+      "node": "22.17.0",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.18.0",
+      "bundle": "cjs-node22-min",
+      "node": "22.18.0",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.19.0",
+      "bundle": "cjs-node22-min",
+      "node": "22.19.0",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.20.0",
+      "bundle": "cjs-node22-min",
+      "node": "22.20.0",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.21.1",
+      "bundle": "cjs-node22-min",
+      "node": "22.21.1",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v24.9.0",
+      "bundle": "cjs-node22-min",
+      "node": "24.9.0",
+      "realRequire": "loaded",
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "roundTrip": {
+        "a": 42
+      }
+    },
+    {
+      "runtime": "v22.12.0",
+      "bundle": "esm-node22",
+      "node": "22.12.0",
+      "realRequire": {
+        "message": "Dynamic require of \"node:sqlite\" is not supported"
+      },
+      "dynamicImport": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      },
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      }
+    },
+    {
+      "runtime": "v22.13.0",
+      "bundle": "esm-node22",
+      "node": "22.13.0",
+      "realRequire": {
+        "message": "Dynamic require of \"node:sqlite\" is not supported"
+      },
+      "dynamicImport": "loaded",
+      "simulatedMissing": {
+        "code": "ERR_UNKNOWN_BUILTIN_MODULE",
+        "message": "No such built-in module: node:sqlite"
+      }
+    }
+  ]
+}

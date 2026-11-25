@@ -1,0 +1,287 @@
+{
+  "node": "22.18.0",
+  "electron": null,
+  "sqliteVersionHint": "3.50.2",
+  "loads": true,
+  "loadError": null,
+  "moduleExports": [
+    "DatabaseSync",
+    "StatementSync",
+    "backup",
+    "constants"
+  ],
+  "databaseSyncProto": [
+    "aggregate",
+    "applyChangeset",
+    "close",
+    "createSession",
+    "enableLoadExtension",
+    "exec",
+    "function",
+    "isOpen",
+    "isTransaction",
+    "loadExtension",
+    "location",
+    "open",
+    "prepare"
+  ],
+  "statementSyncProto": [
+    "all",
+    "columns",
+    "get",
+    "iterate",
+    "run",
+    "setAllowBareNamedParameters",
+    "setAllowUnknownNamedParameters",
+    "setReadBigInts",
+    "setReturnArrays"
+  ],
+  "checks": {
+    "exec": {
+      "ok": true,
+      "value": null
+    },
+    "prepare().run": {
+      "ok": true,
+      "value": {
+        "changes": 1,
+        "lastInsertRowid": 1,
+        "typeofRowid": "number"
+      }
+    },
+    "prepare().get": {
+      "ok": true,
+      "value": {
+        "id": 1,
+        "a": 1,
+        "b": "x"
+      }
+    },
+    "prepare().all": {
+      "ok": true,
+      "value": [
+        {
+          "id": 1,
+          "a": 1,
+          "b": "x"
+        }
+      ]
+    },
+    "prepare().iterate": {
+      "ok": true,
+      "value": [
+        {
+          "id": 1,
+          "a": 1,
+          "b": "x"
+        }
+      ]
+    },
+    "named params": {
+      "ok": true,
+      "value": {
+        "id": 1,
+        "a": 1,
+        "b": "x"
+      }
+    },
+    "isOpen (property)": {
+      "ok": true,
+      "value": true
+    },
+    "isTransaction (property)": {
+      "ok": true,
+      "value": false
+    },
+    "location()": {
+      "ok": true,
+      "value": "/tmp/s1-api-sPU0pI/api.db"
+    },
+    "function()": {
+      "ok": true,
+      "value": {
+        "v": 42
+      }
+    },
+    "aggregate()": {
+      "ok": true,
+      "value": {
+        "v": 1
+      }
+    },
+    "createTagStore()": {
+      "ok": false,
+      "error": "db.createTagStore is not a function"
+    },
+    "StatementSync.setReadBigInts": {
+      "ok": true,
+      "value": {
+        "v": "1",
+        "type": "bigint"
+      }
+    },
+    "StatementSync.setAllowBareNamedParameters": {
+      "ok": true,
+      "value": {
+        "v": 5
+      }
+    },
+    "StatementSync.setAllowUnknownNamedParameters": {
+      "ok": true,
+      "value": {
+        "v": 5
+      }
+    },
+    "StatementSync.setReturnArrays": {
+      "ok": true,
+      "value": [
+        1,
+        2
+      ]
+    },
+    "StatementSync.columns()": {
+      "ok": true,
+      "value": [
+        {
+          "column": "a",
+          "database": "main",
+          "name": "a",
+          "table": "t",
+          "type": "INTEGER"
+        },
+        {
+          "column": "b",
+          "database": "main",
+          "name": "b",
+          "table": "t",
+          "type": "TEXT"
+        }
+      ]
+    },
+    "StatementSync.sourceSQL / expandedSQL": {
+      "ok": true,
+      "value": {
+        "sourceSQL": "SELECT ? AS v",
+        "expandedSQL": "SELECT 7.0 AS v"
+      }
+    },
+    "sqlite.backup() function": {
+      "ok": true,
+      "value": "function"
+    },
+    "DatabaseSync.prototype.enableLoadExtension": {
+      "ok": true,
+      "value": "function"
+    },
+    "DatabaseSync.prototype.loadExtension": {
+      "ok": true,
+      "value": "function"
+    },
+    "DatabaseSync.prototype.createSession/applyChangeset": {
+      "ok": true,
+      "value": {
+        "createSession": "function",
+        "applyChangeset": "function"
+      }
+    },
+    "Symbol.dispose on DatabaseSync": {
+      "ok": true,
+      "value": "function"
+    },
+    "close()": {
+      "ok": true,
+      "value": null
+    },
+    "isOpen after close": {
+      "ok": true,
+      "value": false
+    },
+    "exec after close throws": {
+      "ok": true,
+      "value": "threw: ERR_INVALID_STATE database is not open"
+    },
+    "opt: open:false then open()": {
+      "ok": true,
+      "value": {
+        "before": false,
+        "after": true
+      }
+    },
+    "opt: readOnly:true on existing db": {
+      "ok": true,
+      "value": {
+        "n": 1,
+        "writeErr": "attempt to write a readonly database"
+      }
+    },
+    "opt: timeout:1234 is effective (PRAGMA busy_timeout == 1234)": {
+      "ok": true,
+      "value": {
+        "timeout": 1234
+      }
+    },
+    "PRAGMA busy_timeout via exec is effective": {
+      "ok": true,
+      "value": {
+        "timeout": 4321
+      }
+    },
+    "opt: enableForeignKeyConstraints:false": {
+      "ok": true,
+      "value": {
+        "foreign_keys": 0
+      }
+    },
+    "opt: enableDoubleQuotedStringLiterals": {
+      "ok": true,
+      "value": "accepted"
+    },
+    "opt: allowExtension": {
+      "ok": true,
+      "value": "accepted"
+    },
+    "opt: readBigInts (db-level)": {
+      "ok": true,
+      "value": "bigint"
+    },
+    "opt: returnArrays (db-level)": {
+      "ok": true,
+      "value": [
+        1
+      ]
+    },
+    "opt: unknown option is ignored or throws": {
+      "ok": true,
+      "value": "ignored"
+    },
+    "URI filename (file:...?mode=ro) accepted by constructor": {
+      "ok": true,
+      "value": 1
+    },
+    "Buffer path accepted": {
+      "ok": true,
+      "value": "accepted"
+    },
+    "URL path accepted": {
+      "ok": true,
+      "value": "accepted"
+    },
+    "sqlite_version()": {
+      "ok": true,
+      "value": "3.50.2"
+    },
+    "constants": {
+      "ok": true,
+      "value": {
+        "SQLITE_CHANGESET_OMIT": 0,
+        "SQLITE_CHANGESET_REPLACE": 1,
+        "SQLITE_CHANGESET_ABORT": 2,
+        "SQLITE_CHANGESET_DATA": 1,
+        "SQLITE_CHANGESET_NOTFOUND": 2,
+        "SQLITE_CHANGESET_CONFLICT": 3,
+        "SQLITE_CHANGESET_CONSTRAINT": 4,
+        "SQLITE_CHANGESET_FOREIGN_KEY": 5
+      }
+    }
+  }
+}

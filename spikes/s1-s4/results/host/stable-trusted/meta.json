@@ -1,0 +1,11 @@
+{
+  "label": "stable-trusted",
+  "version": "stable",
+  "exe": "/home/user/Mallard/.claude/worktrees/agent-a46488cff5c2483b2/spikes/s1-s4/.vscode-test/vscode-linux-x64-1.147.0/code",
+  "exitCode": 0,
+  "untrusted": false,
+  "logWarningHits": [],
+  "stdoutWarningHits": [],
+  "userData": "/tmp/s1t/vmwvp2wxj/user-data",
+  "workspace": "/tmp/s1t/vmwvp2wxj/workspace"
+}

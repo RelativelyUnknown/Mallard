@@ -1,0 +1,281 @@
+{
+  "node": "22.13.0",
+  "results": [
+    {
+      "id": "1a",
+      "item": "new DatabaseSync(path) in globalStorage-like dir",
+      "pass": true,
+      "evidence": {
+        "dbPath": "/tmp/s1-feat-uKPG9Z/events.sqlite",
+        "existsAfterOpen": true
+      }
+    },
+    {
+      "id": "1b",
+      "item": "exec PRAGMA journal_mode=WAL (+ read back)",
+      "pass": true,
+      "evidence": "wal"
+    },
+    {
+      "id": "1c",
+      "item": "exec PRAGMA busy_timeout=5000 (+ read back)",
+      "pass": true,
+      "evidence": 5000
+    },
+    {
+      "id": "1d",
+      "item": "exec PRAGMA synchronous=NORMAL (+ read back = 1)",
+      "pass": true,
+      "evidence": 1
+    },
+    {
+      "id": "1e",
+      "item": "WAL file artefacts appear next to the db after a write",
+      "pass": true,
+      "evidence": [
+        "events.sqlite",
+        "events.sqlite-shm",
+        "events.sqlite-wal"
+      ]
+    },
+    {
+      "id": "3a",
+      "item": "ON CONFLICT(id) DO UPDATE SET a = max(a, excluded.a)",
+      "pass": true,
+      "evidence": {
+        "prompt": 12,
+        "completion": 20
+      }
+    },
+    {
+      "id": "3a2",
+      "item": "ON CONFLICT upsert with NULL prior value: max(NULL, x) semantics",
+      "pass": true,
+      "evidence": {
+        "withoutCoalesce": null,
+        "withCoalesce": 9,
+        "note": "scalar max() with a NULL arg yields NULL"
+      }
+    },
+    {
+      "id": "3b",
+      "item": "json_extract / ->> / json_each",
+      "pass": true,
+      "evidence": {
+        "json_extract": 42,
+        "arrow": 42,
+        "json_each": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "id": "3c",
+      "item": "strftime / date(...,'localtime') / unixepoch()",
+      "pass": true,
+      "evidence": {
+        "utcHour": "2023-11-14 22",
+        "dow": "2",
+        "localDay": "2023-11-14",
+        "epochS": "1700000000",
+        "unixepoch": 1700000000
+      }
+    },
+    {
+      "id": "3d",
+      "item": "BEGIN IMMEDIATE / COMMIT / ROLLBACK via exec; isTransaction where available",
+      "pass": true,
+      "evidence": {
+        "rolledBackRows": 0,
+        "committedRows": 1
+      }
+    },
+    {
+      "id": "3e",
+      "item": "PRAGMA data_version readable (integer, stable without foreign commits)",
+      "pass": true,
+      "evidence": {
+        "first": 2,
+        "second": 2,
+        "note": "own-connection commits do NOT change data_version; see two-process test"
+      }
+    },
+    {
+      "id": "3f",
+      "item": "INSERT ... RETURNING (run() vs get()/all())",
+      "pass": true,
+      "evidence": {
+        "single": {
+          "id": "ret1",
+          "ts": 5
+        },
+        "multi": [
+          "ret2",
+          "ret3"
+        ]
+      }
+    },
+    {
+      "id": "3g",
+      "item": "window functions (SUM OVER, row_number, lag)",
+      "pass": true,
+      "evidence": {
+        "sample": {
+          "day": "d3",
+          "model": "a",
+          "credits": 3,
+          "running": 6,
+          "rk": 1,
+          "prev": 2
+        },
+        "rows": 5
+      }
+    },
+    {
+      "id": "3h",
+      "item": "sqlite_version() and compile options",
+      "pass": true,
+      "evidence": {
+        "sqlite_version": "3.47.2",
+        "threadsafe": [
+          "THREADSAFE=1"
+        ],
+        "json": [],
+        "fts": [],
+        "count": 39
+      }
+    },
+    {
+      "id": "3i",
+      "item": "statement caching: prepare once, run many (perf smoke: 20k rows in one tx)",
+      "pass": true,
+      "evidence": {
+        "rows": 20000,
+        "insertMs": 16
+      }
+    },
+    {
+      "id": "7a",
+      "item": "INTEGER > 2^31 (token counts, epoch ms) round-trips as JS number by default",
+      "pass": true,
+      "evidence": {
+        "tokens_3e9": {
+          "v": 3000000000,
+          "t": "integer"
+        },
+        "epoch_ms": {
+          "v": 1763000000000,
+          "t": "integer"
+        },
+        "pow40": {
+          "v": 1099511627776,
+          "t": "integer"
+        },
+        "maxsafe": {
+          "v": 9007199254740991,
+          "t": "integer"
+        },
+        "jsTypeofTokens": "number"
+      }
+    },
+    {
+      "id": "7b",
+      "item": "how JS numbers bind: typeof(?) for integer-valued Number, fractional, BigInt",
+      "pass": true,
+      "evidence": {
+        "int5": "real",
+        "big3e9": "real",
+        "frac": "real",
+        "bigint": "integer",
+        "string": "text",
+        "nul": "null"
+      }
+    },
+    {
+      "id": "7c",
+      "item": "INTEGER above 2^53 read with default settings",
+      "pass": true,
+      "evidence": {
+        "2pow53p1": {
+          "threw": "ERR_OUT_OF_RANGE: The value of column 0 is too large to be represented as a JavaScript number: 9007199254740993"
+        },
+        "maxint64": {
+          "threw": "ERR_OUT_OF_RANGE: The value of column 0 is too large to be represented as a JavaScript number: 9223372036854775807"
+        }
+      }
+    },
+    {
+      "id": "7d",
+      "item": "INTEGER above 2^53 with setReadBigInts(true) is exact",
+      "pass": true,
+      "evidence": {
+        "value": "9223372036854775807",
+        "type": "bigint"
+      }
+    },
+    {
+      "id": "7e",
+      "item": "aggregates: sum() of INTEGER stays exact; sum overflow of int64; total() is float",
+      "pass": true,
+      "evidence": {
+        "sumTypeof": "number",
+        "sum": 1766000000000,
+        "total": 1766000000000,
+        "sumOverflow": "ERR_SQLITE_ERROR: integer overflow"
+      }
+    },
+    {
+      "id": "7f",
+      "item": "JS Number > 2^53 binds as REAL, INTEGER affinity converts it, reading it back then throws",
+      "pass": true,
+      "evidence": {
+        "storedAsBigInt": "1152921504606846976",
+        "sqliteType": "integer",
+        "defaultRead": "ERR_OUT_OF_RANGE: The value of column 0 is too large to be represented as a JavaScript number: 1152921504606846976"
+      }
+    },
+    {
+      "id": "7g",
+      "item": "GOTCHA: bound JS integers are REAL, so `x / ?` is float division and `x % ?` is float modulo",
+      "pass": true,
+      "evidence": {
+        "div": 3.5,
+        "mod": 1,
+        "divCast": 3,
+        "divBig": 3
+      }
+    },
+    {
+      "id": "7h",
+      "item": "GOTCHA: BigInt params above int64 throw; Number NaN/Infinity bind as NULL/real",
+      "pass": true,
+      "evidence": {
+        "bigintOverInt64": "ERR_INVALID_ARG_VALUE: BigInt value is too large to bind.",
+        "nan": {
+          "t": "null",
+          "v": null
+        }
+      }
+    },
+    {
+      "id": "3a3",
+      "item": "null-safe upsert: coalesce(max(a, excluded.a), a, excluded.a)",
+      "pass": true,
+      "evidence": {
+        "prompt": 5
+      }
+    },
+    {
+      "id": "1z",
+      "item": "close() then isOpen / use-after-close error",
+      "pass": true,
+      "evidence": {
+        "useAfterCloseError": "ERR_INVALID_STATE: database is not open"
+      }
+    }
+  ],
+  "warnings": [
+    "ExperimentalWarning: SQLite is an experimental feature and might change at any time"
+  ]
+}

@@ -36,3 +36,6 @@ eslint.config.mjs
 esbuild.mjs
 tsconfig*.json
 **/.DS_Store
+
+# Phase 0 spikes (throwaway prototypes and evidence; never shipped)
+spikes/**

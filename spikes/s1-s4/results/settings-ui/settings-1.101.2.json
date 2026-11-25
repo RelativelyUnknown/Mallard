@@ -1,0 +1,87 @@
+{
+  "version": "1.101.2",
+  "query": "@ext:spike.mallard-spike",
+  "port": 9508,
+  "items": [
+    {
+      "label": "Spike:: Rules App",
+      "description": "Alert rules (application scope). Edit in settings.json.",
+      "links": [
+        "Edit in settings.json",
+        ""
+      ],
+      "editInSettingsJsonLink": true,
+      "controlKinds": [],
+      "isModified": false,
+      "html": 1728
+    },
+    {
+      "label": "Spike:: Rules Machine",
+      "description": "Alert rules (machine scope).",
+      "links": [
+        "Edit in settings.json",
+        ""
+      ],
+      "editInSettingsJsonLink": true,
+      "controlKinds": [],
+      "isModified": false,
+      "html": 1513
+    },
+    {
+      "label": "Spike:: Targets",
+      "description": "Export targets {name, url} (machine scope).",
+      "links": [
+        "Edit in settings.json",
+        ""
+      ],
+      "editInSettingsJsonLink": true,
+      "controlKinds": [],
+      "isModified": false,
+      "html": 1438
+    },
+    {
+      "label": "Spike:: Branch Budgets",
+      "description": "Per-branch credit budgets: { \"main\": 500 }.",
+      "links": [
+        "",
+        "",
+        "Add Item",
+        ""
+      ],
+      "editInSettingsJsonLink": false,
+      "controlKinds": [
+        "objectWidget"
+      ],
+      "isModified": false,
+      "html": 2851
+    },
+    {
+      "label": "Spike › Display:: Mode",
+      "description": "Enum with defaults for the table-vs-manifest check.",
+      "links": [
+        ""
+      ],
+      "editInSettingsJsonLink": false,
+      "controlKinds": [
+        "select"
+      ],
+      "isModified": false,
+      "html": 1892
+    },
+    {
+      "label": "Spike:: Monthly Budget",
+      "description": "Scalar with range.",
+      "links": [
+        ""
+      ],
+      "editInSettingsJsonLink": false,
+      "controlKinds": [
+        "input"
+      ],
+      "isModified": false,
+      "html": 1974
+    }
+  ],
+  "notes": [],
+  "title": "[Extension Development Host] Settings - ws - Visual Studio Code [Superuser]"
+}
