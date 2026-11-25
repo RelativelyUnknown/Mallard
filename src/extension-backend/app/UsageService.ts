@@ -5,8 +5,6 @@
  */
 import * as vscode from 'vscode';
 import { readConfig } from '../config';
-import { evaluateAlerts, SnapshotSample } from '../domain/alerts';
-import { evaluateAlertRules, shouldNotify } from '../domain/alertRules';
 import { computeBudget } from '../domain/budget';
 import { buildChartData } from '../domain/chartData';
 import { forecastMonth } from '../domain/forecast';
@@ -34,13 +32,11 @@ import { PricingService } from '../pricing/PricingService';
 import { CurrencyService } from '../pricing/CurrencyService';
 import type { IEventSnapshotReader, SnapshotSourceData } from '../store/EventReader';
 import { UserConfigStore } from './UserConfigStore';
+import { AlertService } from './AlertService';
 import { activeBranch } from '../util/repo';
 import { defaultVscodeHost, VscodeHost } from '../util/vscodeHost';
 import { IntervalManager } from '../util/IntervalManager';
 import { defaultLogger, Logger } from '../util/logger';
-
-/** Keep ~1h of recent samples for velocity alerting. */
-const HISTORY_WINDOW_MS = 60 * 60 * 1000;
 
 /**
  * True when a billing failure means "the user simply isn't signed in" rather
@@ -96,11 +92,10 @@ export class UsageService implements vscode.Disposable {
   private readonly _onDidChangeBilling = new vscode.EventEmitter<BillingState>();
   readonly onDidChangeBilling = this._onDidChangeBilling.event;
 
-  /** Fires once per alert/rule notification actually shown — lets UI
-   *  surfaces (the sidebar gauge) react to the moment an alert fires,
-   *  not just passively reflect the latest snapshot percentage. */
-  private readonly _onAlertFired = new vscode.EventEmitter<{ message: string }>();
-  readonly onAlertFired = this._onAlertFired.event;
+  /** Fires once per alert/rule notification actually shown (see {@link AlertService}). */
+  get onAlertFired(): vscode.Event<{ message: string }> {
+    return this.alerts.onAlertFired;
+  }
 
   private data?: SnapshotData;
   /** The latest snapshot computed with no filter (see onDidComputeUnfiltered). */
@@ -114,8 +109,6 @@ export class UsageService implements vscode.Disposable {
   private filter: Filter = {};
   private lastComputeFiltered = false;
   private readonly timer = new IntervalManager();
-  private readonly alertFired = new Map<string, number>();
-  private readonly history: SnapshotSample[] = [];
   private billing: BillingState = { authStatus: 'signed-out' };
   private readonly subs: vscode.Disposable[] = [];
 
@@ -126,8 +119,10 @@ export class UsageService implements vscode.Disposable {
     private readonly userConfig: UserConfigStore,
     private readonly currency: CurrencyService,
     private readonly github?: IBillingProvider,
-    private readonly host: VscodeHost = defaultVscodeHost,
+    host: VscodeHost = defaultVscodeHost,
     private readonly logger: Logger = defaultLogger,
+    /** Fires alerts for unfiltered snapshots; owned (and disposed) by this service. */
+    private readonly alerts: AlertService = new AlertService({ host, config: () => userConfig.get() }),
   ) {
     if (github) {
       this.subs.push(github.onDidChange(() => this.background('GitHub billing refresh', this.refreshGitHub())));
@@ -306,8 +301,6 @@ export class UsageService implements vscode.Disposable {
   private async runCompute(): Promise<void> {
     const userConfig = this.userConfig.get();
     const now = Date.now();
-    for (const [key, ts] of this.alertFired)
-      if (now - ts > 86_400_000) this.alertFired.delete(key);
 
     const branch = activeBranch();
 
@@ -344,8 +337,7 @@ export class UsageService implements vscode.Disposable {
     if (!filtered) {
       // Filtered snapshots go to the UI only — see onDidComputeUnfiltered.
       this.unfiltered = next;
-      this.recordSample(now, next);
-      this.fireAlerts(next, userConfig, now);
+      this.alerts.process(next, { now, config: userConfig });
       this._onDidComputeUnfiltered.fire(next);
     }
     this._onDidChange.fire(next);
@@ -494,39 +486,6 @@ export class UsageService implements vscode.Disposable {
     };
   }
 
-  private recordSample(now: number, s: SnapshotData): void {
-    this.history.push({ ts: now, todayCredits: s.today.credits });
-    const cutoff = now - HISTORY_WINDOW_MS;
-    while (this.history.length > 0 && this.history[0]!.ts < cutoff) this.history.shift();
-  }
-
-  private fireAlerts(s: SnapshotData, uc: ReturnType<UserConfigStore['get']>, now: number): void {
-    const alerts = evaluateAlerts(s, this.history, uc, this.alertFired, now);
-    for (const a of alerts) {
-      void this.host.showWarningMessage(a.message);
-      this.alertFired.set(a.key, now);
-      this._onAlertFired.fire({ message: a.message });
-    }
-
-    const ruleResults = evaluateAlertRules({
-      snapshot: s,
-      history: this.history,
-      rules: uc.rules ?? [],
-      ...opt('groups', uc.groups),
-      ...opt('vars', uc.vars),
-      ...opt('branchBudgets', uc.branchBudgets),
-      signedIn: s.authStatus === 'signed-in',
-      fired: this.alertFired,
-      now,
-    });
-    for (const r of ruleResults) {
-      if (shouldNotify(r.rule)) {
-        void this.host.showWarningMessage(r.message);
-        this._onAlertFired.fire({ message: r.message });
-      }
-    }
-  }
-
   private scheduleTimer(): void {
     // readConfig() already clamps refreshIntervalMinutes to [1, 60]
     const mins = readConfig().refreshIntervalMinutes;
@@ -539,7 +498,7 @@ export class UsageService implements vscode.Disposable {
     this._onDidChange.dispose();
     this._onDidComputeUnfiltered.dispose();
     this._onDidChangeBilling.dispose();
-    this._onAlertFired.dispose();
+    this.alerts.dispose();
     this.subs.forEach((d) => d.dispose());
     this.github?.dispose();
   }
