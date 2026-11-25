@@ -53,7 +53,7 @@ Recorded names: `events` (mapped events, persisted rows, per-pass report), `snap
 - **After:** the same quirk is acceptable (rollups per local day), including the dropped branch/language and 0-vs-null token columns. If rollups gain an hour or keep branch, the hourly and branch goldens change accordingly.
 - **Compare instead:** daily totals (`daily`, `totals`, `models`, `repos`, `sankey`) exactly; `hourly` only for non-rolled days.
 
-### D6 Event count after compaction counts requests, not rows
+### D6 Event counts after compaction count requests again (today: rolled rows)
 - **Today:** `totals.*.eventCount`, `daily[].eventCount`, `sankey[].count` count stored rows, so a rolled day counts as 1 however many requests it holds (`compaction.*`: 147 rows for 162 requests).
 - **After:** rollups sum `requests`, so counts return to the number of requests.
 - **Compare instead:** the `compaction` goldens' counts against the `events` count; credits/cost/tokens must match today.

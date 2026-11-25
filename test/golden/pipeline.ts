@@ -26,6 +26,7 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscodeApi from 'vscode';
+import { DuckDBInstance } from '@duckdb/node-api';
 import { ClaudeCodeConnector } from '../../src/extension-backend/ingest/ClaudeCodeConnector';
 import { CopilotConnector } from '../../src/extension-backend/ingest/CopilotConnector';
 import { NoopFsWatcher } from '../../src/extension-backend/ingest/IFsWatcher';
@@ -383,6 +384,22 @@ export async function openWorld(opts: { tz: string; now?: number; retentionDays?
   });
 }
 
+/** True when DuckDB's `sqlite` extension can be installed and loaded (it is downloaded on first use; offline it may not be). */
+export async function sqliteExtensionAvailable(): Promise<boolean> {
+  const instance = await DuckDBInstance.create(':memory:');
+  const conn = await instance.connect();
+  try {
+    await conn.run('INSTALL sqlite');
+    await conn.run('LOAD sqlite');
+    return true;
+  } catch {
+    return false;
+  } finally {
+    conn.closeSync();
+    instance.closeSync();
+  }
+}
+
 /** Ingest the fixtures and return what the connectors produced (see {@link openWorld}). */
 export async function ingestFixtures(opts: { tz: string; now?: number }): Promise<IngestResult> {
   const world = await openWorld(opts);
@@ -500,34 +517,41 @@ function makeKit(
 }
 
 /**
- * The snapshot source data UsageService reads for `filter` at `now` — i.e. the
- * memoised no-filter read, or the filtered read with the default 365-day range
- * when the filter has none. Returns the record the goldens store.
+ * The snapshot source data UsageService reads for `filter` at epoch-ms `now`,
+ * together with how it read it: the memoised no-filter path, or the filtered
+ * path with the default 365-day range when the filter has none.
  */
-export async function snapshotRecord(world: World, spec: FilterSpec, nowSpec: NowSpec): Promise<SnapshotRecord> {
-  const tz = world.tz as GoldenTz;
-  return withTz(tz, async () => {
-    const now = localInstant(nowSpec.local(tz));
-    const filter = resolveFilter(spec);
+export async function readSnapshot(
+  world: World,
+  filter: Filter,
+  now: number,
+): Promise<{ read: SnapshotRecord['read']; data: SnapshotSourceData }> {
+  return withTz(world.tz, async () => {
     // A fresh reader per call (its no-filter memo is keyed on the write version, which a bare reader never sees bump).
     const reader = new EventReader(world.store.conn, { version: 0 }, () => now);
     const kit = makeKit(reader, world.pricing);
     try {
       await withClock(now, () => kit.svc.setFilter(filter));
-      const read = kit.readPaths[kit.readPaths.length - 1]!;
-      const data = kit.reads[kit.reads.length - 1]!;
-      return { label: spec.label, nowLabel: nowSpec.label, now: iso(now), filter, read, data };
+      return { read: kit.readPaths[kit.readPaths.length - 1]!, data: kit.reads[kit.reads.length - 1]! };
     } finally {
       kit.dispose();
     }
   });
 }
 
-/** `snapshot(filter, {tz, now})` from the spec: ingest, read, close. `now` is the instant to read at. */
-export async function snapshot(spec: FilterSpec, opts: { tz: string; now: NowSpec }): Promise<SnapshotRecord> {
+/** One golden snapshot entry: a labelled filter spec read at a labelled local `now`. */
+export async function snapshotRecord(world: World, spec: FilterSpec, nowSpec: NowSpec): Promise<SnapshotRecord> {
+  const tz = world.tz as GoldenTz;
+  const { now, filter } = withTzSync(tz, () => ({ now: localInstant(nowSpec.local(tz)), filter: resolveFilter(spec) }));
+  const { read, data } = await readSnapshot(world, filter, now);
+  return { label: spec.label, nowLabel: nowSpec.label, now: iso(now), filter, read, data };
+}
+
+/** `snapshot(filter, {tz, now})`: ingest the fixtures in `tz`, read the snapshot source data for `filter` at `now` (epoch ms), close. */
+export async function snapshot(filter: Filter, opts: { tz: string; now: number }): Promise<SnapshotSourceData> {
   const world = await openWorld({ tz: opts.tz });
   try {
-    return await snapshotRecord(world, spec, opts.now);
+    return (await readSnapshot(world, filter, opts.now)).data;
   } finally {
     await world.close();
   }

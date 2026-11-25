@@ -34,7 +34,6 @@ import {
   COMPACTION_RETENTION_DAYS,
   EDGE_FILTER_SPECS,
   FILTER_SPECS,
-  INGEST_NOW_2,
   NOW_SPECS,
 } from './scenarios';
 import type { FilterSpec } from './scenarios';
@@ -52,7 +51,6 @@ export async function computeStaticGoldens(): Promise<GoldenSet> {
 }
 
 async function snapshotMatrix(world: World): Promise<unknown[]> {
-  const tz = world.tz as GoldenTz;
   const out: unknown[] = [];
   for (const now of NOW_SPECS) {
     const specs: FilterSpec[] = now.label === MAIN.label ? FILTER_SPECS : EDGE_FILTER_SPECS;
@@ -76,7 +74,6 @@ async function snapshotMatrix(world: World): Promise<unknown[]> {
       }
     }
   }
-  void tz;
   return out;
 }
 
@@ -133,4 +130,3 @@ export async function computeTzGoldens(tz: GoldenTz): Promise<{ goldens: GoldenS
   }
 }
 
-export { INGEST_NOW_2 };
