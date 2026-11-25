@@ -139,10 +139,14 @@ describe('buildContainer — restriction only reconciles unfiltered snapshots', 
     const context = makeContext(dir);
     try {
       const c = await buildContainer(context);
-      await c.usage.setFilter({ models: ['gpt-4o'] });
-      await c.userConfig.set({
+      // The old rules language is no longer settable (it is not a setting); this
+      // test is about WHICH snapshots reach the restriction engine, so feed it a rule directly.
+      const real = c.userConfig.get.bind(c.userConfig);
+      c.userConfig.get = () => ({
+        ...real(),
         rules: [{ id: 'always', severity: 'critical', message: 'stop', when: true, restrict: {} }],
       });
+      await c.usage.setFilter({ models: ['gpt-4o'] });
       await tick(100);
       assert.equal(c.restriction.getState().active, false, 'filtered snapshot must not feed restriction');
 

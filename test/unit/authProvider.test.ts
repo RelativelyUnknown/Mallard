@@ -18,16 +18,16 @@ function makeConfig(over: {
   certificate?: MallardConfig['shared']['certificate'];
 } = {}): MallardConfig {
   return {
-    copilotLogPath: '',
     copilotOtelPath: '',
     pricingManifestUrl: '',
+    enabledConnectors: ['copilot', 'claude-code'],
     palette: 'swiss',
     refreshIntervalMinutes: 10,
     dataRetentionDays: 90,
     server: { url: over.serverUrl ?? '' },
     export: { transport: over.transport ?? '' },
     webhook: { auth: over.webhookAuth ?? 'apiKey' },
-    mqtt: { url: over.mqttUrl ?? '', auth: 'password', username: '' },
+    mqtt: { url: over.mqttUrl ?? '', username: '' },
     shared: { certificate: over.certificate ?? { file: '', keyFile: '', caFile: '' } },
   };
 }
@@ -84,13 +84,13 @@ describe('AuthProvider.createExporter', () => {
     exporter.dispose();
   });
 
-  it('fans out to config.json webhook targets with per-target secret namespacing', async () => {
+  it('fans out to the webhook targets from settings with per-target secret namespacing (by id)', async () => {
     const { context, requested } = makeContext({
       [SECRET_KEYS.webhookApiKey]: 'primary-key',
       [`${SECRET_KEYS.webhookApiKey}:team`]: 'team-key',
     });
     const exportCfg: ExportConfig = {
-      webhookTargets: [{ name: 'team', url: 'https://mallard.team.example.com' }],
+      webhookTargets: [{ id: 'team', name: 'Team server', url: 'https://mallard.team.example.com' }],
     };
     const exporter = await new AuthProvider(
       makeConfig({ transport: 'webhook', serverUrl: 'https://mallard.example.com' }),
@@ -98,7 +98,8 @@ describe('AuthProvider.createExporter', () => {
       exportCfg,
     ).createExporter();
     assert.ok(exporter instanceof FanoutMetricExporter, 'primary + target → fanout');
-    assert.ok(requested.includes(`${SECRET_KEYS.webhookApiKey}:team`), 'target key namespaced by name');
+    assert.ok(requested.includes(`${SECRET_KEYS.webhookApiKey}:team`), 'target key namespaced by id, not by the display name');
+    assert.ok(requested.every((k) => !k.includes('Team server')));
     assert.ok(requested.includes(`${SECRET_KEYS.webhookBearerToken}:team`));
     assert.ok(requested.includes(`${SECRET_KEYS.webhookSigningSecret}:team`));
     exporter.dispose();
@@ -162,7 +163,7 @@ describe('AuthProvider.createExporter', () => {
   it('namespaces per-broker passwords for mqtt fanout targets', async () => {
     const { context, requested } = makeContext();
     const exportCfg: ExportConfig = {
-      mqttTargets: [{ name: 'team-broker', url: 'wss://team.example.com/mqtt' }],
+      mqttTargets: [{ id: 'team-broker', name: 'Team broker', url: 'wss://team.example.com/mqtt' }],
     };
     const exporter = await new AuthProvider(
       makeConfig({ transport: 'mqtt', mqttUrl: 'wss://mallard.example.com/mqtt' }),

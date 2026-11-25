@@ -39,7 +39,7 @@ import { EventReader } from '../../src/extension-backend/store/EventReader';
 import type { IEventSnapshotReader, SnapshotSourceData } from '../../src/extension-backend/store/EventReader';
 import type { RecordFilter } from '../../src/extension-backend/store/EventRepository';
 import { UsageService } from '../../src/extension-backend/app/UsageService';
-import type { UserConfigStore } from '../../src/extension-backend/app/UserConfigStore';
+import type { IConfigService } from '../../src/extension-backend/app/ConfigService';
 import { RestrictionEngine } from '../../src/extension-backend/app/RestrictionEngine';
 import type { IngestService } from '../../src/extension-backend/ingest/IngestService';
 import type { CurrencyService } from '../../src/extension-backend/pricing/CurrencyService';
@@ -504,7 +504,7 @@ function makeKit(
     },
     creditsByBranch: (b) => reader.creditsByBranch(b),
   };
-  const userConfig = { get: () => config, onDidChange: () => ({ dispose() {} }) } as unknown as UserConfigStore;
+  const userConfig = { get: () => config, onDidChange: () => ({ dispose() {} }) } as unknown as IConfigService;
   const ingest = { getStatus: () => ({ kind: 'ok' as const }), start: async () => {}, dispose() {} } as unknown as IngestService;
   const currency = { currentRates: () => opts.rates ?? {} } as unknown as CurrencyService;
   const warnings: string[] = [];

@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import { errAsync } from 'neverthrow';
 import { AlertService } from '../../../src/extension-backend/app/AlertService';
 import { UsageService } from '../../../src/extension-backend/app/UsageService';
-import type { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
+import type { IConfigService } from '../../../src/extension-backend/app/ConfigService';
 import { BillingError } from '../../../src/extension-backend/billing/GitHubUsageService';
 import type { IBillingProvider } from '../../../src/extension-backend/billing/IBillingProvider';
 import { DEFAULT_USER_CONFIG } from '../../../src/extension-backend/domain/types';
@@ -27,7 +27,7 @@ function scope(): WiringScope & { started: Array<() => void> } {
 const userConfig = {
   get: () => ({ ...DEFAULT_USER_CONFIG, monthlyBudget: 100 }),
   onDidChange: () => ({ dispose() {} }),
-} as unknown as UserConfigStore;
+} as unknown as IConfigService;
 
 describe('wireAlerts', () => {
   it('builds an AlertService over the user config and the given host, and registers its cleanup', () => {

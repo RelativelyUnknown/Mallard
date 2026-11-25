@@ -124,13 +124,20 @@ describe('credentials — manageCredentials', () => {
 describe('credentials — exportTargetSlots', () => {
   it('combines webhook and mqtt target slots', () => {
     const slots = exportTargetSlots({
-      webhookTargets: [{ name: 'team' }],
-      mqttTargets: [{ name: 'broker2' }],
+      webhookTargets: [{ id: 'team', name: 'Team server' }],
+      mqttTargets: [{ id: 'broker2', name: 'Broker 2' }],
     });
     const keys = slots.map((s) => s.key);
     assert.equal(slots.length, 4); // 3 webhook slots + 1 mqtt password slot
     assert.ok(keys.includes(`${SECRET_KEYS.webhookApiKey}:team`));
     assert.ok(keys.includes(`${SECRET_KEYS.mqttPassword}:broker2`));
+  });
+
+  it('keys credentials by the stable id, not the display name, and shows the name to the user', () => {
+    const [slot] = exportTargetSlots({ webhookTargets: [{ id: 'team', name: 'Renamed in settings.json' }] });
+    assert.equal(slot!.key, `${SECRET_KEYS.webhookApiKey}:team`);
+    assert.match(slot!.label, /Renamed in settings\.json/);
+    assert.ok(!slot!.key.includes('Renamed'));
   });
 
   it('returns no slots for an absent export block', () => {

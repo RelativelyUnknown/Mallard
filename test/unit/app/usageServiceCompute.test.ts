@@ -6,7 +6,7 @@ import type { IBillingProvider } from '../../../src/extension-backend/billing/IB
 import type { CurrencyService } from '../../../src/extension-backend/pricing/CurrencyService';
 import type { IngestService } from '../../../src/extension-backend/ingest/IngestService';
 import type { PricingService } from '../../../src/extension-backend/pricing/PricingService';
-import type { UserConfigStore } from '../../../src/extension-backend/app/UserConfigStore';
+import type { IConfigService } from '../../../src/extension-backend/app/ConfigService';
 import type { IEventSnapshotReader, SnapshotSourceData } from '../../../src/extension-backend/store/EventReader';
 import { resolveRangePreset } from '../../../src/extension-backend/domain/rangePreset';
 import type { Filter, UserConfig } from '../../../src/extension-backend/domain/types';
@@ -87,7 +87,7 @@ function harness(opts: {
   };
   const cfgEmitter = emitter<UserConfig>();
   const config = opts.config ?? baseConfig();
-  const userConfig = { get: () => config, onDidChange: cfgEmitter.event } as unknown as UserConfigStore;
+  const userConfig = { get: () => config, onDidChange: cfgEmitter.event } as unknown as IConfigService;
   const pricing = { pricePerCredit: 0.04, currentManifest: undefined } as unknown as PricingService;
   const ingest = {
     getStatus: () => ({ kind: 'ok' as const }),

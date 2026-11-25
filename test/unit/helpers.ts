@@ -1,5 +1,6 @@
-import type * as vscode from 'vscode';
-import { SourceKind, Surface, UsageEvent } from '../../src/extension-backend/domain/types';
+import * as vscode from 'vscode';
+import type { IConfigService } from '../../src/extension-backend/app/ConfigService';
+import { DEFAULT_USER_CONFIG, SourceKind, Surface, UsageEvent, UserConfig } from '../../src/extension-backend/domain/types';
 import { VscodeHost } from '../../src/extension-backend/util/vscodeHost';
 
 export interface StubVscodeHost extends VscodeHost {
@@ -70,5 +71,43 @@ export function makeEvent(partial: Partial<UsageEvent> & { ts: number }): UsageE
     ...(partial.attribution !== undefined ? { attribution: partial.attribution } : {}),
     ...(partial.language !== undefined ? { language: partial.language } : {}),
     ...(partial.costByCategory !== undefined ? { costByCategory: partial.costByCategory } : {}),
+  };
+}
+
+/**
+ * An in-memory, settable stand-in for the settings-backed `ConfigService`: `get()`
+ * returns the current config, `update()`/`set()` merge a patch in and fire the one
+ * `onDidChange` event, `fire()` fires it without changing anything.
+ */
+export interface FakeConfig extends IConfigService, vscode.Disposable {
+  /** Same as `update` (the name `UserConfigStore` used). */
+  set(patch: Partial<UserConfig>): Promise<void>;
+  reset(): Promise<void>;
+  fire(): void;
+  /** Every patch passed to `update`, in order. */
+  readonly updates: Array<Partial<UserConfig>>;
+}
+
+export function makeFakeConfig(initial: Partial<UserConfig> = {}): FakeConfig {
+  let config: UserConfig = { ...DEFAULT_USER_CONFIG, ...initial };
+  const emitter = new vscode.EventEmitter<void>();
+  const updates: Array<Partial<UserConfig>> = [];
+  const update = async (patch: Partial<UserConfig>): Promise<void> => {
+    updates.push(patch);
+    config = { ...config, ...patch, alerts: { ...config.alerts, ...(patch.alerts ?? {}) } };
+    emitter.fire();
+  };
+  return {
+    get: () => config,
+    onDidChange: emitter.event,
+    update,
+    set: update,
+    reset: async () => {
+      config = { ...DEFAULT_USER_CONFIG };
+      emitter.fire();
+    },
+    fire: () => emitter.fire(),
+    updates,
+    dispose: () => emitter.dispose(),
   };
 }
