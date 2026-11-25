@@ -1,9 +1,9 @@
 # Settings Reference
 
 Mallard reads only a few VS Code settings. Budget, included credits, alert
-thresholds, display currency, and the dashboard layout are not settings; you edit
-them in the dashboard and they are stored in `config.json` (see the Configuration
-guide). The old `mallard.currency` setting was removed — set the currency from
+thresholds and display currency are not settings; you edit them in the dashboard
+and they are stored in `config.json` (see the Configuration guide). The dashboard
+layout is stored in VS Code's extension storage, not in `config.json`. The old `mallard.currency` setting was removed — set the currency from
 the dashboard's header selector instead.
 
 ## Core settings

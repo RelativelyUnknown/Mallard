@@ -29,9 +29,6 @@ export const TIER_NAMES = ['compact', 'normal', 'tall'] as const;
 export const TIER_ROW_LIST: readonly number[] = [TIER_ROWS.compact, TIER_ROWS.normal, TIER_ROWS.tall];
 export { MIN_ROWS };
 
-/** Chart body height in px for a panel `rows` grid rows tall (see the table above). */
-export const bodyPx = (rows: number): number => rows * CELL_HEIGHT - 53;
-
 export const ENGINE_OPTIONS: EngineOptions = {
   columns: COLUMNS,
   narrowBelowPx: NARROW_BELOW_PX,
@@ -42,3 +39,6 @@ export const ENGINE_OPTIONS: EngineOptions = {
   dragCancel: '.wv-panel-hide',
   minH: MIN_ROWS,
 };
+
+/** Chart body height in px for a panel `rows` grid rows tall (see the table above). */
+export const bodyPx = (rows: number): number => rows * CELL_HEIGHT - 53;

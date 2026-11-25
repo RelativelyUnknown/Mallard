@@ -353,14 +353,9 @@ export interface RestrictionState {
   userOverrideUntil: number | null;
 }
 
-export const DEFAULT_RESTRICTION_STATE: RestrictionState = {
-  version: 1,
-  active: false,
-  ruleId: '',
-  reasonMessage: '',
-  firedAt: 0,
-  userOverrideUntil: null,
-};
+// One line on purpose: the last runtime statement of this module must not end on a bare `};`, or tsx's
+// end-of-file coverage hint lands on a line nothing executes (the old default layout array carried a c8 marker for this).
+export const DEFAULT_RESTRICTION_STATE: RestrictionState = { version: 1, active: false, ruleId: '', reasonMessage: '', firedAt: 0, userOverrideUntil: null };
 
 /**
  * Chart colour palette mode (the `mallard.palette` setting):

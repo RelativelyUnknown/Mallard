@@ -112,7 +112,9 @@ Set `"restrict": { "reEnableWhen": <condition> }` to have the popup clear itself
 
 ## Dashboard layout
 
-Use the **Resize** and **Move** buttons to drag, resize, or hide panels, and **Add chart** to bring in the optional extra charts (by repository, cost categories over time, tokens over time, GitHub billing items). Every change is saved straight into `config.json`'s `dashboard.panels` block — the same file as your budget and rules — so the layout is hand-editable and travels with the file. **Reset layout** restores defaults.
+The layout is not part of `config.json`. Use **Edit layout** in the dashboard to drag, resize, or hide panels, and **Add chart** to bring in the optional extra charts (by repository, cost categories over time, tokens over time, GitHub billing items). Every change is saved automatically into VS Code's `globalState` for the extension (key `mallard.layout.v2`), so it survives restarts but is not hand-editable and does not travel with the config file. **Reset layout** restores defaults; **Mallard: Prepare for Uninstall** clears it. See [Features](./features.md#layout) for the keyboard controls.
+
+A layout saved by an earlier version (the older `dashboard.panels` block of `config.json` or the previous `globalState` layout) is migrated automatically the first time the dashboard opens. The grid is always four columns wide, so the old `dashboard.columns` option and the `gridColumn` / `gridRow` panel fields are no longer read.
 
 ## Display currency
 
