@@ -85,6 +85,40 @@ describe('importLegacyConfig — nothing to import', () => {
     h.write({});
     const r = await importLegacyConfig(h.deps);
     assert.equal(r.status, 'imported');
+    assert.deepEqual(r.written, []);
+    assert.deepEqual(h.messages.info, []);
+    assert.ok(existsSync(path.join(h.dir, 'config.json.migrated')));
+  });
+});
+
+describe('importLegacyConfig — a full config', () => {
+  it('writes the equivalent settings, seeds the layout, keeps the rules in the backup and says so once', async () => {
+    const h = harness();
+    h.write(FULL);
+    const r = await importLegacyConfig(h.deps);
+
+    assert.equal(r.status, 'imported');
+    assert.equal(h.patches.length, 1);
+    const patch = h.patches[0]!;
+    assert.equal(patch.monthlyBudget, 20);
+    assert.equal(patch.includedCredits, 500);
+    assert.equal(patch.dailyCreditAlert, 0, 'an explicit 0 is imported, it is not "unset"');
+    assert.deepEqual(patch.alerts, { velocityEnabled: false, velocityCreditsPerHour: 40 });
+    assert.deepEqual(patch.branchBudgets, { main: 500 });
+    assert.deepEqual(patch.display, { dailyBarsWindow: 14, topN: 5 });
+    assert.equal(patch.currency, 'eur');
+    assert.deepEqual(patch.githubBilling, { mode: 'pat', org: 'acme' });
+    assert.deepEqual(patch.export, {
+      webhookTargets: [{ id: 'team', name: 'team', url: 'https://t.example' }],
+      mqttTargets: [{ id: 'broker', name: 'broker', url: 'wss://b.example/mqtt' }],
+    });
+    assert.ok(!('rules' in patch) && !('groups' in patch) && !('vars' in patch) && !('dashboard' in patch));
+
+    assert.deepEqual(r.legacyRules, FULL.rules);
+    assert.deepEqual(r.legacyGroups, FULL.groups);
+    assert.deepEqual(r.legacyVars, FULL.vars);
+    assert.equal(r.legacyVersion, 2);
+    assert.deepEqual(r.skipped, []);
     assert.deepEqual([...r.written].sort(), [
       'alerts.velocityCreditsPerHour', 'alerts.velocityEnabled', 'branchBudgets', 'currency', 'dailyCreditAlert',
       'display.dailyBarsWindow', 'display.topN', 'export.mqttTargets', 'export.webhookTargets',
