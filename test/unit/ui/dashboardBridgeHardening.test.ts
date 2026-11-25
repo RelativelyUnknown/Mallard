@@ -28,7 +28,7 @@ function harness(over: { refresh?: () => Promise<void>; set?: () => Promise<void
       uri: vscode.Uri.file('/x'),
       onDidChange: emitter<unknown>().event,
     },
-    layout: { get: () => [], set: async () => {}, onDidChange: emitter<unknown>().event },
+    layout: { get: () => ({ version: 2, panels: [] }), set: async () => {}, onDidChange: emitter<unknown>().event },
     restriction: { getState: () => ({ active: false }), snooze: async () => {}, onDidChange: emitter<unknown>().event },
   } as unknown as DashboardDeps;
   bindDashboard(webview, deps);

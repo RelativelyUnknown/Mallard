@@ -1,5 +1,6 @@
 import { strict as assert } from 'assert';
 import * as vscode from 'vscode';
+import { defaultLayout } from '../../../src/extension-backend/domain/layout';
 import { bindDashboard, DashboardDeps } from '../../../src/extension-backend/ui/dashboardBridge';
 import type { WebviewBoundMsg } from '../../../src/extension-backend/ui/messaging';
 
@@ -54,7 +55,7 @@ function makeHarness() {
       onDidChange: emitter<unknown>().event,
     },
     layout: {
-      get: () => [],
+      get: () => defaultLayout(),
       set: async (...a: unknown[]) => void calls.setLayout!.push(a),
       onDidChange: emitter<unknown>().event,
     },
@@ -94,7 +95,7 @@ describe('dashboardBridge — message routing', () => {
     const deps = {
       usage: { current: undefined, onDidChangeSnapshot: emitter<unknown>().event },
       userConfig: { get: () => ({}), uri: vscode.Uri.file('/x'), onDidChange: emitter<unknown>().event },
-      layout: { get: () => [], onDidChange: emitter<unknown>().event },
+      layout: { get: () => defaultLayout(), onDidChange: emitter<unknown>().event },
       restriction: { getState: () => ({ active: false }), onDidChange: emitter<unknown>().event },
     } as unknown as DashboardDeps;
     bindDashboard(webview, deps);
@@ -108,7 +109,8 @@ describe('dashboardBridge — message routing', () => {
     h.send({ type: 'refresh' });
     h.send({ type: 'setFilter', value: { models: ['gpt-4o'] } });
     h.send({ type: 'setConfig', value: { monthlyBudget: 5 } });
-    h.send({ type: 'setLayout', value: [] });
+    h.send({ type: 'setLayout', value: defaultLayout() });
+    h.send({ type: 'setLayout', value: [] }); // the v1 shape is rejected, never reaches the store
     h.send({ type: 'restrictSnooze', minutes: 15 });
     await new Promise((r) => setImmediate(r));
 
@@ -207,7 +209,7 @@ describe('dashboardBridge — message routing', () => {
       const deps = {
         usage: { current: undefined, onDidChangeSnapshot: emitter<unknown>().event },
         userConfig: { get: () => ({}), uri: vscode.Uri.file('/x'), onDidChange: emitter<unknown>().event },
-        layout: { get: () => [], onDidChange: emitter<unknown>().event },
+        layout: { get: () => defaultLayout(), onDidChange: emitter<unknown>().event },
         restriction: { getState: () => ({ active: false }), onDidChange: emitter<unknown>().event },
       } as unknown as DashboardDeps;
       bindDashboard(webview, deps);
@@ -250,7 +252,7 @@ describe('dashboardBridge — theme kind mapping', () => {
       const deps = {
         usage: { current: undefined, onDidChangeSnapshot: emitter<unknown>().event },
         userConfig: { get: () => ({}), uri: vscode.Uri.file('/x'), onDidChange: emitter<unknown>().event },
-        layout: { get: () => [], onDidChange: emitter<unknown>().event },
+        layout: { get: () => defaultLayout(), onDidChange: emitter<unknown>().event },
         restriction: { getState: () => ({ active: false }), onDidChange: emitter<unknown>().event },
       } as unknown as DashboardDeps;
       bindDashboard(webview, deps);

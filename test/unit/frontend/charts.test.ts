@@ -17,8 +17,8 @@ import { mountTokensTimeline } from '../../../src/extension-frontend/charts/toke
 import { mountBillingItems } from '../../../src/extension-frontend/charts/billingItems';
 import { mountLanguageBreakdown } from '../../../src/extension-frontend/charts/languageBreakdown';
 import { CHART_REGISTRY } from '../../../src/extension-frontend/charts/registry';
+import { defaultLayout, PANEL_IDS } from '../../../src/extension-backend/domain/layout';
 import { lastOption, seriesValues } from './stubChart';
-import { DASHBOARD_PANELS, DEFAULT_DASHBOARD_LAYOUT } from '../../../src/extension-backend/domain/types';
 
 function makeSnapshot(credits = 100): UsageSnapshot {
   const now = Date.now();
@@ -195,18 +195,24 @@ describe('extra charts', () => {
 });
 
 describe('chart registry', () => {
-  it('covers exactly the DASHBOARD_PANELS set, each with a default layout entry', () => {
+  it('covers exactly the panels of domain/layout.ts (PANEL_IDS), each with a default layout entry', () => {
     const registryIds = CHART_REGISTRY.map((d) => d.id).sort();
-    assert.deepEqual(registryIds, [...DASHBOARD_PANELS].sort());
-    const layoutIds = DEFAULT_DASHBOARD_LAYOUT.map((d) => d.id).sort();
+    assert.deepEqual(registryIds, [...PANEL_IDS].sort());
+    assert.equal(new Set(registryIds).size, registryIds.length, 'no id twice');
+    const layoutIds = defaultLayout().panels.map((d) => d.id).sort();
     assert.deepEqual(registryIds, layoutIds);
   });
 
   it('extras default to hidden, stock charts to visible', () => {
-    const byId = new Map(DEFAULT_DASHBOARD_LAYOUT.map((d) => [d.id, d]));
+    const byId = new Map(defaultLayout().panels.map((d) => [d.id, d]));
     for (const def of CHART_REGISTRY) {
       assert.equal(byId.get(def.id)!.hidden, def.tier === 'extra', def.id);
     }
+  });
+
+  it('gives every chart a distinct body element id (panel markup, descriptions and resize observers key on it)', () => {
+    const bodyIds = CHART_REGISTRY.map((d) => d.bodyId);
+    assert.equal(new Set(bodyIds).size, bodyIds.length);
   });
 
   it('every def mounts, selects, and diffs against a real snapshot', () => {

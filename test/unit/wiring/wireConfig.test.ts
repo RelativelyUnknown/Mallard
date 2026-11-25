@@ -3,7 +3,8 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import type * as vscode from 'vscode';
-import { LAYOUT_STATE_KEY } from '../../../src/extension-backend/app/LayoutStore';
+import { LAYOUT_V1_KEY, LAYOUT_V2_KEY } from '../../../src/extension-backend/app/LayoutStore';
+import { migrateV1 } from '../../../src/extension-backend/domain/layout';
 import { GitHubSession } from '../../../src/extension-backend/billing/GitHubSession';
 import { wireConfig } from '../../../src/extension-backend/wiring/wireConfig';
 import type { GitHubBillingConfig } from '../../../src/extension-backend/domain/types';
@@ -27,7 +28,8 @@ describe('wireConfig', () => {
       configured.push(cfg);
       origConfigure.call(this, cfg);
     };
-    const globalState = makeMemento();
+    const v1 = [{ id: 'models', span: 3, hidden: true }];
+    const globalState = makeMemento({ [LAYOUT_V1_KEY]: v1 });
     const context = {
       subscriptions: [] as Array<{ dispose(): void }>,
       secrets: { get: async () => undefined, onDidChange: () => ({ dispose() {} }) },
@@ -41,8 +43,8 @@ describe('wireConfig', () => {
       assert.ok(githubSession && github);
       assert.equal(context.subscriptions.length, 1);
       assert.equal(started.length, 3, 'session, config store and layout store each register a cleanup');
-      assert.ok(globalState.data.has(LAYOUT_STATE_KEY), 'the layout store is backed by the extension globalState');
-      assert.ok(layout.get().length > 0);
+      assert.deepEqual(globalState.get(LAYOUT_V2_KEY), migrateV1(v1), 'the layout store is backed by the extension globalState and migrates its v1 layout');
+      assert.equal(layout.get().panels.length, migrateV1(v1).panels.length);
 
       await userConfig.set({ githubBilling: { mode: 'vscode-session' } });
       assert.deepEqual(configured.at(-1), { mode: 'vscode-session' }, 'kept live on config changes');

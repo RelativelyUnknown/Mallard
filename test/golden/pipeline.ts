@@ -59,19 +59,15 @@ import {
 import type { PricingManifest, TokenPrices } from '../../src/extension-backend/domain/pricing';
 import {
   configPanelsToLayout,
+  defaultLayout,
   gridColumnToSpan,
-  layoutToConfigPanels,
-  normalizeLayout,
+  migrateV1,
+  PANEL_IDS,
 } from '../../src/extension-backend/domain/layout';
+import { LAYOUT_CONFIG_CASES, LAYOUT_V1_CASES } from './layoutCases';
 import { startOf } from '../../src/extension-backend/util/time';
-import {
-  DASHBOARD_PANELS,
-  DEFAULT_DASHBOARD_LAYOUT,
-} from '../../src/extension-backend/domain/types';
 import type {
   AlertRule,
-  ConfigPanelLayout,
-  DashboardLayout,
   Filter,
   SnapshotData,
   UsageEvent,
@@ -838,61 +834,18 @@ export async function alertSequence(opts: { tz: string }): Promise<AlertStep[]> 
 
 // ── Layout migration vectors ─────────────────────────────────────────────────────
 
-/** Old stored/config shapes in, normalised layouts out (pure; zone-independent). */
+/**
+ * v1 inputs in, v2 layouts out (pure; zone-independent). The recording was originally the v1
+ * normaliser's output; the v1 INPUTS are unchanged and the migrator's outputs are the recording now
+ * (INTENDED_DIFFERENCES D16).
+ */
 export function layoutVectors(): Json {
-  const L = (...panels: unknown[]): DashboardLayout => panels as DashboardLayout;
-  const normalizeCases: Array<[string, unknown, number | undefined]> = [
-    ['undefined', undefined, undefined],
-    ['empty array', L(), undefined],
-    ['legacy: no size, no hidden', L({ id: 'models', span: 1 }, { id: 'daily', span: 2 }), undefined],
-    ['legacy: span only, order kept', L({ id: 'tokens', span: 2 }, { id: 'daily', span: 1, hidden: true }), undefined],
-    ['duplicates keep the first', L({ id: 'daily', span: 2 }, { id: 'daily', span: 1, hidden: true }), undefined],
-    ['unknown ids are preserved', L({ id: 'future-panel', span: 3, hidden: false, size: 'tall' }, { id: 'daily', span: 1 }), undefined],
-    ['bad ids are dropped', L(null, { id: '' }, { id: 7 }, { span: 2 }, 'models', { id: 'weekday', span: 2 }), undefined],
-    ['spans clamp to 1..4 and round', L({ id: 'daily', span: 0 }, { id: 'heatmap', span: 9 }, { id: 'models', span: 2.6 }, { id: 'sankey', span: '3' }, { id: 'category', span: 'wide' }, { id: 'cumulative', span: NaN }), undefined],
-    ['sizes: valid, invalid, missing', L({ id: 'daily', span: 2, size: 'compact' }, { id: 'heatmap', span: 2, size: 'huge' }, { id: 'models', span: 1, size: 'tall' }, { id: 'sankey', span: 1 }), undefined],
-    ['hidden is coerced to boolean', L({ id: 'daily', span: 1, hidden: 1 }, { id: 'models', span: 1, hidden: 'yes' }, { id: 'sankey', span: 1, hidden: 0 }, { id: 'category', span: 1, hidden: null }), undefined],
-    ['columns=1 clamps spans and defaults', L({ id: 'daily', span: 3 }), 1],
-    ['columns=2', L({ id: 'daily', span: 4 }, { id: 'models', span: 3 }), 2],
-    ['columns=3', L({ id: 'daily', span: 4 }), 3],
-    ['columns=0 means 1', L({ id: 'daily', span: 4 }), 0],
-    ['columns=9 means 4', L({ id: 'daily', span: 4 }), 9],
-    ['columns=NaN means 4', L({ id: 'daily', span: 4 }), NaN],
-    ['columns=2.6 rounds to 3', L({ id: 'daily', span: 4 }), 2.6],
-    ['full default round trip', DEFAULT_DASHBOARD_LAYOUT.map((p) => ({ ...p, hidden: !p.hidden })), undefined],
-  ];
-
-  const configCases: Array<[string, ConfigPanelLayout[] | undefined, number | undefined]> = [
-    ['undefined panels', undefined, undefined],
-    ['empty panels', [], undefined],
-    ['gridColumn spans', [{ id: 'daily', gridColumn: 'span 1' }, { id: 'models', gridColumn: 'span 2' }, { id: 'sankey', gridColumn: 'SPAN 3' }], undefined],
-    ['gridColumn out of range clamps', [{ id: 'daily', gridColumn: 'span 9' }, { id: 'models', gridColumn: 'span 0' }], undefined],
-    ['gridColumn malformed defaults to 1', [{ id: 'daily', gridColumn: 'span' }, { id: 'models', gridColumn: '2' }, { id: 'sankey', gridColumn: '1 / 3' }, { id: 'category', gridColumn: ' span  2 ' }], undefined],
-    ['missing gridColumn takes the panel default', [{ id: 'daily' }, { id: 'heatmap' }, { id: 'models' }, { id: 'categoryTrend' }, { id: 'unknown-panel' }], undefined],
-    ['hidden and size', [{ id: 'daily', hidden: true, size: 'tall' }, { id: 'models', size: 'compact' }, { id: 'sankey', size: 'bogus' as never }], undefined],
-    ['gridRow is ignored', [{ id: 'daily', gridColumn: 'span 2', gridRow: 'span 3' }], undefined],
-    ['duplicates and unknown ids', [{ id: 'daily', gridColumn: 'span 2' }, { id: 'daily', gridColumn: 'span 1' }, { id: 'zz-new', gridColumn: 'span 2' }], undefined],
-    ['columns clamps spans', [{ id: 'daily', gridColumn: 'span 4' }, { id: 'heatmap', gridColumn: 'span 3' }], 2],
-    ['columns=1 default spans', [], 1],
-  ];
-
-  const toConfigCases: Array<[string, DashboardLayout]> = [
-    ['defaults serialise to ids only', DEFAULT_DASHBOARD_LAYOUT.map((p) => ({ ...p, hidden: false }))],
-    ['default layout as shipped', DEFAULT_DASHBOARD_LAYOUT],
-    ['changed spans, hidden and sizes', L({ id: 'daily', span: 1, hidden: false, size: 'tall' }, { id: 'models', span: 3, hidden: true, size: 'normal' }, { id: 'sankey', span: 1, hidden: false, size: 'compact' })],
-    ['unknown ids round-trip', L({ id: 'future-panel', span: 2, hidden: true, size: 'normal' }, { id: 'daily', span: 2, hidden: false, size: 'normal' })],
-    ['invalid entries are normalised first', L({ id: 'daily', span: 9, hidden: 1 }, { id: 'models', span: 0, size: 'huge' }, null)],
-    ['empty layout appends every default panel', L()],
-  ];
-
   return {
-    panelIds: [...DASHBOARD_PANELS],
-    defaultLayout: DEFAULT_DASHBOARD_LAYOUT,
+    panelIds: [...PANEL_IDS],
+    defaultLayout: defaultLayout(),
     gridColumnToSpan: ['', 'span 1', 'span 4', 'span 5', 'span 0', 'SPAN 2', 'span', 'span  3 ', '3', 'span 2.5', undefined].map((v) => ({ input: v ?? null, output: gridColumnToSpan(v) })),
-    normalizeLayout: normalizeCases.map(([label, input, columns]) => ({ label, input: input ?? null, columns: columns ?? null, output: normalizeLayout(input as DashboardLayout | undefined, columns) })),
-    configPanelsToLayout: configCases.map(([label, panels, columns]) => ({ label, panels: panels ?? null, columns: columns ?? null, output: configPanelsToLayout(panels, columns) })),
-    layoutToConfigPanels: toConfigCases.map(([label, layout]) => ({ label, layout, output: layoutToConfigPanels(layout) })),
-    roundTrips: toConfigCases.map(([label, layout]) => ({ label, output: configPanelsToLayout(layoutToConfigPanels(layout)) })),
+    migrateV1: LAYOUT_V1_CASES.map(([label, input]) => ({ label, input: input ?? null, output: migrateV1(input) })),
+    configPanelsToLayout: LAYOUT_CONFIG_CASES.map(([label, panels]) => ({ label, panels: panels ?? null, output: migrateV1(configPanelsToLayout(panels)) })),
   };
 }
 

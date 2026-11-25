@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { defaultLayout } from '../../../src/extension-backend/domain/layout';
 import { isHostBoundMsg, isWebviewBoundMsg } from '../../../src/extension-backend/ui/messaging';
 
 describe('messaging — isHostBoundMsg', () => {
@@ -15,8 +16,9 @@ describe('messaging — isHostBoundMsg', () => {
     assert.equal(isHostBoundMsg({ type: 'setConfig' }), false);
   });
 
-  it('requires an array for setLayout', () => {
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [] }), true);
+  it('requires a version-2 layout for setLayout', () => {
+    assert.equal(isHostBoundMsg({ type: 'setLayout', value: defaultLayout() }), true);
+    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [] }), false);
     assert.equal(isHostBoundMsg({ type: 'setLayout', value: {} }), false);
   });
 
@@ -64,7 +66,8 @@ describe('messaging — isWebviewBoundMsg', () => {
     assert.equal(isWebviewBoundMsg({ type: 'snapshot', payload: {} }), true);
     assert.equal(isWebviewBoundMsg({ type: 'snapshot', payload: 7 }), false);
     assert.equal(isWebviewBoundMsg({ type: 'config', value: {} }), true);
-    assert.equal(isWebviewBoundMsg({ type: 'layout', value: [] }), true);
+    assert.equal(isWebviewBoundMsg({ type: 'layout', value: defaultLayout() }), true);
+    assert.equal(isWebviewBoundMsg({ type: 'layout', value: [] }), false);
     assert.equal(isWebviewBoundMsg({ type: 'layout', value: {} }), false);
     assert.equal(isWebviewBoundMsg({ type: 'restriction', value: {} }), true);
     assert.equal(isWebviewBoundMsg({ type: 'alertFired', message: 'over budget' }), true);
