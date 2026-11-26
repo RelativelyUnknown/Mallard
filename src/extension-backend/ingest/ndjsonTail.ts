@@ -535,11 +535,12 @@ export async function runTail(
 ): Promise<TailResult> {
   const it = tailNdjson(file, prior, opts);
   try {
-    for (;;) {
-      const step = await it.next();
-      if (step.done) return step.value;
+    let step = await it.next();
+    while (!step.done) {
       await onBatch(step.value);
+      step = await it.next();
     }
+    return step.value;
   } finally {
     // A no-op once the generator finished; closes the file handle when onBatch threw.
     await it.return({ status: 'missing' });

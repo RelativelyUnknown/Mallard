@@ -2,6 +2,10 @@ import { strict as assert } from 'assert';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
 import {
+  DEFAULT_BATCH_LINES,
+  DEFAULT_CHUNK_BYTES,
+  DEFAULT_MAX_LINE_BYTES,
+  DEFAULT_YIELD_EVERY_MS,
   HEAD_HASH_BYTES,
   duckDbFilename,
   needlePrefilter,
@@ -803,6 +807,15 @@ describe('ndjsonTail: persistence contract', () => {
 });
 
 // ── Paths ───────────────────────────────────────────────────────────────────────────────────────
+
+describe('ndjsonTail: defaults', () => {
+  it('document the measured defaults: 1 MiB reads, 8 ms slices, 4 KiB head hash', () => {
+    assert.deepEqual(
+      [DEFAULT_CHUNK_BYTES, DEFAULT_MAX_LINE_BYTES, DEFAULT_BATCH_LINES, DEFAULT_YIELD_EVERY_MS, HEAD_HASH_BYTES],
+      [1048576, 67108864, 500, 8, 4096],
+    );
+  });
+});
 
 describe('ndjsonTail: duckDbFilename', () => {
   it('spells paths the way DuckDB reported them: forward slashes', () => {

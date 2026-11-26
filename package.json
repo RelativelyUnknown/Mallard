@@ -582,6 +582,7 @@
     "test:coverage": "c8 mocha",
     "test:webview": "node --require ./test/unit/setup/vscode-mock.cjs --require tsx/cjs test/webview/smoke.ts",
     "bench": "tsx test/bench/benchmark.ts",
+    "bench:ndjson": "tsx test/bench/benchmark-ndjson.ts",
     "golden:record": "tsx test/golden/record.ts",
     "golden:fixtures": "tsx test/golden/generate-fixtures.ts",
     "compile-tests": "tsc -p tsconfig.host.json --outDir out",
