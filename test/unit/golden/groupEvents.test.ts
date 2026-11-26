@@ -51,16 +51,18 @@ describe('test/golden/groupEvents — the SQL GROUP BY twin', () => {
     const base = ev();
     const variants: Array<Partial<RawEvent>> = [
       { ts: T('2026-03-15T10:15:00Z') }, { modelId: 'gpt-4.1' }, { surface: 'agent' }, { source: 'claude-code' },
-      { repo: 'r' }, { branch: 'b' }, { language: 'ts' }, { attribution: 'heuristic' }, { promptTokens: 0 },
+      { repo: 'r' }, { branch: 'b' }, { language: 'ts' }, { attribution: 'heuristic' }, { promptTokens: 1 },
     ];
     for (const v of variants) assert.equal(groupEvents([base, ev(v)]).length, 2, JSON.stringify(v));
   });
 
-  it('tokensKnown is "prompt or completion is not NULL": zero counts as known', () => {
+  it('tokensKnown is "prompt or completion tokens to price": a known 0/0 row is NOT known (it prices through credits)', () => {
     const known = (p: number | null, c: number | null): boolean => groupEvents([ev({ promptTokens: p, completionTokens: c })])[0]!.tokensKnown;
-    assert.deepEqual([known(null, null), known(0, null), known(null, 0), known(5, 5)], [false, true, true, true]);
-    const g = groupEvents([ev({ promptTokens: null, completionTokens: null })])[0]!;
-    assert.equal(g.promptTokens + g.completionTokens, 0);
+    assert.deepEqual([known(null, null), known(0, null), known(null, 0), known(0, 0), known(5, 5), known(null, 7), known(3, null)], [false, false, false, false, true, true, true]);
+    // A known 0/0 row stays apart from a token-bearing row of the same bucket and dimensions.
+    assert.equal(groupEvents([ev({ promptTokens: 0, completionTokens: 0 }), ev({ promptTokens: 4, completionTokens: 0 })]).length, 2);
+    // ... but joins a row without counts (both price through credits).
+    assert.equal(groupEvents([ev({ promptTokens: 0, completionTokens: 0 }), ev({ promptTokens: null, completionTokens: null })]).length, 1);
   });
 
   it('returns the groups ordered by bucket, then by key, whatever the input order', () => {

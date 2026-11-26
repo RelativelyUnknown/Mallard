@@ -63,9 +63,10 @@ export interface RawEvent {
  * What the store returns from SQL pre-aggregation: one row per 15-minute UTC
  * bucket and distinct dimension tuple, summing requests and every token
  * column. Pricing is linear in tokens and requests, so aggregating before
- * pricing is exact. `tokensKnown` (prompt or completion token not NULL) is in
- * the grouping key so the token-price vs credit-price branch of `priceRow`
- * stays exact. Implemented by stream A (`IEventStore.aggregate`).
+ * pricing is exact. `tokensKnown` (prompt + completion tokens > 0, NOT "not
+ * NULL": a known 0/0 row prices through credits) is in the grouping key so the
+ * token-price vs credit-price branch of `priceRow` stays exact. Implemented by
+ * stream A (`IEventStore.aggregate`).
  */
 export interface AggregateGroup {
   /** Start of the 15-minute UTC bucket, epoch ms. */
@@ -77,7 +78,7 @@ export interface AggregateGroup {
   branch: string | null;
   language: string | null;
   attribution: RepoAttribution | null;
-  /** True when promptTokens or completionTokens was not NULL on the grouped rows. */
+  /** True when the grouped rows carried prompt or completion tokens to price (their sum is above 0). */
   tokensKnown: boolean;
   requests: number;
   promptTokens: number;
