@@ -36,9 +36,8 @@
  * `repo.<key>.credits|cost`.
  */
 import type { FlatAlertMetric, FlatAlertRule } from './contracts';
-import { parseVarPath, toNumeric } from './expr/jsonCondition';
-import { DEFAULT_FLAT_COOLDOWN } from './flatAlerts';
-import { parseDurationMs } from './alertRules';
+import { toNumeric } from './compare';
+import { DEFAULT_FLAT_COOLDOWN, parseDurationMs } from './flatAlerts';
 
 // ── The legacy document shapes ───────────────────────────────────────────────
 //
@@ -106,6 +105,65 @@ type Comparison = { metric: FlatAlertMetric; op: FlatOp; value: number };
 type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, reason });
+
+// ── Variable paths ───────────────────────────────────────────────────────────
+
+/**
+ * Read one bracket segment starting at `path[start] === '['`. The content is
+ * either a quoted string (`"…"` or `'…'`, backslash escapes the quote and the
+ * backslash) or bare text up to the closing `]`. Returns null when malformed.
+ */
+function readBracket(path: string, start: number): { key: string; end: number } | null {
+  const quote = path[start + 1];
+  if (quote === '"' || quote === "'") {
+    let key = '';
+    let i = start + 2;
+    while (i < path.length) {
+      const ch = path[i]!;
+      if (ch === '\\' && i + 1 < path.length) {
+        key += path[i + 1]!;
+        i += 2;
+      } else if (ch === quote) {
+        return path[i + 1] === ']' ? { key, end: i + 2 } : null;
+      } else {
+        key += ch;
+        i += 1;
+      }
+    }
+    return null;
+  }
+  const close = path.indexOf(']', start + 1);
+  return close === -1 ? null : { key: path.slice(start + 1, close).trim(), end: close + 1 };
+}
+
+/**
+ * Split a legacy variable path into its segments. Dots separate segments;
+ * `["…"]` / `['…']` takes its content literally (dots included) so keys like
+ * `gpt-4.1` or `foo.js` are reachable: `model["gpt-4.1"].credits`. Empty plain
+ * segments are kept. Returns null for a malformed path (unterminated
+ * bracket/quote, junk after `]`).
+ */
+export function parseVarPath(path: string): string[] | null {
+  const segments: string[] = [];
+  let i = 0;
+  for (;;) {
+    let j = i;
+    while (j < path.length && path[j] !== '.' && path[j] !== '[') j++;
+    // An empty plain segment directly before a bracket (`["a"]`, `a.["b"]`) is
+    // just the bracket's own position, not a real empty key.
+    if (!(j === i && path[j] === '[')) segments.push(path.slice(i, j));
+    i = j;
+    while (path[i] === '[') {
+      const bracket = readBracket(path, i);
+      if (!bracket) return null;
+      segments.push(bracket.key);
+      i = bracket.end;
+    }
+    if (i >= path.length) return segments;
+    if (path[i] !== '.') return null;
+    i += 1;
+  }
+}
 
 // ── Variable mapping ─────────────────────────────────────────────────────────
 
@@ -298,10 +356,28 @@ function triggerComparisons(rule: LegacyRule): Parsed<Array<{ comparison: Compar
   return parsed.ok ? { ok: true, value: [{ comparison: parsed.value }] } : fail(`condition: ${parsed.reason}`);
 }
 
+/** One rule as flat rules (several for `thresholds`), or why it cannot be converted. */
+function convertRule(rule: LegacyRule, groups: readonly LegacyGroup[], now: number | undefined): Parsed<FlatAlertRule[]> {
+  if (typeof rule.id !== 'string' || rule.id === '') return fail('it has no id');
+  const gate = gateReason(rule, groups, now);
+  const trigger = triggerComparisons(rule);
+  if (gate || !trigger.ok) return fail([gate, trigger.ok ? undefined : trigger.reason].filter(Boolean).join('; '));
+  const shared: Shared = { notify: rule.notify, restrict: rule.restrict };
+  const made: FlatAlertRule[] = [];
+  for (const [i, { comparison, level }] of trigger.value.entries()) {
+    const id = level ? `${rule.id}:${i + 1}` : rule.id;
+    const built = flatRule(id, comparison, level ? level.severity : rule.severity, validCooldown(level?.cooldown, rule.cooldown), shared);
+    if (!built.ok) return fail(level ? `threshold level ${i + 1}: ${built.reason}` : built.reason);
+    made.push(built.value);
+  }
+  return { ok: true, value: made };
+}
+
 /**
  * Convert the legacy rules. `groups` (the document's rule groups) only sharpens
  * the reason given for a rule gated on one. Rules are independent: one that
- * cannot be converted never affects its siblings.
+ * cannot be converted (or is malformed beyond reading) never affects its
+ * siblings.
  */
 export function convertLegacyRules(
   rules: readonly LegacyRule[],
@@ -313,42 +389,24 @@ export function convertLegacyRules(
   const taken = new Set<string>();
 
   for (const rule of rules) {
-    const skip = (reason: string): void => void skipped.push({ id: rule.id, reason });
-    const gate = gateReason(rule, groups, options.now);
-    const trigger = triggerComparisons(rule);
-    if (gate || !trigger.ok) {
-      skip([gate, trigger.ok ? undefined : trigger.reason].filter(Boolean).join('; '));
+    const label = typeof rule.id === 'string' ? rule.id : '(no id)';
+    let result: Parsed<FlatAlertRule[]>;
+    try {
+      result = convertRule(rule, groups, options.now);
+    } catch (err) {
+      result = fail(`it is malformed (${err instanceof Error ? err.message : String(err)})`);
+    }
+    if (!result.ok) {
+      skipped.push({ id: label, reason: result.reason });
       continue;
     }
-    const shared: Shared = { notify: rule.notify, restrict: rule.restrict };
-    const made: FlatAlertRule[] = [];
-    let failure: string | undefined;
-    for (const [i, { comparison, level }] of trigger.value.entries()) {
-      const id = level ? `${rule.id}:${i + 1}` : rule.id;
-      const built = flatRule(
-        id,
-        comparison,
-        level ? level.severity : rule.severity,
-        validCooldown(level?.cooldown, rule.cooldown),
-        shared,
-      );
-      if (!built.ok) {
-        failure = level ? `threshold level ${i + 1}: ${built.reason}` : built.reason;
-        break;
-      }
-      made.push(built.value);
-    }
-    if (failure !== undefined) {
-      skip(failure);
-      continue;
-    }
-    const clash = made.find((m) => taken.has(m.id));
+    const clash = result.value.find((m) => taken.has(m.id));
     if (clash) {
-      skip(`its id "${clash.id}" is already used by another converted rule`);
+      skipped.push({ id: label, reason: `its id "${clash.id}" is already used by another converted rule` });
       continue;
     }
-    for (const m of made) taken.add(m.id);
-    converted.push(...made);
+    for (const m of result.value) taken.add(m.id);
+    converted.push(...result.value);
   }
   return { converted, skipped };
 }

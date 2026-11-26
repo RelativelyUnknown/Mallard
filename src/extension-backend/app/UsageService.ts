@@ -142,6 +142,11 @@ export class UsageService implements vscode.Disposable {
     work.catch((err: unknown) => this.logger.error('usage', `${what} failed`, err));
   }
 
+  /** The latest snapshot computed with no filter (what the alerts and restrictions evaluate), if any yet. */
+  get currentUnfiltered(): SnapshotData | undefined {
+    return this.unfiltered;
+  }
+
   /**
    * The full wire snapshot, composed lazily: chart data is only built when a
    * consumer (webview bridge, report, exporter) actually asks for it, not on

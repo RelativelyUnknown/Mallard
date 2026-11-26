@@ -11,6 +11,7 @@
  */
 import * as vscode from 'vscode';
 import { readConfig } from './config';
+import type { AlertService } from './app/AlertService';
 import type { UsageService } from './app/UsageService';
 import type { ConfigService } from './app/ConfigService';
 import type { ImportResult } from './app/ConfigImporter';
@@ -34,6 +35,8 @@ export interface Container {
   usage: UsageService;
   store: EventStore;
   userConfig: ConfigService;
+  /** Fires the alerts; also the owner of the velocity history the restriction rules read. */
+  alerts: AlertService;
   /** What the one-time `config.json` import did at this activation. */
   imported: ImportResult;
   layout: LayoutStore;
@@ -66,11 +69,11 @@ async function assembleContainer(scope: WiringScope): Promise<Container> {
   });
   const { userConfig, layout, githubSession, github, imported } = await wireConfig(scope, { pricing });
   const { exporter } = await wireExport(scope, { cfg, userConfig, store });
-  const { alerts } = wireAlerts(scope, { userConfig });
+  const { alerts } = await wireAlerts(scope, { userConfig, imported });
   const { usage, refreshUsage } = wireUsage(scope, {
     store, pricing, ingest, userConfig, currency, github, alerts,
   });
-  const { restriction } = wireRestriction(scope, { usage, userConfig });
+  const { restriction } = wireRestriction(scope, { usage, userConfig, alerts });
 
   // Generic gate that nudges the user to enable any connector prerequisite
   // (e.g. Copilot's OTel exporter) and re-refreshes once applied. Scoped to
@@ -95,5 +98,5 @@ async function assembleContainer(scope: WiringScope): Promise<Container> {
     setupGate,
   );
 
-  return { usage, store, userConfig, imported, layout, pricing, restriction, ingest, setupGate };
+  return { usage, store, userConfig, alerts, imported, layout, pricing, restriction, ingest, setupGate };
 }

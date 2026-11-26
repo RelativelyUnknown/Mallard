@@ -1,8 +1,7 @@
 /**
  * Pure restriction decision for flat rules: which `restrict` rule (if any)
  * wants the restriction popup right now, given the metrics and the rule that
- * was restricting before. Designed to replace `restriction/evaluator.ts` plus
- * the rule-picking half of `RestrictionEngine.reconcile`.
+ * was restricting before. `RestrictionEngine.reconcile` applies the answer.
  *
  * Restrictions are notification-level only (Mallard never disables anything);
  * "restricted" just means the popup / banner / status bar say so. What stays in
@@ -22,13 +21,14 @@
  *     with a `clearBelow` stays.
  *
  * Velocity rules need the alert history: build the context with
- * `buildFlatContext({ snapshot, history, now })` (the legacy reconcile passed
- * no history, so `velocity.*` restrictions never matched: B6).
+ * `buildFlatContext({ snapshot, history, now })` (the old reconcile passed no
+ * history, so `velocity.*` restrictions never matched: B6).
  */
+import { metricValue } from './alertMetrics';
+import type { FlatContext } from './alertMetrics';
+import { compare } from './compare';
 import type { FlatAlertRule } from './contracts';
-import { compare } from './expr/jsonCondition';
-import { flatAlertMessage, flatRuleMatches, metricValue } from './flatAlerts';
-import type { FlatContext } from './flatAlerts';
+import { flatAlertMessage, flatRuleMatches } from './flatAlerts';
 
 export interface FlatRestrictionResult {
   /** The rule that restricts now, or null. */

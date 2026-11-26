@@ -21,7 +21,7 @@ export interface ConfigWiring {
   github: GitHubUsageService;
   /**
    * What the one-time `config.json` import did (`status: 'none'` when there was
-   * nothing to import). Carries the old rules language for the alert stream to convert.
+   * nothing to import). Carries the old alert rules, which `wireAlerts` converts.
    */
   imported: ImportResult;
 }

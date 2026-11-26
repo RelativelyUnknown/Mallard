@@ -9,13 +9,11 @@
  * of a fixed list of metrics.
  *
  * Pure and webview-safe: no vscode, no Node, no clock (callers pass `now`). The
- * old rules language (`alertRules.ts`, `expr/`) is untouched; this module reuses
- * only its context builder, `compare()` and `parseDurationMs` and is wired in
- * later. Restriction lives in `flatRestriction.ts`, the legacy importer in
+ * metric values come from `alertMetrics.ts`, restriction lives in
+ * `flatRestriction.ts` and the one-time importer of the old JSON rules in
  * `flatAlertImport.ts`.
  *
- * Metrics (the context is `buildRuleContext`, so every number is exactly what a
- * legacy rule read):
+ * Metrics (see `alertMetrics.ts` for where each number comes from):
  *
  *   today.credits  today.cost  month.credits  month.cost
  *   budget.percentOfBudget  budget.percentOfIncluded
@@ -23,9 +21,9 @@
  *   velocity.creditsPerHour  window7d.credits  currentBranchCredits
  *   model:<id>.credits  model:<id>.cost  repo:<name>.credits  repo:<name>.cost
  *
- * Comparison semantics are the legacy `compare()`: an unavailable metric (no
- * snapshot, no day-level data for `window7d`, a model or repo that is not in the
- * snapshot) is nil, and a nil operand makes every operator false EXCEPT `!=`.
+ * Comparison semantics are `compare()`: an unavailable metric (no snapshot, no
+ * day-level data for `window7d`, a model or repo that is not in the snapshot) is
+ * nil, and a nil operand makes every operator false EXCEPT `!=`.
  *
  * Message format (fixed): `<metric> <op> <value> (now <current>)`, for example
  * `today.credits > 80 (now 95)`. `current` is an integer as is, otherwise two
@@ -56,11 +54,10 @@
 import { z } from 'zod';
 import { opt } from '../util/lang';
 import { bucketKey } from '../util/time';
-import { parseDurationMs } from './alertRules';
+import { metricValue } from './alertMetrics';
+import type { FlatContext } from './alertMetrics';
+import { compare } from './compare';
 import type { FlatAlertMetric, FlatAlertRule } from './contracts';
-import { buildRuleContext } from './expr/context';
-import type { HistorySample, RuleSnapshot } from './expr/context';
-import { compare } from './expr/jsonCondition';
 import type { UserConfig } from './types';
 
 // ── Metrics ──────────────────────────────────────────────────────────────────
@@ -103,58 +100,14 @@ function metricPeriod(metric: FlatAlertMetric): Period | undefined {
   return isFixedMetric(metric) ? FIXED_METRIC_PERIOD[metric] : undefined;
 }
 
-/**
- * The values flat rules read: the legacy rule context plus whether a snapshot
- * existed at all (`buildRuleContext` reports zeros for "no snapshot", which
- * must not satisfy a `<` rule).
- */
-export interface FlatContext {
-  readonly values: Readonly<Record<string, unknown>>;
-  readonly available: boolean;
-}
-
-export interface FlatContextInput {
-  /** The unfiltered snapshot, or null when there is none yet. */
-  snapshot: RuleSnapshot | null;
-  /**
-   * Recent `todayCredits` samples (oldest first). Without them
-   * `velocity.creditsPerHour` is 0, so pass them wherever the context feeds
-   * alerts OR restrictions.
-   */
-  history?: HistorySample[];
-  now: number;
-}
-
-export function buildFlatContext(input: FlatContextInput): FlatContext {
-  return {
-    values: buildRuleContext({ snapshot: input.snapshot, ...opt('history', input.history), now: input.now }),
-    available: input.snapshot !== null,
-  };
-}
-
-/** Walk own properties only, so `constructor` and `__proto__` never resolve. */
-function walkOwn(root: unknown, segments: readonly string[]): unknown {
-  let current = root;
-  for (const segment of segments) {
-    if (current === null || typeof current !== 'object') return undefined;
-    if (!Object.prototype.hasOwnProperty.call(current, segment)) return undefined;
-    current = (current as Record<string, unknown>)[segment];
-  }
-  return current;
-}
-
-/** The metric's current value, or undefined when it is unavailable. */
-export function metricValue(metric: FlatAlertMetric, ctx: FlatContext): number | undefined {
-  if (!ctx.available) return undefined;
-  const keyed = KEYED_METRIC.exec(metric);
-  const segments = keyed ? [keyed[1]!, keyed[2]!, keyed[3]!] : metric.split('.');
-  const value = walkOwn(ctx.values, segments);
-  return typeof value === 'number' ? value : undefined;
-}
-
 /** Whether the rule's comparison holds right now (cooldowns are not considered). */
 export function flatRuleMatches(rule: FlatAlertRule, ctx: FlatContext): boolean {
   return compare(metricValue(rule.metric, ctx), rule.value, rule.op);
+}
+
+/** The rule's condition as text, without a current value: `today.credits > 80`. */
+export function flatRuleText(rule: Pick<FlatAlertRule, 'metric' | 'op' | 'value'>): string {
+  return `${rule.metric} ${rule.op} ${rule.value}`;
 }
 
 function formatNumber(value: number | undefined): string {
@@ -164,13 +117,27 @@ function formatNumber(value: number | undefined): string {
 
 /** The fixed-format message for a rule and the metric's current value. */
 export function flatAlertMessage(rule: FlatAlertRule, current: number | undefined): string {
-  return `${rule.metric} ${rule.op} ${rule.value} (now ${formatNumber(current)})`;
+  return `${flatRuleText(rule)} (now ${formatNumber(current)})`;
 }
 
 // ── Cooldowns ────────────────────────────────────────────────────────────────
 
 export const DEFAULT_FLAT_COOLDOWN = '1h';
 const DEFAULT_COOLDOWN_MS = 60 * 60_000;
+const DURATION_UNIT_MS: Record<string, number> = { m: 60_000, h: 3_600_000, d: 86_400_000, w: 604_800_000 };
+const DURATION_PATTERN = /^(\d*\.?\d*)\s*([mhdw])$/i;
+
+/**
+ * Parse a cooldown/duration such as "30m", "1.5h", "2D", "1w" (positive number,
+ * optional decimals, unit m/h/d/w in either case) into milliseconds. Returns
+ * null for anything unparseable, zero, or too large to represent.
+ */
+export function parseDurationMs(duration: string): number | null {
+  const match = DURATION_PATTERN.exec(duration.trim());
+  if (!match || !/\d/.test(match[1]!)) return null;
+  const ms = Number(match[1]) * DURATION_UNIT_MS[match[2]!.toLowerCase()]!;
+  return Number.isFinite(ms) && ms > 0 ? ms : null;
+}
 /** Keys that belong to no current rule (a removed rule, or the branch cap of another branch) are kept this long. */
 export const ORPHAN_COOLDOWN_RETENTION_MS = 86_400_000;
 

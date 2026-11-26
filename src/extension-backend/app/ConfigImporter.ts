@@ -7,9 +7,10 @@
  * costs the others), the equivalent settings are written, the legacy layout is
  * seeded into globalState if that is still empty, per-target secrets are re-keyed
  * by the generated target ids, and the file is renamed to `config.json.migrated`
- * (never deleted: it keeps the old `rules`/`groups`/`vars`, which the flat alert
- * rules cannot express). One information message says what moved and what needs
- * a human. The whole thing is idempotent: nothing is renamed until the settings
+ * (never deleted: it keeps the old `rules`/`groups`/`vars`, and whatever the flat
+ * alert rules cannot express). The old rules are handed back in the result;
+ * `importLegacyAlertRules` converts them. One information message says what moved
+ * and what needs a human. The whole thing is idempotent: nothing is renamed until the settings
  * writes succeeded, an unreadable file is left alone and warned about once, and
  * once renamed the import never runs again.
  */
@@ -18,6 +19,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { z } from 'zod';
 import { TARGET_ID_RE, uniqueTargetId } from '../config/settings';
+import type { LegacyGroup, LegacyRule } from '../domain/flatAlertImport';
 import { configPanelsToLayout } from '../domain/layout';
 import type { ConfigPanelLayout, ExportTarget, UserConfig } from '../domain/types';
 import { queueFileFor } from '../export/ExportQueue';
@@ -43,11 +45,13 @@ export interface ImportResult {
   layoutSeeded: boolean;
   /** Where the original now lives (`config.json.migrated`), when it was renamed. */
   backup?: string;
-  /** The old rules language, untouched, for the alert stream to convert. */
-  legacyRules: RawObject[];
-  legacyGroups: RawObject[];
-  legacyVars: RawObject;
-  legacyVersion?: number;
+  /**
+   * The old `rules` and `groups`, as read from the file (objects only, otherwise
+   * unchecked: the converter validates what it relies on). `importLegacyAlertRules`
+   * turns them into flat rules.
+   */
+  legacyRules: LegacyRule[];
+  legacyGroups: LegacyGroup[];
 }
 
 export interface ImportUi {
@@ -224,12 +228,6 @@ function summary(r: ImportResult, targets: number, backup: string): string {
     r.layoutSeeded ? 'the dashboard layout' : '',
   ].filter(Boolean);
   const attention: string[] = [];
-  if (r.legacyRules.length > 0) {
-    attention.push(
-      `${count(r.legacyRules.length, 'custom alert rule')} (and any groups or variables) cannot be converted ` +
-        'automatically; they stay in the backup, so recreate what you still need under mallard.alerts.rules',
-    );
-  }
   if (r.skipped.length > 0) attention.push(`could not import ${r.skipped.join(', ')} (invalid)`);
   return (
     `Mallard now keeps its configuration in VS Code settings. Imported ${moved.join(', ') || 'nothing'} from config.json` +
@@ -241,7 +239,7 @@ function summary(r: ImportResult, targets: number, backup: string): string {
 export async function importLegacyConfig(deps: ImportDeps): Promise<ImportResult> {
   const { storageDir, ui = vscodeImportUi, logger = defaultLogger } = deps;
   const file = path.join(storageDir, FILE);
-  const empty: ImportResult = { status: 'none', written: [], skipped: [], layoutSeeded: false, legacyRules: [], legacyGroups: [], legacyVars: {} };
+  const empty: ImportResult = { status: 'none', written: [], skipped: [], layoutSeeded: false, legacyRules: [], legacyGroups: [] };
   if (!existsSync(file)) return empty;
 
   const fail = async (why: string, err?: unknown): Promise<ImportResult> => {
@@ -265,10 +263,8 @@ export async function importLegacyConfig(deps: ImportDeps): Promise<ImportResult
   const result: ImportResult = {
     ...empty,
     skipped: parsed.skipped,
-    legacyRules: (Array.isArray(doc['rules']) ? doc['rules'] : []).filter(isObject),
-    legacyGroups: (Array.isArray(doc['groups']) ? doc['groups'] : []).filter(isObject),
-    legacyVars: isObject(doc['vars']) ? doc['vars'] : {},
-    ...(typeof doc['version'] === 'number' ? { legacyVersion: doc['version'] } : {}),
+    legacyRules: (Array.isArray(doc['rules']) ? doc['rules'] : []).filter(isObject) as unknown as LegacyRule[],
+    legacyGroups: (Array.isArray(doc['groups']) ? doc['groups'] : []).filter(isObject) as unknown as LegacyGroup[],
   };
 
   try {
@@ -288,7 +284,7 @@ export async function importLegacyConfig(deps: ImportDeps): Promise<ImportResult
   result.written = Object.entries(parsed.patch).flatMap(([k, v]) =>
     isObject(v) && k !== 'branchBudgets' ? Object.keys(v).map((s) => `${k}.${s}`) : [k],
   );
-  if (result.written.length > 0 || result.layoutSeeded || result.legacyRules.length > 0 || result.skipped.length > 0) {
+  if (result.written.length > 0 || result.layoutSeeded || result.skipped.length > 0) {
     ui.info(summary(result, parsed.targets, path.basename(result.backup)));
   }
   logger.info('config', `imported ${file} into settings (${result.written.join(', ') || 'nothing'}); original kept as ${result.backup}`);

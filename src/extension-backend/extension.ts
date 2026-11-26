@@ -20,6 +20,7 @@ import { severityFor } from './domain/budget';
 import { runOnboardingIfNeeded, showOnboarding } from './onboarding';
 import { FLAG_REMOTE_COPILOT_WARNED, getFlag, setFlag } from './app/EphemeralFlags';
 import { defaultLogger } from './util/logger';
+import { buildReconcileInput } from './wiring/wireRestriction';
 
 /**
  * What the extension exposes to other extensions and to the integration
@@ -112,7 +113,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Mallar
       promptedFor = decision.shownKey;
       if (!decision.show) return;
       const cfg = userConfig.get();
-      const rule = cfg.rules?.find((r) => r.id === state.ruleId);
+      const rule = cfg.flatRules?.find((r) => r.id === state.ruleId);
       if (!rule?.restrict) return;
       const msg = state.reasonMessage || 'Copilot usage limit reached.';
       try {
@@ -185,7 +186,7 @@ export function deactivate(): void {
 }
 
 function registerCommands(context: vscode.ExtensionContext, c: Container): void {
-  const { usage, store, userConfig, layout, pricing, restriction, setupGate } = c;
+  const { usage, store, userConfig, alerts, layout, pricing, restriction, setupGate } = c;
   const reg = (id: string, fn: (...args: unknown[]) => unknown) =>
     context.subscriptions.push(vscode.commands.registerCommand(id, fn));
 
@@ -289,15 +290,11 @@ function registerCommands(context: vscode.ExtensionContext, c: Container): void 
   context.subscriptions.push({ dispose: () => simulationChannel?.dispose() });
 
   reg('mallard.simulateRestriction', async () => {
-    const snapshot = usage.current;
-    const cfg = userConfig.get();
-    const report = await restriction.simulate({
-      snapshot: snapshot ?? null,
-      rules: cfg.rules ?? [],
-      ...(cfg.vars !== undefined ? { vars: cfg.vars } : {}),
-      ...(cfg.groups !== undefined ? { groups: cfg.groups } : {}),
-      signedIn: snapshot?.authStatus === 'signed-in',
-    });
+    // The same input the live reconcile gets: the latest UNFILTERED snapshot (a
+    // dashboard filter would simulate a slice of the data) and the alert history.
+    const report = await restriction.simulate(
+      buildReconcileInput(usage.currentUnfiltered ?? null, userConfig.get(), alerts.getHistory()),
+    );
     simulationChannel ??= vscode.window.createOutputChannel('Mallard Restriction');
     simulationChannel.clear();
     simulationChannel.appendLine(JSON.stringify(report, null, 2));
