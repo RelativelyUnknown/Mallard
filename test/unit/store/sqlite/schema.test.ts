@@ -34,7 +34,7 @@ describe('sqlite/schema', () => {
     await migrate(db);
     assert.equal(readUserVersion(db), 1);
     assert.deepEqual(names(db, 'table'), ['events', 'ingest_state', 'meta']);
-    assert.deepEqual(names(db, 'index'), ['events_agg', 'events_model', 'events_repo', 'events_ts']);
+    assert.deepEqual(names(db, 'index'), ['events_model', 'events_repo', 'events_ts']);
     const cols = (t: string): string[] =>
       db.rows(`PRAGMA table_info(${t})`).map((r) => `${r['name']} ${r['type']}${r['notnull'] ? ' NOT NULL' : ''}${r['dflt_value'] !== null ? ` DEFAULT ${r['dflt_value']}` : ''}${r['pk'] ? ' PK' : ''}`);
     assert.deepEqual(cols('events'), [
@@ -45,10 +45,6 @@ describe('sqlite/schema', () => {
     ]);
     assert.deepEqual(cols('meta'), ['key TEXT PK', 'value TEXT']);
     assert.deepEqual(cols('ingest_state'), ['file TEXT PK', 'size INTEGER', 'mtimeMs INTEGER', 'byteOffset INTEGER', 'headHash TEXT']);
-    assert.deepEqual(
-      db.rows("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND name = 'events_agg'").map((r) => String(r['sql'])),
-      ['CREATE INDEX events_agg ON events(ts, modelId, surface, source)'],
-    );
   });
 
   it('an up-to-date database is recognised without the write lock', async () => {

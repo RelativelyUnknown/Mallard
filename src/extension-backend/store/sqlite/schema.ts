@@ -17,6 +17,12 @@ export interface Migration {
   sql: string;
 }
 
+/*
+ * No covering index for the pre-aggregation (ts, modelId, surface, source): the GROUP BY also
+ * needs repo, branch, language, attribution and the token columns, so the planner scans
+ * `events_ts` and reads the rows either way. Measured on the 100k-row bench: with it the
+ * insert block p95 was 44.7 ms against 33.0 ms without (S2: 32.3), the read did not get faster.
+ */
 const V1 = `
 CREATE TABLE events (
   id TEXT PRIMARY KEY,
@@ -38,7 +44,6 @@ CREATE TABLE events (
 CREATE INDEX events_ts ON events(ts);
 CREATE INDEX events_model ON events(modelId);
 CREATE INDEX events_repo ON events(repo);
-CREATE INDEX events_agg ON events(ts, modelId, surface, source);
 
 CREATE TABLE meta (
   key TEXT PRIMARY KEY,
