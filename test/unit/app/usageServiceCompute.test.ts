@@ -56,7 +56,6 @@ function baseConfig(over: Partial<UserConfig> = {}): UserConfig {
     includedCredits: 300,
     dailyCreditAlert: 0,
     alerts: { velocityEnabled: false, velocityCreditsPerHour: 0 },
-    version: 1,
     ...over,
   };
 }

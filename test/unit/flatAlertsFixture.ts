@@ -3,6 +3,7 @@
  * values, flat rule/context shortcuts and a tiny seeded PRNG (no dependency)
  * for the property-style parity tests.
  */
+import type { SnapshotData } from '../../src/extension-backend/domain/types';
 import type { FlatAlertRule } from '../../src/extension-backend/domain/contracts';
 import { buildFlatContext } from '../../src/extension-backend/domain/alertMetrics';
 import type { FlatContext, HistorySample, MetricSnapshot } from '../../src/extension-backend/domain/alertMetrics';
@@ -44,6 +45,19 @@ export function ruleSnapshot(overrides: Record<string, unknown> = {}): MetricSna
     },
     ...overrides,
   } as unknown as MetricSnapshot;
+}
+
+/** A host-side snapshot for the alert services: quiet by default (nothing used), override what a test needs. */
+export function alertSnapshot(over: { percentOfBudget?: number; todayCredits?: number; branch?: string; branchCredits?: number } = {}): SnapshotData {
+  const base = ruleSnapshot();
+  return {
+    ...base,
+    today: { credits: over.todayCredits ?? 0, cost: 0, tokens: 0 },
+    budget: { ...base.budget, usedCredits: 0, usedCost: 0, percentOfBudget: over.percentOfBudget ?? 0, percentOfIncluded: 0 },
+    forecast: { ...base.forecast, projectedCredits: 0, projectedCost: 0 },
+    currentBranchCredits: over.branchCredits ?? 0,
+    ...(over.branch ? { currentBranch: over.branch } : {}),
+  } as unknown as SnapshotData;
 }
 
 export function flatRule(overrides: Partial<FlatAlertRule> = {}): FlatAlertRule {

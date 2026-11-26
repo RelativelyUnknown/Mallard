@@ -1,8 +1,8 @@
 import { strict as assert } from 'assert';
 import type { FlatAlertRule } from '../../src/extension-backend/domain/contracts';
-import { convertLegacyRules, mapLegacyVar } from '../../src/extension-backend/domain/flatAlertImport';
+import { convertLegacyRules, mapLegacyVar, parseVarPath } from '../../src/extension-backend/domain/flatAlertImport';
 import { builtinFlatRules } from '../../src/extension-backend/domain/flatAlerts';
-import type { AlertGroup, AlertRule } from '../../src/extension-backend/domain/types';
+import type { LegacyGroup as AlertGroup, LegacyRule as AlertRule } from '../../src/extension-backend/domain/flatAlertImport';
 
 const rule = (over: Partial<AlertRule> & { id: string }): AlertRule => ({ severity: 'warning', message: 'm', ...over }) as AlertRule;
 const cond = (field: string, op: string, value: unknown) => ({ field, op, value }) as never;
@@ -20,6 +20,49 @@ const only = (r: AlertRule, options = {}): FlatAlertRule[] => {
   assert.deepEqual(out.skipped, [], `expected ${r.id} to convert`);
   return out.converted;
 };
+
+describe('parseVarPath — legacy variable paths', () => {
+  it('splits dotted paths and reads bracket segments literally', () => {
+    assert.deepEqual(parseVarPath('today.credits'), ['today', 'credits']);
+    assert.deepEqual(parseVarPath('model["gpt-4.1"].credits'), ['model', 'gpt-4.1', 'credits']);
+    assert.deepEqual(parseVarPath("repo['foo.js']"), ['repo', 'foo.js']);
+    assert.deepEqual(parseVarPath('a["x"]["y.z"].b'), ['a', 'x', 'y.z', 'b']);
+    assert.deepEqual(parseVarPath('a["it\\"s"]'), ['a', 'it"s'], 'backslash escapes the quote');
+    assert.deepEqual(parseVarPath('a[0]'), ['a', '0'], 'bare bracket content');
+    assert.deepEqual(parseVarPath('a..b'), ['a', '', 'b'], 'empty segments are kept');
+  });
+
+  it('rejects malformed paths', () => {
+    for (const bad of ['a["b', 'a["b"', 'a[b', 'a["b"]c']) assert.equal(parseVarPath(bad), null, bad);
+  });
+});
+
+describe('convertLegacyRules — documents that are not what the old schema allowed', () => {
+  it('a rule without an id is skipped with a reason, and its siblings still convert', () => {
+    const out = convertLegacyRules([{ severity: 'warning', conditions: [cond('today.credits', '>', 1)] } as never, rule({ id: 'ok', conditions: [cond('today.credits', '>', 1)] })]);
+    assert.deepEqual(out.skipped, [{ id: '(no id)', reason: 'it has no id' }]);
+    assert.deepEqual(out.converted.map((r) => r.id), ['ok']);
+  });
+
+  it('a rule whose fields have the wrong type is reported as malformed instead of throwing', () => {
+    const out = convertLegacyRules([rule({ id: 'odd', thresholds: 'high' as never }), rule({ id: 'ok', conditions: [cond('today.credits', '>', 1)] })]);
+    assert.equal(out.skipped.length, 1);
+    assert.equal(out.skipped[0]!.id, 'odd');
+    assert.match(out.skipped[0]!.reason, /^it is malformed \(/);
+    assert.deepEqual(out.converted.map((r) => r.id), ['ok']);
+  });
+
+  it('a non-error throw is reported too', () => {
+    const hostile = rule({ id: 'hostile', conditions: [cond('today.credits', '>', 1)] });
+    Object.defineProperty(hostile, 'requiresAuth', {
+      get() {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw 'boom';
+      },
+    });
+    assert.deepEqual(convertLegacyRules([hostile]).skipped, [{ id: 'hostile', reason: 'it is malformed (boom)' }]);
+  });
+});
 
 describe('mapLegacyVar — variable paths to metrics', () => {
   it('maps every documented path that has a flat equivalent', () => {

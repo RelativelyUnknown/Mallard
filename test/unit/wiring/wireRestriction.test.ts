@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import type * as vscode from 'vscode';
 import { RestrictionEngine } from '../../../src/extension-backend/app/RestrictionEngine';
+import type { FlatAlertRule } from '../../../src/extension-backend/domain/contracts';
 import { DEFAULT_USER_CONFIG } from '../../../src/extension-backend/domain/types';
 import type { SnapshotData, UserConfig } from '../../../src/extension-backend/domain/types';
 import { buildReconcileInput, wireRestriction } from '../../../src/extension-backend/wiring/wireRestriction';
@@ -15,37 +16,24 @@ function snapshot(authStatus: 'signed-in' | 'signed-out' = 'signed-out'): Snapsh
 }
 
 describe('buildReconcileInput', () => {
-  it('passes the snapshot and rules, defaulting rules to none and omitting unset optional blocks', () => {
+  const flat: FlatAlertRule = { id: 'r', metric: 'today.credits', op: '>', value: 5, cooldown: '1h', severity: 'warning', restrict: true };
+
+  it('passes the snapshot, the flat rules (none by default) and the alert history', () => {
     const s = snapshot();
+    const history = [{ ts: 1, todayCredits: 2 }];
     const bare: UserConfig = {
       monthlyBudget: 0,
       includedCredits: 300,
       dailyCreditAlert: 0,
       alerts: { velocityEnabled: false, velocityCreditsPerHour: 0 },
     };
-    const input = buildReconcileInput(s, bare);
-    assert.equal(input.snapshot, s);
-    assert.deepEqual(input.rules, []);
-    assert.equal(input.signedIn, false);
-    assert.equal('vars' in input, false);
-    assert.equal('groups' in input, false);
-    assert.equal('branchBudgets' in input, false);
+    assert.deepEqual(buildReconcileInput(s, bare, history), { snapshot: s, rules: [], history });
+    const withRules: UserConfig = { ...DEFAULT_USER_CONFIG, flatRules: [flat] };
+    assert.deepEqual(buildReconcileInput(s, withRules, history).rules, [flat]);
   });
 
-  it('carries vars, groups and branch budgets, and derives signedIn from the auth status', () => {
-    const cfg: UserConfig = {
-      ...DEFAULT_USER_CONFIG,
-      rules: [{ id: 'r', severity: 'warning', message: 'm', when: true }],
-      vars: { limit: 5 },
-      groups: [{ id: 'g', active: true }],
-      branchBudgets: { main: 100 },
-    };
-    const input = buildReconcileInput(snapshot('signed-in'), cfg);
-    assert.deepEqual(input.rules, cfg.rules);
-    assert.deepEqual(input.vars, { limit: 5 });
-    assert.deepEqual(input.groups, cfg.groups);
-    assert.deepEqual(input.branchBudgets, { main: 100 });
-    assert.equal(input.signedIn, true);
+  it('accepts no snapshot yet (the simulate command before the first compute)', () => {
+    assert.equal(buildReconcileInput(null, DEFAULT_USER_CONFIG, []).snapshot, null);
   });
 });
 
@@ -56,7 +44,7 @@ describe('wireRestriction', () => {
   });
 
   async function setup(initial: UserConfig) {
-    const box = { cfg: initial };
+    const box = { cfg: initial, history: [{ ts: 1, todayCredits: 1 }] };
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mallard-wire-restriction-'));
     const listeners: Array<(s: SnapshotData) => void> = [];
     const context = { subscriptions: [] as Array<{ dispose(): void }> } as unknown as vscode.ExtensionContext;
@@ -72,6 +60,7 @@ describe('wireRestriction', () => {
           },
         },
         userConfig: { get: () => box.cfg },
+        alerts: { getHistory: () => box.history },
         logger: {
           debug() {},
           info() {},
@@ -100,7 +89,7 @@ describe('wireRestriction', () => {
       calls.push(input);
       return this.getState();
     };
-    const first: UserConfig = { ...DEFAULT_USER_CONFIG, rules: [] };
+    const first: UserConfig = { ...DEFAULT_USER_CONFIG, flatRules: [] };
     const t = await setup(first);
     try {
       assert.equal(t.listeners.length, 1);
@@ -116,8 +105,8 @@ describe('wireRestriction', () => {
       await tick();
 
       assert.equal(calls.length, 2);
-      assert.deepEqual(calls[0], buildReconcileInput(s, first));
-      assert.deepEqual(calls[1], buildReconcileInput(s, second), 'the config is read per snapshot, not captured at startup');
+      assert.deepEqual(calls[0], buildReconcileInput(s, first, t.box.history));
+      assert.deepEqual(calls[1], buildReconcileInput(s, second, t.box.history), 'the config is read per snapshot, not captured at startup');
     } finally {
       await t.cleanup();
     }

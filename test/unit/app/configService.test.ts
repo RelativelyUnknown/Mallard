@@ -56,9 +56,9 @@ describe('ConfigService.get — the UserConfig view of the settings', () => {
     assert.deepEqual(cfg.export, { webhookTargets: [], mqttTargets: [] });
   });
 
-  it('keeps the retired rules language at its defaults and has no dashboard or budget blocks', () => {
+  it('has no rules-language fields, no dashboard and no budget block', () => {
     const cfg = new ConfigService(fakeIO().io, logSpy()).get();
-    assert.deepEqual([cfg.rules, cfg.groups, cfg.vars, cfg.version], [[], [], {}, 1]);
+    for (const gone of ['rules', 'groups', 'vars', 'version']) assert.ok(!(gone in cfg), gone);
     assert.equal(cfg.dashboard, undefined);
     assert.ok(!('budget' in cfg));
   });
@@ -179,7 +179,7 @@ describe('ConfigService.update', () => {
   it('writes only what the patch mentions, and ignores fields that have no setting', async () => {
     const f = fakeIO();
     const svc = new ConfigService(f.io, logSpy());
-    await svc.update({ monthlyBudget: 5, rules: [], groups: [], vars: { a: 1 }, version: 2, dashboard: { columns: 3 } });
+    await svc.update({ monthlyBudget: 5, dashboard: { columns: 3 } });
     assert.deepEqual(f.writes, [['mallard.monthlyBudget', 5]]);
     f.writes.length = 0;
     await svc.update({});

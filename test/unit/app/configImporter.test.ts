@@ -116,8 +116,6 @@ describe('importLegacyConfig — a full config', () => {
 
     assert.deepEqual(r.legacyRules, FULL.rules);
     assert.deepEqual(r.legacyGroups, FULL.groups);
-    assert.deepEqual(r.legacyVars, FULL.vars);
-    assert.equal(r.legacyVersion, 2);
     assert.deepEqual(r.skipped, []);
     assert.deepEqual([...r.written].sort(), [
       'alerts.velocityCreditsPerHour', 'alerts.velocityEnabled', 'branchBudgets', 'currency', 'dailyCreditAlert',
@@ -295,15 +293,13 @@ describe('importLegacyConfig — lenient: one bad block never costs the others',
     assert.deepEqual(r.skipped, ['branchBudgets', 'export']);
   });
 
-  it('tells the user about unconvertible rules even when nothing else moved', async () => {
+  it('carries the old rules without a message of its own when nothing else moved', async () => {
     const h = harness();
     h.write({ rules: [{ id: 'a' }, { id: 'b' }, 'junk'], groups: 'no', vars: [], version: 'x' });
     const r = await importLegacyConfig(h.deps);
     assert.equal(r.legacyRules.length, 2, 'only objects are carried');
-    assert.deepEqual([r.legacyGroups, r.legacyVars, r.legacyVersion], [[], {}, undefined]);
-    assert.equal(h.messages.info.length, 1);
-    assert.match(h.messages.info[0]!, /Imported nothing from config\.json/);
-    assert.match(h.messages.info[0]!, /2 custom alert rules/);
+    assert.deepEqual(r.legacyGroups, []);
+    assert.deepEqual(h.messages.info, [], 'the rules are announced by their own conversion message, not by the settings import');
   });
 
   it('uses singular wording for a single setting', async () => {

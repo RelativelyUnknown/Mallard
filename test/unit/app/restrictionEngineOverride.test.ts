@@ -10,7 +10,9 @@ import {
 } from '../../../src/extension-backend/app/restrictionUi';
 import { buildSnapshot } from '../snapshotFixture';
 import { makeEvent } from '../helpers';
-import type { AlertRule, RestrictionState } from '../../../src/extension-backend/domain/types';
+import type { FlatAlertRule } from '../../../src/extension-backend/domain/contracts';
+import type { RestrictionState } from '../../../src/extension-backend/domain/types';
+import { flatRule } from '../flatAlertsFixture';
 
 async function tmpDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), 'mallard-restriction-ovr-'));
@@ -31,27 +33,21 @@ function snapshot(credits: number) {
 }
 
 /** Restricts above 50 credits today; only lifts once today's credits fall below 10. */
-const HYSTERESIS_RULE: AlertRule = {
-  id: 'budget-stop',
-  severity: 'critical',
-  message: 'Over 50 credits',
-  when: { '>': [{ var: 'today.credits' }, 50] },
-  restrict: { reEnableWhen: { '<': [{ var: 'today.credits' }, 10] } },
-};
+const HYSTERESIS_RULE: FlatAlertRule = flatRule({ id: 'budget-stop', metric: 'today.credits', op: '>', value: 50, severity: 'critical', restrict: true, clearBelow: 10 });
 
-const reconcile = (engine: RestrictionEngine, credits: number, rules: AlertRule[] = [HYSTERESIS_RULE]) =>
-  engine.reconcile({ snapshot: snapshot(credits), rules, signedIn: false });
+const reconcile = (engine: RestrictionEngine, credits: number, rules: FlatAlertRule[] = [HYSTERESIS_RULE]) =>
+  engine.reconcile({ snapshot: snapshot(credits), rules });
 
-describe('RestrictionEngine — reEnableWhen hysteresis', () => {
-  it('stays restricted after `when` stops matching until reEnableWhen holds, then lifts', async () => {
+describe('RestrictionEngine — clearBelow hysteresis', () => {
+  it('stays restricted after the rule stops matching until the metric is below clearBelow, then lifts', async () => {
     const engine = new RestrictionEngine(await tmpDir());
     await reconcile(engine, 100);
     assert.equal(engine.getState().active, true, 'restricted over 50');
 
-    await reconcile(engine, 30); // `when` is false, reEnableWhen (<10) is not yet true
+    await reconcile(engine, 30); // the rule is false, clearBelow (10) is not yet reached
     assert.equal(engine.getState().active, true, 'hysteresis holds the restriction');
 
-    await reconcile(engine, 5); // reEnableWhen true
+    await reconcile(engine, 5); // below clearBelow
     assert.equal(engine.getState().active, false, 'lifted once the re-enable condition holds');
 
     await reconcile(engine, 30); // between thresholds again: must not re-trigger
@@ -59,9 +55,9 @@ describe('RestrictionEngine — reEnableWhen hysteresis', () => {
     engine.dispose();
   });
 
-  it('does not flap: a rule whose reEnableWhen holds does not restrict even while `when` matches', async () => {
+  it('does not flap: a rule whose metric is below clearBelow does not restrict even while it matches', async () => {
     const engine = new RestrictionEngine(await tmpDir());
-    const overlapping: AlertRule = { ...HYSTERESIS_RULE, restrict: { reEnableWhen: true } };
+    const overlapping: FlatAlertRule = { ...HYSTERESIS_RULE, clearBelow: 1000 };
     const fired: RestrictionState[] = [];
     engine.onDidChange((s) => fired.push(s));
     await reconcile(engine, 100, [overlapping]);
@@ -79,9 +75,9 @@ describe('RestrictionEngine — reEnableWhen hysteresis', () => {
     engine.dispose();
   });
 
-  it('a rule without reEnableWhen still clears as soon as it stops matching', async () => {
+  it('a rule without clearBelow still clears as soon as it stops matching', async () => {
     const engine = new RestrictionEngine(await tmpDir());
-    const plain: AlertRule = { ...HYSTERESIS_RULE, restrict: {} };
+    const plain: FlatAlertRule = flatRule({ id: 'budget-stop', metric: 'today.credits', op: '>', value: 50, restrict: true });
     await reconcile(engine, 100, [plain]);
     await reconcile(engine, 30, [plain]);
     assert.equal(engine.getState().active, false);
@@ -121,7 +117,6 @@ describe('RestrictionEngine — snooze expiry', () => {
     await engine.reconcile({
       snapshot: snapshot(100),
       rules: [HYSTERESIS_RULE],
-      signedIn: false,
       now: Date.now() + 16 * 60_000,
     });
     assert.equal(engine.getState().userOverrideUntil, null);

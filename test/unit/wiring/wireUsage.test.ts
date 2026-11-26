@@ -10,7 +10,6 @@ import type { IngestService } from '../../../src/extension-backend/ingest/Ingest
 import type { CurrencyService } from '../../../src/extension-backend/pricing/CurrencyService';
 import type { PricingService } from '../../../src/extension-backend/pricing/PricingService';
 import type { EventStore } from '../../../src/extension-backend/store/EventStore';
-import { wireAlerts } from '../../../src/extension-backend/wiring/wireAlerts';
 import { wireUsage } from '../../../src/extension-backend/wiring/wireUsage';
 import type { WiringScope } from '../../../src/extension-backend/wiring/scope';
 
@@ -28,35 +27,6 @@ const userConfig = {
   get: () => ({ ...DEFAULT_USER_CONFIG, monthlyBudget: 100 }),
   onDidChange: () => ({ dispose() {} }),
 } as unknown as IConfigService;
-
-describe('wireAlerts', () => {
-  it('builds an AlertService over the user config and the given host, and registers its cleanup', () => {
-    const shown: string[] = [];
-    const s = scope();
-    const { alerts } = wireAlerts(s, {
-      userConfig,
-      host: { showWarningMessage: async (m: string) => void shown.push(m) },
-    });
-
-    assert.ok(alerts instanceof AlertService);
-    alerts.process({
-      budget: { percentOfBudget: 1 },
-      today: { credits: 0, cost: 0, tokens: 0 },
-      currentBranchCredits: 0,
-      authStatus: 'signed-out',
-    } as never);
-    assert.deepEqual(shown, ['Mallard: Monthly budget of $100 exceeded.'], 'the config accessor reads the user config');
-    assert.equal(s.started.length, 1);
-    s.started[0]!();
-  });
-
-  it('defaults the host to the real VS Code window', () => {
-    const s = scope();
-    const { alerts } = wireAlerts(s, { userConfig });
-    assert.ok(alerts);
-    s.started[0]!();
-  });
-});
 
 describe('wireUsage', () => {
   function deps(over: { github?: IBillingProvider; errors?: string[] } = {}) {

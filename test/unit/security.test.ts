@@ -4,7 +4,7 @@
  * These tests fuzz the public API boundaries most likely to be targeted:
  *   - isHostBoundMsg: message validation at the webview/host seam
  *   - isPathSafe: file-path traversal guard in the log locator
- *   - evalCondition: the JSON condition evaluator
+ *   - compare: the flat alert rules' comparison
  *   - pure formatters: numeric edge cases
  */
 import * as fc from 'fast-check';
@@ -12,9 +12,8 @@ import { strict as assert } from 'assert';
 import * as path from 'path';
 import { HOST_BOUND_TYPES, isHostBoundMsg } from '../../src/extension-backend/ui/messaging';
 import { isPathSafe } from '../../src/extension-backend/ingest/locate';
-import { evalCondition } from '../../src/extension-backend/domain/expr/jsonCondition';
+import { compare } from '../../src/extension-backend/domain/compare';
 import { formatMoney, formatNumber, formatTokens, formatCredits } from '../../src/extension-backend/domain/format';
-import type { JsonCondition } from '../../src/extension-backend/domain/types';
 
 // Derived from the single list exported by messaging.ts — the hand-copied list
 // here had drifted (it lacked setCurrency and toggleModelFilter).
@@ -96,38 +95,28 @@ describe('security — isPathSafe (path traversal)', () => {
   });
 });
 
-describe('security — evalCondition', () => {
-  it('double-negation is identity for boolean literals', () => {
-    fc.assert(fc.property(
-      fc.boolean(),
-      fc.dictionary(fc.string({ maxLength: 10 }), fc.oneof(fc.integer(), fc.string(), fc.boolean())),
-      (cond, ctx) => {
-        const doubleNeg: JsonCondition = { not: { not: cond } };
-        assert.equal(
-          evalCondition(doubleNeg, ctx as Record<string, unknown>),
-          evalCondition(cond, ctx as Record<string, unknown>),
-        );
-      },
-    ), { numRuns: 500 });
+describe('security — compare', () => {
+  const OPS = ['>', '>=', '<', '<=', '==', '!='] as const;
+
+  it('never throws, whatever the operands', () => {
+    fc.assert(fc.property(fc.anything(), fc.anything(), fc.constantFrom(...OPS), (l, r, op) => {
+      assert.doesNotThrow(() => compare(l, r, op));
+    }), { numRuns: 1000 });
   });
 
-  it('never throws for boolean literal conditions and any context', () => {
-    fc.assert(fc.property(
-      fc.boolean(),
-      fc.dictionary(fc.string({ maxLength: 10 }), fc.anything()),
-      (cond, ctx) => {
-        assert.doesNotThrow(() => evalCondition(cond, ctx as Record<string, unknown>));
-      },
-    ), { numRuns: 500 });
-  });
-
-  it('comparison ops return false (not throw) when operands are NaN or Infinity', () => {
-    const ops = ['>', '>=', '<', '<='] as const;
-    for (const op of ops) {
-      assert.doesNotThrow(() => evalCondition({ [op]: [NaN, 0] } as JsonCondition, {}));
-      assert.doesNotThrow(() => evalCondition({ [op]: [Infinity, 0] } as JsonCondition, {}));
-      assert.doesNotThrow(() => evalCondition({ [op]: [-Infinity, 0] } as JsonCondition, {}));
+  it('ordering operators return false (not throw) when operands are NaN or Infinity', () => {
+    for (const op of ['>', '>=', '<', '<='] as const) {
+      for (const bad of [NaN, Infinity, -Infinity]) {
+        assert.equal(compare(bad, 0, op), false);
+        assert.equal(compare(0, bad, op), false);
+      }
     }
+  });
+
+  it('== and != are exact opposites for any pair of defined operands', () => {
+    fc.assert(fc.property(fc.oneof(fc.double(), fc.string(), fc.boolean()), fc.oneof(fc.double(), fc.string(), fc.boolean()), (l, r) => {
+      assert.notEqual(compare(l, r, '=='), compare(l, r, '!='));
+    }), { numRuns: 500 });
   });
 });
 

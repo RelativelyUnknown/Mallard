@@ -7,7 +7,7 @@ import { IngestService } from '../../../src/extension-backend/ingest/IngestServi
 import { CurrencyService } from '../../../src/extension-backend/pricing/CurrencyService';
 import type { VscodeHost } from '../../../src/extension-backend/util/vscodeHost';
 import type { IBillingProvider } from '../../../src/extension-backend/billing/IBillingProvider';
-import type { AlertRule } from '../../../src/extension-backend/domain/types';
+import type { FlatAlertRule } from '../../../src/extension-backend/domain/contracts';
 import { okAsync, errAsync } from 'neverthrow';
 import { FakeConfig, makeFakeConfig } from '../helpers';
 import * as os from 'os';
@@ -310,14 +310,8 @@ describe('UsageService — GitHub billing + alert rule notify', () => {
       showWarningMessage: (msg: string) => { warnings.push(msg); return Promise.resolve(undefined); },
       executeCommand: () => Promise.resolve(undefined),
     };
-    const rule: AlertRule = {
-      id: 'test-alert',
-      severity: 'warning',
-      message: 'Credits exceeded',
-      when: { '>': [{ var: 'today.credits' }, 0] },
-      notify: true,
-    };
-    await userConfig.set({ rules: [rule] });
+    const rule: FlatAlertRule = { id: 'test-alert', metric: 'today.credits', op: '>', value: 0, cooldown: '1h', severity: 'warning', notify: true };
+    await userConfig.set({ flatRules: [rule] });
     const data: SnapshotSourceData = {
       ...EMPTY_DATA,
       totals: {
@@ -331,8 +325,8 @@ describe('UsageService — GitHub billing + alert rule notify', () => {
     svc.onAlertFired(({ message }) => fired.push(message));
     await svc.start();
     await new Promise((r) => setTimeout(r, 100));
-    assert.ok(warnings.some((w) => w.includes('Credits exceeded')), 'alert warning fired');
-    assert.ok(fired.some((m) => m.includes('Credits exceeded')), 'onAlertFired fired for UI surfaces (e.g. sidebar gauge pulse)');
+    assert.ok(warnings.some((w) => w === 'today.credits > 0 (now 10)'), 'alert warning fired');
+    assert.ok(fired.some((m) => m === 'today.credits > 0 (now 10)'), 'onAlertFired fired for UI surfaces (e.g. sidebar gauge pulse)');
     svc.dispose();
   });
 });

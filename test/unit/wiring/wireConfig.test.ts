@@ -48,7 +48,7 @@ describe('wireConfig', () => {
     } as unknown as vscode.ExtensionContext;
     const started: Array<() => void> = [];
     const pricingUrls: string[] = [];
-    const none: ImportResult = { status: 'none', written: [], skipped: [], layoutSeeded: false, legacyRules: [], legacyGroups: [], legacyVars: {} };
+    const none: ImportResult = { status: 'none', written: [], skipped: [], layoutSeeded: false, legacyRules: [], legacyGroups: [] };
     return { values, change, globalState, context, started, pricingUrls, none, v1, pricing: { setRemoteUrl: (u: string) => void pricingUrls.push(u) } };
   }
 

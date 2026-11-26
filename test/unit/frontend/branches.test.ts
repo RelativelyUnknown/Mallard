@@ -292,16 +292,12 @@ describe('components — remaining branch coverage', () => {
     const h = mountAlertConfigPanel(el);
     h.update(DEFAULT_USER_CONFIG);
     const count = () => el.querySelector('#rule-count')!.textContent;
-    const n = DEFAULT_USER_CONFIG.rules?.length ?? 0;
-    assert.equal(count(), n === 0 ? 'No rules configured' : `${n} rule${n === 1 ? '' : 's'} configured`);
+    assert.equal(count(), 'No rules configured');
 
     el.querySelector<HTMLButtonElement>('button')!.click();
     assert.deepEqual(getPosted(), [{ type: 'openConfig' }]);
 
-    h.update({ ...DEFAULT_USER_CONFIG, rules: [] });
-    assert.equal(count(), 'No rules configured');
-
-    // The rules are now the flat `mallard.alerts.rules` setting.
+    // The rules are the flat `mallard.alerts.rules` setting.
     const flat = { id: 'r1', metric: 'today.credits', op: '>', value: 1, cooldown: '1h', severity: 'info' } as const;
     h.update({ ...DEFAULT_USER_CONFIG, flatRules: [flat] });
     assert.equal(count(), '1 rule configured');
