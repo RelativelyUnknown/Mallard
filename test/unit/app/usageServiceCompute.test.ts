@@ -133,7 +133,7 @@ describe('UsageService — filtered snapshots do not feed alerts or restriction'
     await svc.setFilter({});
     assert.equal(unfiltered.length, 1, 'clearing the filter feeds the restriction stream again');
     assert.ok(warnings.length >= 1, 'alerts run for the unfiltered compute');
-    assert.deepEqual(svc.currentUnfiltered?.filter, {}, 'what the alerts and restrictions evaluated');
+    assert.deepEqual((svc as { currentUnfiltered?: { filter: unknown } }).currentUnfiltered?.filter, {}, 'what the alerts and restrictions evaluated');
     svc.dispose();
   });
 
