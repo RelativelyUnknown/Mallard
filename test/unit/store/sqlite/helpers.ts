@@ -83,7 +83,7 @@ export function spawnDbChild(): DbChild {
   let stderr = '';
   child.stderr?.on('data', (d: Buffer) => { stderr += String(d); });
   let nextId = 1;
-  const pending = new Map<number, (m: { ok: boolean; value?: unknown; error?: string }) => void>();
+  const pending = new Map<number, (m: { ok: boolean; value?: unknown; error?: string | undefined }) => void>();
   const ready = new Promise<void>((resolve) => {
     child.on('message', (m: { ready?: boolean; id?: number; ok?: boolean; value?: unknown; error?: string }) => {
       if (m.ready) resolve();
@@ -95,7 +95,7 @@ export function spawnDbChild(): DbChild {
     async call<T>(op: string, args: Record<string, unknown> = {}): Promise<T> {
       await ready;
       const id = nextId++;
-      const answer = new Promise<{ ok: boolean; value?: unknown; error?: string }>((resolve) => pending.set(id, resolve));
+      const answer = new Promise<{ ok: boolean; value?: unknown; error?: string | undefined }>((resolve) => pending.set(id, resolve));
       child.send({ id, op, args });
       const r = await answer;
       if (!r.ok) throw new Error(`child ${op}: ${r.error} ${stderr}`);

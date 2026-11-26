@@ -147,6 +147,8 @@ export interface IUsageStore extends IEventStore {
   insert(events: RawEvent[]): Promise<InsertResult>;
   /** `aggregate` over a long range: 7-day windows, a `setImmediate` yield between them, results concatenated. */
   aggregateRange(filter: RecordFilter, range: { fromMs: number; toMs: number }): Promise<AggregateGroup[]>;
+  /** Same as `IEventStore.exportRows`, with the chunk size (default 5,000 rows). */
+  exportRows(chunkRows?: number): AsyncIterable<RawEvent[]>;
   /** Number of stored rows (raw and rolled). */
   countEvents(): Promise<number>;
   getMeta(key: string): Promise<string | null>;
