@@ -63,9 +63,10 @@ export interface RawEvent {
  * What the store returns from SQL pre-aggregation: one row per 15-minute UTC
  * bucket and distinct dimension tuple, summing requests and every token
  * column. Pricing is linear in tokens and requests, so aggregating before
- * pricing is exact. `tokensKnown` (prompt or completion token not NULL) is in
- * the grouping key so the token-price vs credit-price branch of `priceRow`
- * stays exact. Implemented by stream A (`IEventStore.aggregate`).
+ * pricing is exact. `tokensKnown` (prompt + completion tokens > 0, NOT "not
+ * NULL": a known 0/0 row prices through credits) is in the grouping key so the
+ * token-price vs credit-price branch of `priceRow` stays exact. Implemented by
+ * stream A (`IEventStore.aggregate`).
  */
 export interface AggregateGroup {
   /** Start of the 15-minute UTC bucket, epoch ms. */
@@ -77,7 +78,7 @@ export interface AggregateGroup {
   branch: string | null;
   language: string | null;
   attribution: RepoAttribution | null;
-  /** True when promptTokens or completionTokens was not NULL on the grouped rows. */
+  /** True when the grouped rows carried prompt or completion tokens to price (their sum is above 0). */
   tokensKnown: boolean;
   requests: number;
   promptTokens: number;
@@ -112,6 +113,55 @@ export interface IEventStore {
   clear(): Promise<void>;
   dataVersion(): number;
   dispose(): void;
+}
+
+/** What the tailer remembers about one log file (`ingest_state`). */
+export interface IngestState {
+  file: string;
+  size: number;
+  mtimeMs: number;
+  /** Offset of the first byte NOT yet consumed (the start of an unterminated last line). */
+  byteOffset: number;
+  /** Hash of the file's first bytes: a different head means the file was rewritten. */
+  headHash: string;
+}
+
+/** What `insert` reports beyond the {@link IEventStore} minimum. */
+export interface InsertResult {
+  /** Rows that did not exist before (= `fresh.length`). */
+  inserted: number;
+  /** The new rows, in input order; for a Claude row repeated in the call, the merged (max) version that was stored. */
+  fresh: RawEvent[];
+  /** Existing Claude rows whose token counts were raised (never exported again). */
+  updated: number;
+  /** Rows refused as invalid (bad id/ts/counts); logged, never stored. */
+  rejected: number;
+}
+
+/**
+ * What the wiring (UsageService, connectors, exporters, `deactivate`) needs on
+ * top of {@link IEventStore}. Implemented by `SqliteEventStore` and by
+ * `MemoryEventStore` (the driver-missing fallback), so callers never branch.
+ */
+export interface IUsageStore extends IEventStore {
+  insert(events: RawEvent[]): Promise<InsertResult>;
+  /** `aggregate` over a long range: 7-day windows, a `setImmediate` yield between them, results concatenated. */
+  aggregateRange(filter: RecordFilter, range: { fromMs: number; toMs: number }): Promise<AggregateGroup[]>;
+  /** Same as `IEventStore.exportRows`, with the chunk size (default 5,000 rows). */
+  exportRows(chunkRows?: number): AsyncIterable<RawEvent[]>;
+  /** Number of stored rows (raw and rolled). */
+  countEvents(): Promise<number>;
+  getMeta(key: string): Promise<string | null>;
+  setMeta(key: string, value: string): Promise<void>;
+  getIngestState(file: string): Promise<IngestState | null>;
+  /** Write it AFTER the `insert` of the rows read up to `byteOffset` (re-reading is safe, losing rows is not). */
+  setIngestState(state: IngestState): Promise<void>;
+  deleteIngestState(file: string): Promise<void>;
+  listIngestState(): Promise<IngestState[]>;
+  /** Folds the WAL into the main file (call when idle). No-op for the memory store. */
+  checkpoint(): Promise<void>;
+  /** Stops accepting work, finishes what is running, checkpoints and closes (what `dispose()` starts). */
+  close(): Promise<void>;
 }
 
 // ── Flat alerts (stream C) ───────────────────────────────────────────────────
