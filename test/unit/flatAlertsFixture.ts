@@ -4,14 +4,13 @@
  * for the property-style parity tests.
  */
 import type { FlatAlertRule } from '../../src/extension-backend/domain/contracts';
-import type { HistorySample, RuleSnapshot } from '../../src/extension-backend/domain/expr/context';
-import { buildFlatContext } from '../../src/extension-backend/domain/flatAlerts';
-import type { FlatContext } from '../../src/extension-backend/domain/flatAlerts';
+import { buildFlatContext } from '../../src/extension-backend/domain/alertMetrics';
+import type { FlatContext, HistorySample, MetricSnapshot } from '../../src/extension-backend/domain/alertMetrics';
 
 export const MODEL_ID = 'claude-sonnet-4-5-20250929';
 
 /** A snapshot with distinct, easy-to-recognise values in every field the metrics read. */
-export function ruleSnapshot(overrides: Record<string, unknown> = {}): RuleSnapshot {
+export function ruleSnapshot(overrides: Record<string, unknown> = {}): MetricSnapshot {
   return {
     generatedAt: 0,
     today: { credits: 12, cost: 0.48, tokens: 1200 },
@@ -44,7 +43,7 @@ export function ruleSnapshot(overrides: Record<string, unknown> = {}): RuleSnaps
       dayAggregates: [{ start: 0, credits: 0, cost: 0, tokens: 0 }],
     },
     ...overrides,
-  } as unknown as RuleSnapshot;
+  } as unknown as MetricSnapshot;
 }
 
 export function flatRule(overrides: Partial<FlatAlertRule> = {}): FlatAlertRule {
@@ -59,7 +58,7 @@ export function flatRule(overrides: Partial<FlatAlertRule> = {}): FlatAlertRule 
   };
 }
 
-export function ctxOf(snapshot: RuleSnapshot | null, history?: HistorySample[], now = 1_700_000_000_000): FlatContext {
+export function ctxOf(snapshot: MetricSnapshot | null, history?: HistorySample[], now = 1_700_000_000_000): FlatContext {
   return buildFlatContext({ snapshot, ...(history ? { history } : {}), now });
 }
 

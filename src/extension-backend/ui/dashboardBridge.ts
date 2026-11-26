@@ -67,8 +67,8 @@ export function bindDashboard(webview: vscode.Webview, deps: DashboardDeps): vsc
         await layout.set(raw.value);
         break;
       case 'openConfig':
-        // Mallard's settings are ordinary VS Code settings: open the Settings UI filtered to them.
-        await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:RelativelyUnknown.mallard');
+        // Mallard's settings are ordinary VS Code settings: open the Settings UI on the alert ones (the rules are `mallard.alerts.rules`).
+        await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:RelativelyUnknown.mallard alerts');
         break;
       case 'command':
         if (raw.id === 'openDashboard') void vscode.commands.executeCommand('mallard.openDashboard');

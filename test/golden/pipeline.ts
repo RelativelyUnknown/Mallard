@@ -14,7 +14,7 @@
  *   snapshot(filter, {tz, now})  -> SnapshotSourceData for a dashboard filter
  *   exportCsv() / exportJson()   -> the "Export usage data" files
  *   streamBatch()                -> the exact wire JSON sent to the server
- *   alertSequence({tz})          -> built-in alerts, alert rules and restriction states over time
+ *   alertSequence({tz})          -> built-in and flat alert rules and restriction states over time
  *   layoutVectors()              -> layout migration inputs -> outputs
  *
  * Determinism: the zone is pinned with `withTz` (same technique as
@@ -40,7 +40,11 @@ import type { IEventSnapshotReader, SnapshotSourceData } from '../../src/extensi
 import type { RecordFilter } from '../../src/extension-backend/store/EventRepository';
 import { UsageService } from '../../src/extension-backend/app/UsageService';
 import type { IConfigService } from '../../src/extension-backend/app/ConfigService';
+import { AlertService } from '../../src/extension-backend/app/AlertService';
 import { RestrictionEngine } from '../../src/extension-backend/app/RestrictionEngine';
+import { convertLegacyRules } from '../../src/extension-backend/domain/flatAlertImport';
+import type { LegacyRule } from '../../src/extension-backend/domain/flatAlertImport';
+import { buildReconcileInput } from '../../src/extension-backend/wiring/wireRestriction';
 import type { IngestService } from '../../src/extension-backend/ingest/IngestService';
 import type { CurrencyService } from '../../src/extension-backend/pricing/CurrencyService';
 import type { PricingService } from '../../src/extension-backend/pricing/PricingService';
@@ -67,7 +71,6 @@ import {
 import { LAYOUT_CONFIG_CASES, LAYOUT_V1_CASES } from './layoutCases';
 import { startOf } from '../../src/extension-backend/util/time';
 import type {
-  AlertRule,
   Filter,
   SnapshotData,
   UsageEvent,
@@ -432,7 +435,6 @@ const NO_BILLING_USER_CONFIG: UserConfig = {
   includedCredits: 300,
   dailyCreditAlert: 0,
   alerts: { velocityEnabled: false, velocityCreditsPerHour: 0 },
-  version: 1,
 };
 
 /**
@@ -469,7 +471,7 @@ interface Kit {
 function makeKit(
   reader: IEventSnapshotReader,
   pricing: FrozenPricing,
-  opts: { config?: UserConfig; rates?: Record<string, number>; currency?: string } = {},
+  opts: { config?: UserConfig; rates?: Record<string, number>; currency?: string; alerts?: AlertService } = {},
 ): Kit {
   let config: UserConfig = { ...(opts.config ?? NO_BILLING_USER_CONFIG), ...(opts.currency ? { currency: opts.currency } : {}) };
   const readPaths: Array<SnapshotRecord['read']> = [];
@@ -505,7 +507,7 @@ function makeKit(
   const currency = { currentRates: () => opts.rates ?? {} } as unknown as CurrencyService;
   const warnings: string[] = [];
   const host = { showWarningMessage: async (m: string) => void warnings.push(m), executeCommand: async () => undefined };
-  const svc = new UsageService(spy, pricingService(pricing), ingest, userConfig, currency, undefined, host as never, SILENT);
+  const svc = new UsageService(spy, pricingService(pricing), ingest, userConfig, currency, undefined, host as never, SILENT, opts.alerts);
   const kit: Kit = { svc, readPaths, reads, unfiltered: [], warnings, fired: [], setConfig: (c) => void (config = c), dispose: () => svc.dispose() };
   svc.onDidComputeUnfiltered((s) => kit.unfiltered.push(s));
   svc.onAlertFired((a) => kit.fired.push(a.message));
@@ -696,7 +698,8 @@ const ALERT_SCRIPT: ScriptStep[] = [
 
 const SONNET_ID = 'claude-sonnet-4-5-20250929';
 
-function alertRules(snoozeUntil: string): AlertRule[] {
+/** The rules of the old `config.json`, as the recording was first made from them; the importer converts them (what it cannot convert is skipped). */
+function legacyAlertRules(snoozeUntil: string): LegacyRule[] {
   return [
     { id: 'busy-day', severity: 'warning', cooldown: '2h', message: 'Busy day: {{today.credits}} credits so far', conditions: [{ field: 'today.credits', op: '>', value: 80 }] },
     {
@@ -754,14 +757,26 @@ async function withGitBranch<T>(branch: string, fn: () => Promise<T>): Promise<T
   }
 }
 
+/** An in-memory `Memento`, so the alert cooldowns persist the way globalState persists them. */
+class MemoryMemento {
+  private readonly data = new Map<string, unknown>();
+  get<T>(key: string): T | undefined {
+    return this.data.get(key) as T | undefined;
+  }
+  async update(key: string, value: unknown): Promise<void> {
+    this.data.set(key, value);
+  }
+}
+
 /**
- * Drive today's alert/restriction wiring through a scripted series of
- * snapshots crossing a month boundary and local midnight: the real
- * `UsageService` (history window, 24h cooldown pruning, `evaluateAlerts`,
- * `evaluateAlertRules`, `shouldNotify`) feeding a real `RestrictionEngine`
- * exactly as container.ts wires them (reconcile with the unfiltered snapshot,
- * no history, signed-out billing). Reports the toasts and restriction state
- * after every step.
+ * Drive the alert/restriction wiring through a scripted series of snapshots
+ * crossing a month boundary and local midnight: the real `UsageService`
+ * handing each unfiltered snapshot to a real `AlertService` (flat built-in
+ * rules plus the flat rules the importer converts from the old `config.json`
+ * rules, cooldowns in a Memento) and then to a real `RestrictionEngine`, as
+ * container.ts wires them (`buildReconcileInput`: the unfiltered snapshot, the
+ * rules and the alert history, signed-out billing). Reports the toasts and
+ * restriction state after every step.
  */
 export async function alertSequence(opts: { tz: string }): Promise<AlertStep[]> {
   const tz = opts.tz as GoldenTz;
@@ -770,15 +785,15 @@ export async function alertSequence(opts: { tz: string }): Promise<AlertStep[]> 
   try {
     return await withTz(tz, () => withGitBranch('feature/x', async () => {
       const times = ALERT_SCRIPT.map((s) => localInstant(s.local));
-      // The snoozed rule is un-snoozed at the 05:30 step.
-      const rules = alertRules(iso(localInstant('2026-02-01T05:00')));
+      // The snoozed rule is un-snoozed at the 05:30 step; the importer sees the rules as of the first step.
+      const legacy = legacyAlertRules(iso(localInstant('2026-02-01T05:00')));
+      const { converted } = convertLegacyRules(legacy, [], { now: times[0]! });
       const config: UserConfig = {
         monthlyBudget: 100,
         includedCredits: 300,
         dailyCreditAlert: 50,
         alerts: { velocityEnabled: true, velocityCreditsPerHour: 100 },
-        version: 1,
-        rules,
+        flatRules: converted,
         branchBudgets: { 'feature/x': 40 },
       };
       let current = 0;
@@ -787,11 +802,18 @@ export async function alertSequence(opts: { tz: string }): Promise<AlertStep[]> 
         readFilteredSnapshot: async () => scriptData(ALERT_SCRIPT[current]!, times[current]!),
         creditsByBranch: async () => ALERT_SCRIPT[current]!.branchCredits,
       };
-      const kit = makeKit(reader, pricing, { config });
+      const warnings: string[] = [];
+      const alerts = new AlertService({
+        host: { showWarningMessage: async (m: string) => void warnings.push(m) },
+        config: () => config,
+        state: new MemoryMemento(),
+        logger: SILENT,
+      });
+      const kit = makeKit(reader, pricing, { config, alerts });
       const engine = new RestrictionEngine(dir);
       const pending: Array<Promise<unknown>> = [];
       kit.svc.onDidComputeUnfiltered((snapshot) => {
-        pending.push(engine.reconcile({ snapshot, rules, signedIn: snapshot.authStatus === 'signed-in', branchBudgets: config.branchBudgets! }));
+        pending.push(engine.reconcile(buildReconcileInput(snapshot, config, alerts.getHistory())));
       });
       const steps: AlertStep[] = [];
       try {
@@ -800,7 +822,7 @@ export async function alertSequence(opts: { tz: string }): Promise<AlertStep[]> 
           const step = ALERT_SCRIPT[i]!;
           const now = times[i]!;
           await withClock(now, async () => {
-            kit.warnings.length = 0;
+            warnings.length = 0;
             await kit.svc.setFilter({});
             await Promise.all(pending.splice(0));
             if (step.action === 'snooze-restriction-30m') await engine.snooze(30);
@@ -810,7 +832,7 @@ export async function alertSequence(opts: { tz: string }): Promise<AlertStep[]> 
             local: step.local,
             at: iso(now),
             action: step.action ?? null,
-            warnings: [...kit.warnings],
+            warnings: [...warnings],
             restriction: {
               active: st.active,
               ruleId: st.ruleId,

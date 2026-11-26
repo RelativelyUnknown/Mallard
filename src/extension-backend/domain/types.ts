@@ -103,128 +103,11 @@ export interface UsageEvent {
   costByCategory?: Partial<Record<CostCategory, number>>;
 }
 
-/**
- * User-editable config that lives in extension globalState (NOT settings.json)
- * and is edited from the webview. Shared so both host and webview are typed.
- */
+/** The velocity alert's settings (`mallard.alerts.velocity*`). */
 export interface AlertConfig {
   /** Warn when the recent spending rate exceeds the credits/hour threshold. */
   velocityEnabled: boolean;
   velocityCreditsPerHour: number;
-}
-
-// ── JSON condition types ─────────────────────────────────────────────────────
-
-/** A value that can appear on either side of a comparison operator. */
-export type JsonOperand = number | string | boolean | { var: string };
-
-/**
- * A JSONLogic-inspired condition tree. Evaluated by `evalCondition()`.
- *
- * Examples:
- *   `true` — always fires
- *   `{ ">": [{ "var": "today.credits" }, 50] }` — fires when today > 50 cr
- *   `{ "and": [ ... ] }` — all sub-conditions must be true
- *   `{ "var": "group.g1" }` — truthy check (used for group gates)
- */
-export type JsonCondition =
-  | boolean
-  | { '>':  [JsonOperand, JsonOperand] }
-  | { '>=': [JsonOperand, JsonOperand] }
-  | { '<':  [JsonOperand, JsonOperand] }
-  | { '<=': [JsonOperand, JsonOperand] }
-  | { '==': [JsonOperand, JsonOperand] }
-  | { '!=': [JsonOperand, JsonOperand] }
-  | { 'and': JsonCondition[] }
-  | { 'or':  JsonCondition[] }
-  | { 'not': JsonCondition }
-  | { 'var': string };
-
-export interface RuleRestrict {
-  reEnableWhen?: JsonCondition;
-}
-
-/**
- * A single condition in the structured `conditions` shorthand.
- * More approachable than raw JSONLogic — no nested prefix notation required.
- *
- * Supported operators: `>` `>=` `<` `<=` `==` `!=` `in` `matches`. Comparison
- * semantics (missing values, numeric strings) are defined once in
- * expr/jsonCondition.ts. `matches` is a case-insensitive wildcard match
- * (`*` any run, `?` one character), NOT a regular expression.
- */
-export interface SimpleCondition {
-  /**
-   * Var path into the rule context. E.g. "today.credits", "budget.percentOfBudget".
-   * Keys containing dots use brackets: `model["gpt-4.1"].credits`.
-   */
-  field: string;
-  /** Comparison operator. */
-  op: '>' | '>=' | '<' | '<=' | '==' | '!=' | 'in' | 'matches';
-  /** Value to compare against. For `in`, provide an array. */
-  value: number | string | boolean | (string | number)[];
-}
-
-/**
- * A single severity level in a threshold escalation rule.
- * The highest-severity threshold whose condition fires wins.
- */
-export interface ThresholdLevel extends SimpleCondition {
-  severity: 'info' | 'warning' | 'critical';
-  /** Per-level cooldown (overrides the rule-level cooldown for this severity). */
-  cooldown?: string;
-}
-
-/**
- * One alert/restriction rule. A rule needs at least one trigger form; if
- * several are present the precedence is `thresholds` > `when` > `conditions`
- * (the lower forms are ignored, not combined). The same decision (`ruleMatches`
- * in alertRules.ts) drives both alerts and restrictions, including the
- * `requiresAuth`, `active` and `snoozeUntil` gates.
- */
-export interface AlertRule {
-  id: string;
-  /** Severity when fired; defaults to "warning" when omitted in config.json (thresholds override it per level). */
-  severity: 'info' | 'warning' | 'critical';
-  /** Minimum time between firings: a positive number + m/h/d/w ("30m", "1.5h", "2d"). Defaults to 1h. */
-  cooldown?: string;
-  message: string;
-  /**
-   * JSONLogic condition tree (original syntax). Required unless `conditions` or
-   * `thresholds` is provided. Takes precedence over `conditions`.
-   */
-  when?: JsonCondition;
-  /**
-   * Structured conditions shorthand. Easier to read and write than JSONLogic.
-   * Use `match` to control how conditions are combined.
-   */
-  conditions?: SimpleCondition[];
-  /**
-   * How to combine `conditions`. Defaults to "all" (AND).
-   * Ignored when `when` is used.
-   */
-  match?: 'all' | 'any' | 'none';
-  active?: JsonCondition;
-  requiresAuth?: boolean;
-  notify?: boolean;
-  restrict?: RuleRestrict;
-  /**
-   * Severity escalation: instead of a single `when`, declare multiple threshold
-   * levels. The highest-severity level whose condition fires wins. Each level
-   * can have its own cooldown. When non-empty, `when`/`conditions` are ignored.
-   */
-  thresholds?: ThresholdLevel[];
-  /**
-   * Snooze this rule until an ISO 8601 timestamp. The rule is suppressed while
-   * the current time is before `snoozeUntil`. Typically set via the UI.
-   */
-  snoozeUntil?: string;
-}
-
-export interface AlertGroup {
-  id: string;
-  label?: string;
-  active: JsonCondition;
 }
 
 export interface DisplayPrefs {
@@ -244,16 +127,6 @@ export interface UserConfig {
   /** Warn once a day when daily credits exceed this; 0 = off. */
   dailyCreditAlert: number;
   alerts: AlertConfig;
-  /**
-   * The old rules language. It is no longer configurable: `ConfigService`
-   * always reports the defaults here (the importer hands a pre-settings
-   * `config.json`'s values to the alert stream through `ImportResult`), and the
-   * evaluators that still read these fields go away with the flat alerts.
-   */
-  version?: 1 | 2;
-  vars?: Record<string, number | string | boolean | (string | number)[]>;
-  groups?: AlertGroup[];
-  rules?: AlertRule[];
   /** The validated `mallard.alerts.rules` setting (flat threshold rules). */
   flatRules?: FlatAlertRule[];
   /** Per-branch credit caps keyed by branch name (`mallard.branchBudgets`). */
@@ -330,10 +203,6 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   includedCredits: 300,
   dailyCreditAlert: 0,
   alerts: { velocityEnabled: false, velocityCreditsPerHour: 0 },
-  version: 1,
-  vars: {},
-  groups: [],
-  rules: [],
 };
 
 export interface RestrictionState {

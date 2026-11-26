@@ -18,7 +18,8 @@ import { readFileSync } from 'fs';
 import * as path from 'path';
 import { builtinFlatRules } from '../../src/extension-backend/domain/flatAlerts';
 import { convertLegacyRules } from '../../src/extension-backend/domain/flatAlertImport';
-import { buildFlatContext, evaluateFlatRules, flatRuleMatches, parseFlatRules, pruneCooldowns } from '../../src/extension-backend/domain/flatAlerts';
+import { buildFlatContext } from '../../src/extension-backend/domain/alertMetrics';
+import { evaluateFlatRules, flatRuleMatches, parseFlatRules, pruneCooldowns } from '../../src/extension-backend/domain/flatAlerts';
 import type { FlatCooldownState } from '../../src/extension-backend/domain/flatAlerts';
 import { evaluateFlatRestriction } from '../../src/extension-backend/domain/flatRestriction';
 import {

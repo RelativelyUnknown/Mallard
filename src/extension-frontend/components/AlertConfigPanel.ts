@@ -20,9 +20,8 @@ export function mountAlertConfigPanel(el: HTMLElement): AlertConfigPanelHandle {
 
   return {
     update(config: UserConfig) {
-      // The alert rules are the `mallard.alerts.rules` setting (flat rules); the
-      // old rules language is only counted while an older config still carries it.
-      const n = config.flatRules?.length ?? config.rules?.length ?? 0;
+      // The alert rules are the flat rules of the `mallard.alerts.rules` setting.
+      const n = config.flatRules?.length ?? 0;
       el.querySelector('#rule-count')!.textContent =
         n === 0 ? 'No rules configured' : `${n} rule${n === 1 ? '' : 's'} configured`;
     },

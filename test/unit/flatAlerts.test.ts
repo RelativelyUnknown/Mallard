@@ -6,28 +6,26 @@ import {
   FlatAlertRuleSchema,
   ORPHAN_COOLDOWN_RETENTION_MS,
   builtinFlatRules,
-  buildFlatContext,
   evaluateFlatRules,
   flatAlertMessage,
+  flatRuleText,
   flatCooldownKey,
   flatCooldownMs,
   flatRuleMatches,
   isFlatAlertMetric,
-  metricValue,
   parseCooldownState,
+  parseDurationMs,
   parseFlatRules,
   pruneCooldowns,
 } from '../../src/extension-backend/domain/flatAlerts';
-import type { FlatContext } from '../../src/extension-backend/domain/flatAlerts';
 import type { FlatAlertMetric, FlatAlertRule } from '../../src/extension-backend/domain/contracts';
-import { MODEL_ID, ctxOf, flatRule, ruleSnapshot } from './flatAlertsFixture';
+import { ctxOf, flatRule, ruleSnapshot } from './flatAlertsFixture';
 
 const H = 3_600_000;
 // Local wall times, so the day/month keys read the same in every time zone.
 const JAN31_2200 = new Date(2026, 0, 31, 22, 0).getTime();
 const FEB01_0100 = new Date(2026, 1, 1, 1, 0).getTime();
 
-const mv = (metric: FlatAlertMetric, ctx: FlatContext): number | undefined => metricValue(metric, ctx);
 
 describe('flat metrics — registry', () => {
   it('lists exactly the fixed metrics of the contract, in order', () => {
@@ -70,99 +68,7 @@ describe('flat metrics — registry', () => {
   });
 });
 
-describe('flat metrics — metricValue', () => {
-  const ctx = ctxOf(
-    ruleSnapshot({
-      topModels: [
-        { key: MODEL_ID, credits: 90, cost: 36, tokens: 1 },
-        { key: 'gpt-4.1', credits: 60, cost: 24, tokens: 1 },
-      ],
-    }),
-    [
-      { ts: 0, todayCredits: 0 },
-      { ts: H, todayCredits: 60 },
-    ],
-  );
-
-  it('reads every fixed metric from the rule context', () => {
-    const expected: Record<string, number> = {
-      'today.credits': 12,
-      'today.cost': 0.48,
-      'month.credits': 150,
-      'month.cost': 60,
-      'budget.percentOfBudget': 0.6,
-      'budget.percentOfIncluded': 0.5,
-      'forecast.projectedCredits': 240,
-      'forecast.projectedCost': 96,
-      'velocity.creditsPerHour': 60,
-      'window7d.credits': 0,
-      currentBranchCredits: 33,
-    };
-    for (const m of FIXED_FLAT_METRICS) assert.equal(mv(m, ctx), expected[m], m);
-  });
-
-  it('reads keyed metrics, ids with dots included, and 0 for a known but idle model or repo', () => {
-    assert.equal(mv(`model:${MODEL_ID}.credits`, ctx), 90);
-    assert.equal(mv('model:gpt-4.1.cost', ctx), 24);
-    assert.equal(mv('repo:foo.js.credits', ctx), 50);
-    assert.equal(mv('repo:alpha.cost', ctx), 40);
-    assert.equal(mv('model:idle-model.credits', ctx), 0);
-    assert.equal(mv('repo:idle-repo.cost', ctx), 0);
-  });
-
-  it('is undefined for an unknown model or repo, and never reads inherited names', () => {
-    assert.equal(mv('model:nope.credits', ctx), undefined);
-    assert.equal(mv('repo:nope.cost', ctx), undefined);
-    assert.equal(mv('model:constructor.credits', ctx), undefined);
-    assert.equal(mv('model:__proto__.credits', ctx), undefined);
-    assert.equal(mv('repo:toString.cost', ctx), undefined);
-  });
-
-  it('is undefined for every metric without a snapshot (the zeros of an empty context must not match)', () => {
-    const none = ctxOf(null);
-    assert.equal(none.available, false);
-    for (const m of FIXED_FLAT_METRICS) assert.equal(mv(m, none), undefined, m);
-    assert.equal(mv('model:x.credits', none), undefined);
-  });
-
-  it('window7d is unavailable without day-level data, and follows chartInputs or chartData when present', () => {
-    const noDays = ctxOf(ruleSnapshot({ chartInputs: undefined }));
-    assert.equal(mv('window7d.credits', noDays), undefined);
-
-    const now = new Date(2026, 0, 15, 12, 0).getTime();
-    const day = (d: number, credits: number) => ({ start: new Date(2026, 0, d).getTime(), credits, cost: 0, tokens: 0 });
-    const fromInputs = ctxOf(
-      ruleSnapshot({ chartInputs: { dayAggregates: [day(8, 1), day(9, 2), day(15, 4), day(16, 99)] } }),
-      undefined,
-      now,
-    );
-    // 9th..15th inclusive: the 8th is outside the week, the 16th is in the future.
-    assert.equal(mv('window7d.credits', fromInputs), 6);
-
-    const points = Array.from({ length: 8 }, (_, i) => ({ credits: i + 1, cost: 0 }));
-    const fromWire = ctxOf(ruleSnapshot({ chartInputs: undefined, chartData: { dailyBars: { points } } }));
-    assert.equal(mv('window7d.credits', fromWire), 2 + 3 + 4 + 5 + 6 + 7 + 8);
-  });
-
-  it('velocity is the least-squares rate of the history and 0 without it', () => {
-    assert.equal(mv('velocity.creditsPerHour', ctxOf(ruleSnapshot())), 0);
-    assert.equal(mv('velocity.creditsPerHour', ctx), 60);
-  });
-
-  it('is undefined when the value at the path is not a number', () => {
-    const odd: FlatContext = { values: { today: { credits: 'lots' } }, available: true };
-    assert.equal(mv('today.credits', odd), undefined);
-    assert.equal(mv('today.cost', odd), undefined);
-    assert.equal(mv('currentBranchCredits', { values: { currentBranchCredits: null }, available: true }), undefined);
-  });
-
-  it('buildFlatContext without a snapshot is unavailable, with one it is available', () => {
-    assert.equal(buildFlatContext({ snapshot: null, now: 1 }).available, false);
-    assert.equal(buildFlatContext({ snapshot: ruleSnapshot(), now: 1 }).available, true);
-  });
-});
-
-describe('flat rules — comparison semantics (the legacy compare())', () => {
+describe('flat rules — comparison semantics (compare())', () => {
   const ctx = ctxOf(ruleSnapshot()); // today.credits = 12
 
   it('applies each operator to the metric and the rule value', () => {
@@ -195,6 +101,25 @@ describe('flat rules — comparison semantics (the legacy compare())', () => {
     assert.equal(flatAlertMessage(r, 141.6), 'today.credits > 10 (now 141.60)');
     assert.equal(flatAlertMessage(flatRule({ metric: 'budget.percentOfBudget', op: '>=', value: 0.8 }), 0.857), 'budget.percentOfBudget >= 0.8 (now 0.86)');
     assert.equal(flatAlertMessage(flatRule({ metric: 'model:gpt-4.1.cost', op: '!=', value: 0 }), undefined), 'model:gpt-4.1.cost != 0 (now n/a)');
+    assert.equal(flatRuleText(flatRule({ metric: 'today.credits', op: '>', value: 10 })), 'today.credits > 10', 'the condition alone, no current value');
+  });
+});
+
+describe('parseDurationMs', () => {
+  it('accepts m/h/d/w case-insensitively with optional decimals', () => {
+    assert.equal(parseDurationMs('30m'), 30 * 60_000);
+    assert.equal(parseDurationMs('30M'), 30 * 60_000);
+    assert.equal(parseDurationMs('1.5h'), 90 * 60_000);
+    assert.equal(parseDurationMs('2D'), 2 * 86_400_000);
+    assert.equal(parseDurationMs('.5w'), 302_400_000);
+    assert.equal(parseDurationMs(' 4 h '), 4 * 3_600_000);
+  });
+
+  it('rejects zero, negative, unitless and unparseable values', () => {
+    for (const bad of ['0m', '0.0h', '-5m', '', 'abc', '10', '1 hour', '1x', 'm', '1..5h', '1e3m']) {
+      assert.equal(parseDurationMs(bad), null, JSON.stringify(bad));
+    }
+    assert.equal(parseDurationMs(`${'9'.repeat(400)}d`), null, 'overflow to Infinity is rejected');
   });
 });
 

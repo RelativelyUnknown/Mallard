@@ -18,8 +18,8 @@
  *   - builtin:     a random scalar config (budget, daily, branch cap) over 8 steps, which built-in alerts fire at each?
  *                  (velocity is off: the old first-to-last rate was replaced on purpose, D7)
  */
-import type { HistorySample, RuleSnapshot } from '../../src/extension-backend/domain/expr/context';
-import { buildFlatContext, metricValue } from '../../src/extension-backend/domain/flatAlerts';
+import { buildFlatContext, metricValue } from '../../src/extension-backend/domain/alertMetrics';
+import type { HistorySample, MetricSnapshot } from '../../src/extension-backend/domain/alertMetrics';
 import { mapLegacyVar } from '../../src/extension-backend/domain/flatAlertImport';
 import type { LegacyRule } from '../../src/extension-backend/domain/flatAlertImport';
 import { seeded } from './flatAlertsFixture';
@@ -34,7 +34,7 @@ type Rand = () => number;
 const pick = <T>(r: Rand, items: readonly T[]): T => items[Math.floor(r() * items.length)]!;
 const amount = (r: Rand, max: number): number => Math.round(r() * max * 100) / 100;
 
-export function randomSnapshot(r: Rand, now: number): RuleSnapshot {
+export function randomSnapshot(r: Rand, now: number): MetricSnapshot {
   const usedCredits = amount(r, 400);
   const models = POOL_MODELS.filter(() => r() < 0.6);
   const repos = POOL_REPOS.filter(() => r() < 0.6);
@@ -63,7 +63,7 @@ export function randomSnapshot(r: Rand, now: number): RuleSnapshot {
     currentBranchCredits: amount(r, 80),
     authStatus: 'signed-out',
     ...(hasDays ? { chartInputs: { dayAggregates: [day(0), day(1), day(2), day(9)] } } : {}),
-  } as unknown as RuleSnapshot;
+  } as unknown as MetricSnapshot;
 }
 
 export function randomHistory(r: Rand, now: number): HistorySample[] | undefined {
@@ -105,7 +105,7 @@ const SEVERITIES = ['info', 'warning', 'critical'] as const;
 const COOLDOWNS = ['10m', '30m', '1h', '90m', undefined];
 
 /** The value a legacy variable path has in this snapshot (what `resolveVar` answered on the old context). */
-export function legacyValue(varPath: string, snapshot: RuleSnapshot, history: HistorySample[] | undefined, now: number): number | undefined {
+export function legacyValue(varPath: string, snapshot: MetricSnapshot, history: HistorySample[] | undefined, now: number): number | undefined {
   const mapped = mapLegacyVar(varPath);
   if (!mapped.ok) throw new Error(`generator path ${varPath} must map: ${mapped.reason}`);
   return metricValue(mapped.value, buildFlatContext({ snapshot, ...(history ? { history } : {}), now }));
@@ -170,7 +170,7 @@ function randomRestrictRule(r: Rand, id: string, current: (varPath: string) => n
 
 // ── The four families ────────────────────────────────────────────────────────
 
-export interface MatchCase { seed: number; rule: LegacyRule; snapshot: RuleSnapshot; history: HistorySample[] | undefined; now: number }
+export interface MatchCase { seed: number; rule: LegacyRule; snapshot: MetricSnapshot; history: HistorySample[] | undefined; now: number }
 export const MATCH_SEEDS = 1500;
 
 export function matchCase(seed: number): MatchCase {
@@ -182,7 +182,7 @@ export function matchCase(seed: number): MatchCase {
   return { seed, rule, snapshot, history, now };
 }
 
-export interface SingleCase { seed: number; rules: LegacyRule[]; snapshot: RuleSnapshot; history: HistorySample[] | undefined; now: number }
+export interface SingleCase { seed: number; rules: LegacyRule[]; snapshot: MetricSnapshot; history: HistorySample[] | undefined; now: number }
 export const SINGLE_SEEDS = 800;
 
 export function singleCase(seed: number): SingleCase {
@@ -194,7 +194,7 @@ export function singleCase(seed: number): SingleCase {
   return { seed, rules, snapshot, history, now };
 }
 
-export interface SeriesStep { snapshot: RuleSnapshot; history: HistorySample[] | undefined; now: number }
+export interface SeriesStep { snapshot: MetricSnapshot; history: HistorySample[] | undefined; now: number }
 export interface SeriesCase { seed: number; rules: LegacyRule[]; steps: SeriesStep[] }
 export const SERIES_SEEDS = 150;
 export const SERIES_STEPS = 8;
@@ -255,7 +255,7 @@ export function builtinCase(seed: number): BuiltinCase {
   for (let step = 0; step < BUILTIN_STEPS; step++) {
     // Up to 2 h apart, so the 1-4 h cooldowns expire inside a series; 137 ms off any round number.
     now += Math.round(r() * 2 * 3_600_000) + 137;
-    steps.push({ snapshot: { ...randomSnapshot(r, now), ...(branch ? { currentBranch: branch } : {}) } as RuleSnapshot, history: undefined, now });
+    steps.push({ snapshot: { ...randomSnapshot(r, now), ...(branch ? { currentBranch: branch } : {}) } as MetricSnapshot, history: undefined, now });
   }
   return { seed, config, branch, steps };
 }

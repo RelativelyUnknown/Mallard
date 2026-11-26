@@ -14,7 +14,7 @@
  */
 import * as vscode from 'vscode';
 import { readSettings, SETTINGS, SettingKey, SettingValues } from '../config/settings';
-import { DEFAULT_USER_CONFIG, UserConfig } from '../domain/types';
+import { UserConfig } from '../domain/types';
 import { opt } from '../util/lang';
 import { defaultLogger, Logger } from '../util/logger';
 import { onSettingsChanged, readSetting, writeSetting } from '../util/vscodeSettings';
@@ -49,7 +49,6 @@ export const vscodeConfigIO: ConfigIO = {
 /** The `UserConfig` view of the sanitised settings. */
 export function toUserConfig(v: SettingValues): UserConfig {
   return {
-    ...DEFAULT_USER_CONFIG, // the retired rules language stays at its (empty) defaults
     monthlyBudget: v['mallard.monthlyBudget'],
     includedCredits: v['mallard.includedCredits'],
     dailyCreditAlert: v['mallard.dailyCreditAlert'],
@@ -125,7 +124,7 @@ export class ConfigService implements IConfigService, vscode.Disposable {
 
   /**
    * Write the fields of `patch` that map to settings, each validated first.
-   * Fields without a setting (the retired rules, `dashboard`) are ignored.
+   * Fields without a setting (`dashboard`) are ignored.
    * Writes are sequential: VS Code serialises edits to one settings file anyway.
    */
   async update(patch: Partial<UserConfig>): Promise<void> {

@@ -168,7 +168,7 @@ describe('dashboardBridge — message routing', () => {
     assert.deepEqual(h.calls.update, []);
   });
 
-  it('opens the Settings UI filtered to Mallard for openConfig', async () => {
+  it('opens the Settings UI on the alert settings for openConfig', async () => {
     const executed: unknown[][] = [];
     const originalExec = cmd.executeCommand;
     cmd.executeCommand = ((...a: unknown[]) => {
@@ -179,7 +179,7 @@ describe('dashboardBridge — message routing', () => {
       const h = makeHarness();
       h.send({ type: 'openConfig' });
       await new Promise((r) => setImmediate(r));
-      assert.deepEqual(executed, [['workbench.action.openSettings', '@ext:RelativelyUnknown.mallard']]);
+      assert.deepEqual(executed, [['workbench.action.openSettings', '@ext:RelativelyUnknown.mallard alerts']]);
     } finally {
       cmd.executeCommand = originalExec;
     }

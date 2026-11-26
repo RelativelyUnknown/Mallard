@@ -1,7 +1,5 @@
 import { strict as assert } from 'assert';
 import type { FlatAlertRule } from '../../src/extension-backend/domain/contracts';
-import { buildRuleContext } from '../../src/extension-backend/domain/expr/context';
-import { evaluateRestrictionState } from '../../src/extension-backend/domain/restriction/evaluator';
 import { evaluateFlatRestriction } from '../../src/extension-backend/domain/flatRestriction';
 import { ctxOf, flatRule, ruleSnapshot } from './flatAlertsFixture';
 
@@ -137,20 +135,8 @@ describe('evaluateFlatRestriction — velocity rules need the alert history (B6)
     assert.equal(r.reason, 'velocity.creditsPerHour > 1 (now 60)');
   });
 
-  it('never matches without history, which is what the legacy reconcile (no history) did', () => {
+  it('never matches without history, which is what the old reconcile (it passed none) did: B6', () => {
     assert.equal(evaluateFlatRestriction([velocity], ctxOf(ruleSnapshot(), undefined, NOW)).active, null);
-    // The old evaluator, given the same history-less context, agrees: B6.
-    const legacyRule = {
-      id: 'fast',
-      severity: 'warning' as const,
-      message: 'fast',
-      when: { '>': [{ var: 'velocity.creditsPerHour' }, 1] } as never,
-      restrict: {},
-    };
-    const withoutHistory = buildRuleContext({ snapshot: ruleSnapshot(), now: NOW });
-    assert.equal(evaluateRestrictionState([legacyRule], withoutHistory, NOW).active, null);
-    const withHistory = buildRuleContext({ snapshot: ruleSnapshot(), history, now: NOW });
-    assert.equal(evaluateRestrictionState([legacyRule], withHistory, NOW).active?.id, 'fast');
   });
 
   it('the least-squares rate falls back to 0 after a midnight reset inside the window', () => {
@@ -163,7 +149,7 @@ describe('evaluateFlatRestriction — velocity rules need the alert history (B6)
   });
 });
 
-describe('evaluateFlatRestriction — a replacement for the legacy evaluator', () => {
+describe('evaluateFlatRestriction — inputs', () => {
   it('takes the rules as a readonly list and never modifies them', () => {
     const rules: readonly FlatAlertRule[] = Object.freeze([Object.freeze({ ...heavy })]);
     assert.equal(evaluateFlatRestriction(rules, at(500)).active?.id, 'heavy');
