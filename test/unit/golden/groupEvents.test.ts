@@ -11,6 +11,18 @@ import {
   rollUpEvents,
   toRawEvent,
 } from '../../golden/groupEvents';
+import {
+  capCutoff,
+  isRolledId,
+  mergeAttribution,
+  mergeRolledRow,
+  retentionCutoff,
+  rollId,
+  rollUpGroups,
+  sumOrNull,
+  tokensKnownOf,
+  toRolledRow,
+} from '../../../src/extension-backend/domain/groupEvents';
 import type { NormalizedEvent } from '../../golden/pipeline';
 import { withTzSync } from '../../golden/support/time';
 
@@ -187,5 +199,78 @@ describe('test/golden/groupEvents — golden conversion and rollup twin', () => 
     const ts = T('2026-03-15T23:30:00Z');
     assert.equal(withTzSync('UTC', () => localDate(ts)), '2026-03-15');
     assert.equal(withTzSync('Pacific/Auckland', () => localDate(ts)), '2026-03-16');
+  });
+});
+
+describe('domain/groupEvents — the pieces the stores share', () => {
+  it('tokensKnownOf: prompt + completion tokens above zero', () => {
+    assert.deepEqual(
+      [[null, null], [0, 0], [0, null], [1, null], [null, 1], [2, 3]].map(([p, c]) => tokensKnownOf(p!, c!)),
+      [false, false, false, true, true, true],
+    );
+  });
+
+  it('sumOrNull is NULL only when both sides are; mergeAttribution lets heuristic win over authoritative over none', () => {
+    assert.deepEqual([[null, null], [null, 2], [3, null], [3, 2], [0, null]].map(([a, b]) => sumOrNull(a!, b!)), [null, 2, 3, 5, 0]);
+    const all = [null, 'authoritative', 'heuristic'] as const;
+    const expected = [
+      [null, 'authoritative', 'heuristic'],
+      ['authoritative', 'authoritative', 'heuristic'],
+      ['heuristic', 'heuristic', 'heuristic'],
+    ];
+    all.forEach((a, i) => all.forEach((b, j) => assert.equal(mergeAttribution(a, b), expected[i]![j], `${a} + ${b}`)));
+  });
+
+  it('rollId and isRolledId', () => {
+    const id = withTzSync('UTC', () => rollId(ev({ ts: T('2026-03-15T23:59:59Z'), modelId: 'm', repo: null, surface: 'agent', source: 'claude-code' })));
+    assert.equal(id, 'roll:2026-03-15:m:unattributed:agent:claude-code');
+    assert.deepEqual([id, 'claude-code:1', 'roll', ''].map(isRolledId), [true, false, false, false]);
+  });
+
+  it('toRolledRow keeps the dimensions, drops branch and language, sits at local midnight; "unattributed" is no repo', () => {
+    withTzSync('Pacific/Auckland', () => {
+      const e = ev({ ts: T('2026-03-15T10:07:00Z'), repo: 'unattributed', branch: 'b', language: 'ts', attribution: 'heuristic', requests: 2, promptTokens: 5 });
+      const row = toRolledRow(e, 'roll:x');
+      assert.deepEqual(row, {
+        id: 'roll:x', ts: T('2026-03-14T11:00:00Z'), modelId: 'gpt-4o', surface: 'chat', source: 'local', repo: null, branch: null, attribution: 'heuristic',
+        language: null, requests: 2, promptTokens: 5, completionTokens: null, cacheReadTokens: 0, cacheCreationTokens: 0, thinkingTokens: 0,
+      });
+      assert.equal(toRolledRow(ev({ repo: 'alpha' }), 'roll:y').repo, 'alpha');
+    });
+  });
+
+  it('mergeRolledRow sums, keeps NULL only for NULL + NULL, and merges attribution', () => {
+    const a = toRolledRow(ev({ promptTokens: null, completionTokens: 4, attribution: 'authoritative', cacheReadTokens: 1 }), 'roll:a');
+    const b = toRolledRow(ev({ promptTokens: null, completionTokens: null, attribution: 'heuristic', cacheReadTokens: 2, thinkingTokens: 3, requests: 4 }), 'roll:a');
+    const m = mergeRolledRow(a, b);
+    assert.deepEqual([m.promptTokens, m.completionTokens, m.attribution, m.cacheReadTokens, m.thinkingTokens, m.requests], [null, 4, 'heuristic', 3, 3, 5]);
+  });
+
+  it('rollUpGroups orders the rolled rows by time then id and reports the members', () => {
+    withTzSync('UTC', () => {
+      const { rolled, members } = rollUpGroups([
+        ev({ id: 'b', ts: T('2026-03-16T01:00:00Z'), modelId: 'b' }),
+        ev({ id: 'a1', ts: T('2026-03-15T01:00:00Z'), modelId: 'z' }),
+        ev({ id: 'a2', ts: T('2026-03-15T02:00:00Z'), modelId: 'a' }),
+        ev({ id: 'a3', ts: T('2026-03-15T03:00:00Z'), modelId: 'z' }),
+      ]);
+      assert.deepEqual(rolled.map((r) => [r.id, r.requests]), [
+        ['roll:2026-03-15:a:unattributed:chat:local', 1],
+        ['roll:2026-03-15:z:unattributed:chat:local', 2],
+        ['roll:2026-03-16:b:unattributed:chat:local', 1],
+      ]);
+      assert.deepEqual(members.get('roll:2026-03-15:z:unattributed:chat:local')!.map((e) => e.id), ['a1', 'a3']);
+    });
+  });
+
+  it('retentionCutoff is a local midnight; capCutoff the next midnight after the boundary row, never later than today', () => {
+    withTzSync('America/Los_Angeles', () => {
+      const now = T('2026-11-02T20:00:00Z'); // Nov 2, 13:00 local
+      assert.equal(retentionCutoff(now, 30), T('2026-10-03T07:00:00Z'));
+      assert.equal(capCutoff(T('2026-10-20T15:00:00Z'), now), T('2026-10-21T07:00:00Z'));
+      assert.equal(capCutoff(T('2026-11-02T10:00:00Z'), now), T('2026-11-02T08:00:00Z'), 'today is never rolled for the cap');
+      // The DST fall-back day (Nov 1, 25 hours long) ends at the right midnight.
+      assert.equal(capCutoff(T('2026-11-01T12:00:00Z'), now), T('2026-11-02T08:00:00Z'));
+    });
   });
 });

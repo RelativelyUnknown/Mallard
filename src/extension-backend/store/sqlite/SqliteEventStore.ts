@@ -32,21 +32,21 @@ import { DB_FILE_NAME, migrate } from './schema';
 // ── Tuning ────────────────────────────────────────────────────────────────────
 
 /** Rows per insert transaction (spike S2: p95 32 ms per batch at 2,000 rows, 58 ms at 5,000). */
-export const INSERT_BATCH_ROWS = 2_000;
+const INSERT_BATCH_ROWS = 2_000;
 /** Time box of one insert transaction. */
-export const INSERT_BATCH_MS = 15;
+const INSERT_BATCH_MS = 15;
 /** Width of one read window of `aggregateRange`; a multiple of the 15-minute bucket, so no bucket straddles two windows. */
-export const READ_WINDOW_MS = 7 * 86_400_000;
+const READ_WINDOW_MS = 7 * 86_400_000;
 /** Rows per chunk of `exportRows`. */
-export const EXPORT_CHUNK_ROWS = 5_000;
+const EXPORT_CHUNK_ROWS = 5_000;
 /** Raw rows rolled per compaction transaction (the transaction ends at a local midnight, so it can hold a bit more). */
-export const COMPACT_CHUNK_ROWS = 20_000;
+const COMPACT_CHUNK_ROWS = 20_000;
 const ROLL_YIELD_ROWS = 5_000;
 const DELETE_SLICE_ROWS = 2_000;
 /** How often (in rows) an insert transaction looks at the clock. */
 const CLOCK_CHECK_ROWS = 64;
 
-export const yieldToLoop = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+const yieldToLoop = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

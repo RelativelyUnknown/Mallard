@@ -59,7 +59,7 @@ export function tokensKnownOf(promptTokens: number | null, completionTokens: num
 }
 
 /** Orders groups the way the store's `ORDER BY` does: bucket, then the dimensions (NULL first). */
-export function compareGroups(a: AggregateGroup, b: AggregateGroup): number {
+function compareGroups(a: AggregateGroup, b: AggregateGroup): number {
   return (
     a.bucketStartMs - b.bucketStartMs ||
     cmpText(a.modelId, b.modelId) ||
@@ -120,7 +120,7 @@ export interface RolledUp {
 }
 
 /** Id prefix of a rolled-up row; such rows are never rolled again. */
-export const ROLL_PREFIX = 'roll:';
+const ROLL_PREFIX = 'roll:';
 
 /** True for a rolled-up row (as opposed to a raw per-request row). */
 export function isRolledId(id: string): boolean {

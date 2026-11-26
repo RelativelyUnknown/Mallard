@@ -30,7 +30,7 @@ export function invalidReason(e: RawEvent): string | null {
  * A stored token count raised to `incoming` when that is larger (NULL counts as
  * 0 but stays NULL when `incoming` is not larger): the guarded SQL update.
  */
-export function raised(stored: number | null, incoming: number | null): number | null {
+function raised(stored: number | null, incoming: number | null): number | null {
   return incoming !== null && incoming > (stored ?? 0) ? incoming : stored;
 }
 
