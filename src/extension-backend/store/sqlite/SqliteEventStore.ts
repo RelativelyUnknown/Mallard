@@ -40,7 +40,7 @@ const READ_WINDOW_MS = 7 * 86_400_000;
 /** Rows per chunk of `exportRows`. */
 const EXPORT_CHUNK_ROWS = 5_000;
 /** Raw rows rolled per compaction transaction (the transaction ends at a local midnight, so it can hold a bit more). */
-const COMPACT_CHUNK_ROWS = 20_000;
+const COMPACT_CHUNK_ROWS = 5_000;
 const ROLL_YIELD_ROWS = 5_000;
 const DELETE_SLICE_ROWS = 2_000;
 /** How often (in rows) an insert transaction looks at the clock. */
@@ -63,7 +63,7 @@ export interface SqliteStoreOptions {
   busy?: Partial<BusyRetry>;
   /** Raw-row cap that triggers rolling the oldest days (default MAX_RAW_EVENTS). */
   maxRawEvents?: number;
-  /** Raw rows per compaction transaction (default 20,000). */
+  /** Raw rows per compaction transaction (default 5,000). */
   compactChunkRows?: number;
   /** Insert batching: rows, milliseconds and the clock that measures them. */
   batch?: { rows?: number; ms?: number; clock?: () => number };
