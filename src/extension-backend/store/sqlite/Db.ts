@@ -266,7 +266,7 @@ export class Db {
   static open(path: string, opts: DbOptions = {}): Db {
     const { DatabaseSync } = loadSqlite(opts.loader);
     const readOnly = opts.readOnly === true;
-    return new Db(new DatabaseSync(path, readOnly ? { readOnly: true } : undefined), path, readOnly, opts.busy);
+    return new Db(new DatabaseSync(path, { readOnly }), path, readOnly, opts.busy);
   }
 
   /** {@link Db.open}, retried asynchronously while another process holds the file locked. */

@@ -63,6 +63,8 @@ export interface SqliteStoreOptions {
   busy?: Partial<BusyRetry>;
   /** Raw-row cap that triggers rolling the oldest days (default MAX_RAW_EVENTS). */
   maxRawEvents?: number;
+  /** Raw rows per compaction transaction (default 20,000). */
+  compactChunkRows?: number;
   /** Insert batching: rows, milliseconds and the clock that measures them. */
   batch?: { rows?: number; ms?: number; clock?: () => number };
 }
@@ -200,6 +202,7 @@ export class SqliteEventStore implements IUsageStore {
     private readonly batchRows: number,
     private readonly batchMs: number,
     private readonly clock: () => number,
+    private readonly compactChunkRows: number,
   ) {
     this.lastDataVersion = db.dataVersion();
   }
@@ -231,6 +234,7 @@ export class SqliteEventStore implements IUsageStore {
       opts.batch?.rows ?? INSERT_BATCH_ROWS,
       opts.batch?.ms ?? INSERT_BATCH_MS,
       opts.batch?.clock ?? (() => performance.now()),
+      opts.compactChunkRows ?? COMPACT_CHUNK_ROWS,
     );
   }
 
@@ -505,7 +509,7 @@ export class SqliteEventStore implements IUsageStore {
     for (;;) {
       const oldest = this.db.get(`SELECT ts FROM events WHERE ts < ? AND ${NOT_ROLLED} ORDER BY ts LIMIT 1`, cutoff);
       if (oldest === undefined) break;
-      const edge = this.db.get(`SELECT ts FROM events WHERE ts < ? AND ${NOT_ROLLED} ORDER BY ts LIMIT 1 OFFSET ?`, cutoff, intParam(COMPACT_CHUNK_ROWS));
+      const edge = this.db.get(`SELECT ts FROM events WHERE ts < ? AND ${NOT_ROLLED} ORDER BY ts LIMIT 1 OFFSET ?`, cutoff, intParam(this.compactChunkRows));
       const chunkCutoff = edge === undefined ? cutoff : Math.min(cutoff, nextBucketStart(num(edge['ts']), 'day'));
       await this.rollChunk(chunkCutoff);
       changed = true;
