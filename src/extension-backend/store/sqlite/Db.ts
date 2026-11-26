@@ -302,25 +302,9 @@ export class Db {
     return this.prepare(sql).get(...params);
   }
 
-  /**
-   * All rows of a query, built through `iterate()` (a few MB of heap at 50k rows
-   * where `all()` takes 60 to 70). A value above 2^53 throws ERR_OUT_OF_RANGE
-   * from the driver; the query is then repeated reading INTEGERs as bigints, and
-   * the numbers are saturated at 2^53 - 1 (see {@link num}) after a warning.
-   */
+  /** All rows of a query through a cached statement (see {@link queryRows}). */
   rows(sql: string, ...params: SqlParam[]): SqlRow[] {
-    const stmt = this.prepare(sql);
-    try {
-      return collect(stmt, params);
-    } catch (err) {
-      if (!isOutOfRangeError(err)) throw err;
-    }
-    stmt.setReadBigInts(true);
-    try {
-      return collect(stmt, params);
-    } finally {
-      stmt.setReadBigInts(false);
-    }
+    return queryRows(this.prepare(sql), params);
   }
 
   /**
@@ -365,6 +349,26 @@ export class Db {
     this.closed = true;
     this.cache.clear();
     this.raw.close();
+  }
+}
+
+/**
+ * All rows of `stmt`, built through `iterate()`. A value above 2^53 makes the
+ * driver throw ERR_OUT_OF_RANGE; the query is then repeated reading INTEGERs as
+ * bigints, for the caller to turn into numbers with {@link num} (which
+ * saturates at 2^53 - 1).
+ */
+export function queryRows(stmt: SqliteStatement, params: SqlParam[]): SqlRow[] {
+  try {
+    return collect(stmt, params);
+  } catch (err) {
+    if (!isOutOfRangeError(err)) throw err;
+  }
+  stmt.setReadBigInts(true);
+  try {
+    return collect(stmt, params);
+  } finally {
+    stmt.setReadBigInts(false);
   }
 }
 
