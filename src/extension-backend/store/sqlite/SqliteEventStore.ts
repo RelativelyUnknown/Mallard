@@ -16,15 +16,16 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import type { AggregateGroup, IEventStore, RawEvent } from '../../domain/contracts';
+import type { AggregateGroup, IngestState, InsertResult, IUsageStore, RawEvent } from '../../domain/contracts';
 import { BUCKET_MS, bucketStart, capCutoff, mergeRolledRow, retentionCutoff, rollId, toRolledRow } from '../../domain/groupEvents';
 import type { RepoAttribution, SourceKind, Surface } from '../../domain/types';
 import type { Logger } from '../../util/logger';
 import { nextBucketStart } from '../../util/time';
 import type { RecordFilter } from '../EventRepository';
 import { MAX_RAW_EVENTS, RAW_WINDOW_DAYS } from '../schema/constants';
-import { Db, intParam, isSafeSqlInt, num, queryRows, text } from './Db';
+import { Db, intParam, num, queryRows, text } from './Db';
 import type { BusyRetry, SqlParam, SqlRow, SqliteLoader } from './Db';
+import { prepareRows } from '../eventRules';
 import { whereFor } from './filterSql';
 import { DB_FILE_NAME, migrate } from './schema';
 
@@ -49,6 +50,8 @@ export const yieldToLoop = (): Promise<void> => new Promise((resolve) => setImme
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export type { IngestState, InsertResult };
+
 export interface SqliteStoreOptions {
   /** Days of raw events kept before they roll up (default 90). */
   retentionDays?: number;
@@ -64,34 +67,12 @@ export interface SqliteStoreOptions {
   batch?: { rows?: number; ms?: number; clock?: () => number };
 }
 
-export interface InsertResult {
-  /** Rows that did not exist before (= `fresh.length`). */
-  inserted: number;
-  /** The new rows, in input order; for a Claude row repeated in the call, the merged (max) version that was stored. */
-  fresh: RawEvent[];
-  /** Existing Claude rows whose token counts were raised. */
-  updated: number;
-  /** Rows refused as invalid (bad id/ts/counts); logged, never stored. */
-  rejected: number;
-}
-
 /** The insert failed after some batches were already committed; `partial` is what those batches did. */
 export class PartialInsertError extends Error {
   constructor(message: string, readonly partial: InsertResult, options: { cause: unknown }) {
     super(message, options);
     this.name = 'PartialInsertError';
   }
-}
-
-/** What the tailer remembers about one log file (`ingest_state`). */
-export interface IngestState {
-  file: string;
-  size: number;
-  mtimeMs: number;
-  /** Offset of the first byte NOT yet consumed (the start of an unterminated last line). */
-  byteOffset: number;
-  /** Hash of the file's first bytes: a different head means the file was rewritten. */
-  headHash: string;
 }
 
 // ── SQL ───────────────────────────────────────────────────────────────────────
@@ -192,41 +173,6 @@ function toGroup(row: SqlRow): AggregateGroup {
   };
 }
 
-const isText = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
-const isNullableText = (v: unknown): boolean => v === null || typeof v === 'string';
-const isCount = (v: unknown): boolean => isSafeSqlInt(v) && v >= 0;
-const isNullableCount = (v: unknown): boolean => v === null || isCount(v);
-
-/**
- * Why a row cannot be stored, or null when it can. Without this `NaN` would be
- * bound as NULL, a fractional or huge count would round or throw when read back,
- * and a negative `ts` would break the bucket arithmetic.
- */
-export function invalidReason(e: RawEvent): string | null {
-  if (!isText(e.id)) return 'id';
-  if (!isCount(e.ts)) return 'ts';
-  if (!isText(e.modelId) || !isText(e.surface) || !isText(e.source)) return 'modelId/surface/source';
-  if (!isNullableText(e.repo) || !isNullableText(e.branch) || !isNullableText(e.attribution) || !isNullableText(e.language)) return 'repo/branch/attribution/language';
-  if (!isCount(e.requests)) return 'requests';
-  if (!isNullableCount(e.promptTokens) || !isNullableCount(e.completionTokens)) return 'prompt/completion tokens';
-  if (!isCount(e.cacheReadTokens) || !isCount(e.cacheCreationTokens) || !isCount(e.thinkingTokens)) return 'cache/thinking tokens';
-  return null;
-}
-
-const maxNullable = (a: number | null, b: number | null): number | null => (a === null ? b : b === null ? a : Math.max(a, b));
-
-/** A Claude row seen twice in one call: each token column takes the larger value. */
-function mergeClaudeDuplicate(a: RawEvent, b: RawEvent): RawEvent {
-  return {
-    ...a,
-    promptTokens: maxNullable(a.promptTokens, b.promptTokens),
-    completionTokens: maxNullable(a.completionTokens, b.completionTokens),
-    cacheReadTokens: Math.max(a.cacheReadTokens, b.cacheReadTokens),
-    cacheCreationTokens: Math.max(a.cacheCreationTokens, b.cacheCreationTokens),
-    thinkingTokens: Math.max(a.thinkingTokens, b.thinkingTokens),
-  };
-}
-
 const eventParams = (e: RawEvent): SqlParam[] => [
   e.id, e.ts, e.modelId, e.surface, e.source, e.repo, e.branch, e.attribution, e.language,
   e.requests, e.promptTokens, e.completionTokens, e.cacheReadTokens, e.cacheCreationTokens, e.thinkingTokens,
@@ -234,7 +180,7 @@ const eventParams = (e: RawEvent): SqlParam[] => [
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
-export class SqliteEventStore implements IEventStore {
+export class SqliteEventStore implements IUsageStore {
   private tail: Promise<void> = Promise.resolve();
   private active = 0;
   private disposed = false;
@@ -602,24 +548,6 @@ function toIngestState(row: SqlRow): IngestState {
     byteOffset: num(row['byteOffset']),
     headHash: String(row['headHash']),
   };
-}
-
-/** Validates and collapses duplicates: the first occurrence wins, except Claude rows, which keep the larger token counts. */
-function prepareRows(events: readonly RawEvent[]): { rows: RawEvent[]; rejected: number; firstRejected: string } {
-  const byId = new Map<string, RawEvent>();
-  let rejected = 0;
-  let firstRejected = '';
-  for (const e of events) {
-    const bad = invalidReason(e);
-    if (bad !== null) {
-      if (rejected++ === 0) firstRejected = `${String(e.id)} (${bad})`;
-      continue;
-    }
-    const seen = byId.get(e.id);
-    if (seen === undefined) byId.set(e.id, e);
-    else if (e.source === 'claude-code' && seen.source === 'claude-code') byId.set(e.id, mergeClaudeDuplicate(seen, e));
-  }
-  return { rows: [...byId.values()], rejected, firstRejected };
 }
 
 const SILENT: Logger = { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined };
