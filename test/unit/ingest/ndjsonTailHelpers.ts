@@ -96,7 +96,7 @@ export function oracle(bytes: Buffer, start = 0, needle: string | null = null): 
       if (needleBytes === null || contains(line, needleBytes)) {
         let value: unknown;
         try {
-          value = JSON.parse(line.toString('utf8').replace(/^﻿/, ''));
+          value = JSON.parse(line.toString('utf8').replace(/^\uFEFF/, ''));
         } catch {
           value = undefined;
         }
