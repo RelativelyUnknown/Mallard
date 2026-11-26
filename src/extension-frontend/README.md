@@ -68,10 +68,10 @@ Chart authors should know: tooltip formatters return HTML, so every interpolated
 - `KpiCards.ts`: today / month-to-date / projected / top-model cards
 - `FilterBar.ts`: date-range presets, metric toggle, model, repo, surface and source filters
 - `StatusBanner.ts`: ingest status (loading / ok / empty / error)
-- `RestrictionBanner.ts`: active Copilot restriction state
+- `RestrictionBanner.ts`: active Copilot restriction state (the rule's condition, with Dismiss and Snooze)
 - `GitHubBillingStrip.ts`: GitHub billing reconciliation summary
 - `EmptyState.ts`: no-data placeholder
-- `AlertConfigPanel.ts`: entry point to the alert settings (opens the Settings editor)
+- `AlertConfigPanel.ts`: entry point to the alert settings: the **Edit alert rules** button opens the Settings editor on Mallard's alert settings, and the count is the number of `mallard.alerts.rules`
 - `CurrencySelector.ts`: display-currency dropdown
 
 ## Host communication

@@ -2,7 +2,7 @@
 const features = [
   ['01', 'Spend dashboard', 'KPI cards for today, MTD, and projected month-end. 30-day bar chart with pace line, model breakdown, and a Sankey flow from model to surface (chat, inline, agent, edit).'],
   ['02', 'Budget gauge', 'Set a monthly USD budget and included-credits allowance. The gauge colours at 80% and 100%. Projected month-end recalculates every snapshot.'],
-  ['03', 'Custom alert rules', '32 context fields covering spend, velocity, forecast, branch, and time-of-day. JSONLogic operators, per-rule cooldown, and {{field}} message templates.'],
+  ['03', 'Custom alert rules', 'A flat list in your settings: one metric, one comparison and one cooldown per rule, over spend, forecast, velocity, the last 7 days, branch, model and repo. Cooldowns survive reloads.'],
   ['04', 'Restriction popups', 'A Dismiss/Snooze popup when a rule fires, with a one-click path to disable Mallard itself. Nothing is ever disabled automatically. Simulate first to see what would fire before enabling.'],
   ['05', 'Branch tracking', 'Every event tagged to the active git branch and workspace. Set per-branch credit caps in settings. A repo selector in the dashboard isolates spend to one project.'],
   ['06', 'GitHub billing', 'Optional sign-in pulls authoritative spend from GitHub\'s billing API, across all your machines, not just this one. Every other feature works without it.'],

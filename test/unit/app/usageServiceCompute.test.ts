@@ -123,14 +123,17 @@ describe('UsageService — filtered snapshots do not feed alerts or restriction'
     svc.onDidChangeSnapshot(() => ui.push(1));
     svc.onDidComputeUnfiltered(() => unfiltered.push(1));
 
+    assert.equal(svc.currentUnfiltered, undefined, 'nothing computed yet');
     await svc.setFilter({ models: ['gpt-4o'] });
     assert.equal(ui.length, 1, 'UI still gets the filtered snapshot');
+    assert.equal(svc.currentUnfiltered, undefined, 'a filtered snapshot is never the unfiltered one');
     assert.equal(unfiltered.length, 0, 'restriction stream untouched by a filtered snapshot');
     assert.deepEqual(warnings, [], 'no alert evaluated against a filtered slice');
 
     await svc.setFilter({});
     assert.equal(unfiltered.length, 1, 'clearing the filter feeds the restriction stream again');
     assert.ok(warnings.length >= 1, 'alerts run for the unfiltered compute');
+    assert.deepEqual(svc.currentUnfiltered?.filter, {}, 'what the alerts and restrictions evaluated');
     svc.dispose();
   });
 

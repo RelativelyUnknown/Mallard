@@ -150,7 +150,7 @@ OAuth prompt entirely. Leave blank to clear.
 
 ## Mallard: Simulate Restriction State
 
-ID `mallard.simulateRestriction`. Evaluates all restriction rules against the current snapshot and writes the result (which rule, if any, would be active) as JSON to the "Mallard Restriction" output channel. No popup shows and nothing is disabled. Useful for checking a new `restrict` rule before enabling it.
+ID `mallard.simulateRestriction`. Evaluates the `restrict` rules of `mallard.alerts.rules` against the latest unfiltered snapshot and the recent spend history (what the live restriction sees, so `velocity.creditsPerHour` rules are included) and writes the result as JSON to the "Mallard Restriction" output channel: `state` (the restriction as it is now), `desired.active` (the rule that would restrict, or `null`), its `reason`, `held` (kept only by `clearBelow`), `cleared`, `matching` (every `restrict` rule whose condition holds) and the `rules` evaluated. No popup shows, nothing is changed and nothing is disabled. Useful for checking a new `restrict` rule before enabling it.
 
 ## Mallard: Disable This Extension
 

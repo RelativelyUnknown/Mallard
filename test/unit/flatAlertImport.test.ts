@@ -56,7 +56,6 @@ describe('convertLegacyRules — documents that are not what the old schema allo
     const hostile = rule({ id: 'hostile', conditions: [cond('today.credits', '>', 1)] });
     Object.defineProperty(hostile, 'requiresAuth', {
       get() {
-        // eslint-disable-next-line @typescript-eslint/only-throw-error
         throw 'boom';
       },
     });

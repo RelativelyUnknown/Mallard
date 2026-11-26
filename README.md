@@ -18,7 +18,7 @@
 
 Mallard is a VS Code extension that turns GitHub Copilot's local usage logs into a live cost dashboard: today's spend, month-to-date, and a projected month-end total, broken down by model, surface, cost type, and repository. By default there's nothing to sign into and nothing to configure — install it, use Copilot, and watch the numbers update in real time. Connect GitHub billing later if you want the authoritative charge alongside Mallard's estimate.
 
-Under the hood it's a DuckDB-backed dashboard with branch-aware spend tracking, programmable budget alerts, and an optional restriction popup when a budget runs out, all running locally. No telemetry is collected and no external accounts are required by default; GitHub sign-in and metric export are opt-in.
+Under the hood it's a DuckDB-backed dashboard with branch-aware spend tracking, budget alerts plus your own threshold rules (one metric, one comparison, one cooldown, kept in your settings), and an optional restriction popup when a budget runs out, all running locally. No telemetry is collected and no external accounts are required by default; GitHub sign-in and metric export are opt-in.
 
 ## What talks to the network
 

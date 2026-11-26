@@ -7,7 +7,9 @@
  * waved through.
  */
 import { strict as assert } from 'assert';
+import { alertSequence } from '../golden/pipeline';
 import { loadExpected } from '../golden/support/canon';
+import { diffGolden } from '../golden/support/diff';
 import { GOLDEN_TZS } from '../golden/support/time';
 
 interface RecordedStep {
@@ -61,6 +63,12 @@ for (const tz of GOLDEN_TZS) {
     let recorded: RecordedStep[];
     before(async () => {
       recorded = (await loadExpected('alerts', tz)) as RecordedStep[];
+    });
+
+    it('is what the harness records today (this runs without the DuckDB sqlite extension that the full pipeline test needs)', async function () {
+      this.timeout(30_000);
+      const diff = diffGolden(await alertSequence({ tz }), recorded);
+      assert.equal(diff, null, `alerts (${tz}) no longer matches the recording:\n${diff ?? ''}`);
     });
 
     it('records the same script', () => {

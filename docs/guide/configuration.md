@@ -44,7 +44,15 @@ Mallard validates every value itself, because VS Code does not: a number outside
 | `mallard.alerts.velocityCreditsPerHour` | 100 | Credits/hour rate that triggers it. |
 | `mallard.branchBudgets` | `{}` | Per-branch credit caps. |
 
-`mallard.alerts.rules` holds your own threshold alerts as an array of objects; it shows **Edit in settings.json** in the Settings editor. The rules reference is being rewritten for this format and is covered separately.
+`mallard.alerts.rules` holds your own threshold alerts as an array of objects; it shows **Edit in settings.json** in the Settings editor. Each rule compares one metric with a number:
+
+```json
+"mallard.alerts.rules": [
+  { "id": "big-day", "metric": "today.credits", "op": ">", "value": 200, "cooldown": "6h", "severity": "warning" }
+]
+```
+
+The fixed list of metrics, the operators, cooldowns, `restrict` and `clearBelow` are in the [alert rules reference](../reference/alert-rules.md). The scalar settings above are the built-in alerts (budget at 80 % and 100 %, daily credits, velocity, branch caps); alert cooldowns are remembered across reloads.
 
 ## Moving from `config.json`
 
@@ -55,13 +63,13 @@ Earlier versions kept these settings in `config.json` inside Mallard's storage f
 - export targets get a stable `id` (the old target name when it can serve as one, so stored credentials keep working; otherwise a generated id, and the credentials are moved to it);
 - the file is renamed to `config.json.migrated`, never deleted, and a single message tells you what moved.
 
-What it cannot convert is your **custom alert rules, rule groups and variables**: that rules language was replaced by the flat `mallard.alerts.rules` list. They stay in `config.json.migrated`, and the import message says how many there were. Recreate the ones you still need as flat rules.
+Your **custom alert rules** are converted too, in a second step: the rules a flat rule can express are appended to `mallard.alerts.rules` (nothing is duplicated if it runs twice) and one message says how many were converted and how many were not. Rules that need the old rules language (combined conditions, groups, variables, `requiresAuth`, `in`/`matches` and the like) are listed with their reason in the **Mallard** output channel and stay in `config.json.migrated`; recreate the ones you still need as flat rules. [What converts and what does not](../reference/alert-rules.md#legacy) is in the reference.
 
 If `config.json` cannot be read (for example it is not valid JSON), Mallard leaves it untouched, warns once, and tries again on the next start once you have fixed it. **Mallard: Prepare for Uninstall** removes `config.json` and its `.migrated` backup along with everything else.
 
 ## Restriction popups
 
-A rule that is configured to restrict shows a popup when it fires; the old `restrict` block of the rules language is part of what the flat rules replace, so restriction rules follow the same migration as the rest of the custom rules above.
+A rule with `"restrict": true` shows a popup while it matches, and `clearBelow` lifts it once the metric has dropped below a number (see the [alert rules reference](../reference/alert-rules.md#restrictions)).
 
 The popup offers **Dismiss**, **Snooze 15m**, **Snooze 1h**, and **Disable Mallard...**. Mallard never disables any extension automatically; **Disable Mallard...** opens the Extensions view filtered to Mallard so you can turn it off yourself in one click.
 

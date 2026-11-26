@@ -79,8 +79,8 @@
   is imported into the settings above (export targets get a stable `id`, and their
   stored credentials follow it), the dashboard layout is kept, and the file is
   renamed to `config.json.migrated` with a single summary message. Custom alert
-  rules, groups and variables cannot be converted (the rules language is
-  replaced by a flat `mallard.alerts.rules` list); they stay in the backup.
+  rules are converted into the flat `mallard.alerts.rules` list in a second step
+  (see the next entries).
 - **Export target credentials are keyed by a stable `id`** (new in each
   `mallard.export.*Targets` entry) instead of the target name, so renaming a
   target cannot orphan its credentials.
@@ -100,6 +100,47 @@
   `SECRET_MANAGER_TYPE=infisical` fail at startup with a clear validation error —
   copy your credentials into `.env`/`mallard-server-secrets` (static) or OpenBao
   and update the variable.
+
+- **Alert rules are a flat list**: the JSON rules language (`when` trees,
+  `conditions`, `thresholds`, `active`, groups, variables, `{{ }}` message
+  templates and the 32-field context) is replaced by `mallard.alerts.rules`: each
+  rule is `id`, `metric`, `op`, `value`, `cooldown`, `severity` and optionally
+  `notify`, `restrict`, `clearBelow`, over a fixed list of metrics (today, month,
+  budget percentage, forecast, velocity, the last 7 days, the current branch,
+  `model:<id>` and `repo:<name>`). Notification text is a fixed
+  `metric op value (now x)`. The `in` and `matches` operators (and so the wildcard
+  patterns of earlier releases) no longer exist. See the new
+  [alert rules reference](./reference/alert-rules.md).
+- **Old alert rules are converted once**: right after the `config.json` import,
+  every rule a flat rule can express (a single comparison, each `thresholds` level
+  as its own rule, `restrict` with a `reEnableWhen` of the form "below a number" as
+  `clearBelow`) is appended to `mallard.alerts.rules`, without ever duplicating an
+  id. One message says how many converted and how many did not; each skipped rule
+  and its reason is in the **Mallard** output channel and in `config.json.migrated`
+  (combined conditions, groups, variables, `requiresAuth`, `in`/`matches`, future
+  snoozes).
+- **Alert cooldowns persist**: they are kept in extension storage, so reloading
+  the window no longer re-fires every active alert. Each entry lives exactly as
+  long as its own rule's cooldown (not a flat 24 hours), and month-based alerts
+  are keyed by year and month, so the 80 % budget alert cannot collide with the
+  same month of another year. A rule on a metric that resets with the period
+  (`today.*`, `month.*`, `budget.*`, `forecast.*`) fires again on the first
+  snapshot of the new period.
+- **One velocity**: the built-in velocity alert and `velocity.creditsPerHour` in
+  your rules now use the same least-squares rate over the last hour of snapshots
+  (the built-in alert used to look only at the first and last sample, so the two
+  disagreed). A rule fires again only once *more than* its cooldown has passed;
+  the old rules language also allowed exactly the cooldown.
+- **Velocity restrictions work**: a restriction on `velocity.creditsPerHour` never
+  matched, because the restriction engine was not given the recent spend history.
+  It is now, and **Mallard: Simulate Restriction State** reports from the same
+  input. A restriction ends when its rule stops matching, or, with `clearBelow`,
+  once the metric is below that number; the popup and banner name the rule's
+  condition instead of a changing value.
+- **Docs**: the branch-cap alert was documented as a "critical notification". Every
+  Mallard alert is a warning notification; `severity` only picks the rule of an
+  escalation ladder (the budget pair, or `<id>:<n>` levels) that notifies.
+- **Edit alert rules** opens the Settings editor on the alert settings.
 
 ### Removed
 

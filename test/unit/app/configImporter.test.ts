@@ -134,7 +134,7 @@ describe('importLegacyConfig — a full config', () => {
 
     assert.equal(h.messages.info.length, 1, 'exactly one message');
     assert.match(h.messages.info[0]!, /Imported 13 settings, 2 export targets, the dashboard layout from config\.json \(kept as config\.json\.migrated\)/);
-    assert.match(h.messages.info[0]!, /1 custom alert rule \(and any groups or variables\) cannot be converted automatically/);
+    assert.doesNotMatch(h.messages.info[0]!, /alert rule/, 'the rules are announced by their own conversion message');
     assert.deepEqual(h.messages.warn, []);
   });
 

@@ -70,52 +70,25 @@ Set a monthly budget, included-credit allowance, daily threshold, and velocity a
 
 ## Custom alert rules
 
-Write precise conditions using a JSONLogic-inspired language. Rules can fire VS Code notifications on any combination of spend, velocity, model, surface, branch, or time-of-day signals:
+Add your own threshold alerts to the `mallard.alerts.rules` setting. A rule compares one metric (today's, this month's or the forecast's credits and cost, the budget percentage, the spending rate, the last 7 days, the current branch, or one model or repository) with a number, and has a cooldown that is remembered across reloads:
 
 ```json
-{
-  "rules": [{
-    "id": "daily-high",
-    "severity": "warning",
-    "message": "{{today.credits}} credits used today, slow down.",
-    "when": { ">": [{ "var": "today.credits" }, 100] },
-    "cooldown": "2h"
-  }]
-}
+"mallard.alerts.rules": [
+  { "id": "big-day", "metric": "today.credits", "op": ">", "value": 100, "cooldown": "2h", "severity": "warning" }
+]
 ```
 
-## Rule groups
-
-Group rules to toggle a whole set at once from the dashboard without deleting them:
-
-```json
-{
-  "groups": [{ "id": "work-hours", "label": "Work-hour rules", "active": true }],
-  "rules": [{
-    "id": "velocity",
-    "severity": "warning",
-    "message": "High velocity during work hours.",
-    "when": { ">": [{ "var": "velocity.creditsPerHour" }, 40] },
-    "active": { "var": "group.work-hours" }
-  }]
-}
-```
+The notification text is fixed: `today.credits > 100 (now 113)`. See the [alert rules reference](../reference/alert-rules.md) for every metric, the built-in alerts and how your old `config.json` rules were converted.
 
 ## Restriction popups
 
-Add a `restrict` block to any rule to show a popup when the condition fires. No extensions are disabled; the popup creates friction.
+Add `"restrict": true` to a rule to show a popup while its condition holds. No extensions are disabled; the popup creates friction. `clearBelow` keeps the restriction until the metric has dropped below a number:
 
 ```json
-{
-  "id": "budget-exhausted",
-  "severity": "critical",
-  "message": "Monthly budget exhausted.",
-  "when": { ">=": [{ "var": "budget.percentOfBudget" }, 1] },
-  "restrict": {}
-}
+{ "id": "budget-exhausted", "metric": "budget.percentOfBudget", "op": ">=", "value": 1, "cooldown": "4h", "severity": "critical", "restrict": true, "clearBelow": 0.9 }
 ```
 
-The popup shows Dismiss, Snooze 15m, Snooze 1h, and Disable Mallard... buttons. Disable Mallard... opens the Extensions view so you can turn Mallard off yourself; it is a manual step, never an automatic one.
+The popup shows Dismiss, Snooze 15m, Snooze 1h, and Disable Mallard... buttons. Disable Mallard... opens the Extensions view so you can turn Mallard off yourself; it is a manual step, never an automatic one. Restrictions on `velocity.creditsPerHour` work too: they read the same recent-spend history as the velocity alert.
 
 Run **Mallard: Simulate Restriction State** from the Command Palette for a dry run. It reports what would happen without disabling anything.
 
@@ -127,7 +100,7 @@ Every event is tagged to the active git branch and repo. Set per-branch credit c
 "mallard.branchBudgets": { "feature/big-refactor": 500, "main": 200 }
 ```
 
-When a branch hits its cap, Mallard fires a critical notification (4-hour cooldown). Custom rules can reference `currentBranchCredits` and `branchBudgets.<branch>` in conditions.
+When a branch hits its cap, Mallard shows a warning notification (4-hour cooldown). Custom rules can use the `currentBranchCredits` metric.
 
 ## Per-repo filtering and attribution
 
