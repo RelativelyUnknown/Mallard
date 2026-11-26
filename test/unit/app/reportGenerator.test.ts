@@ -37,6 +37,21 @@ describe('ReportGenerator', () => {
     assert.ok(!/<script/i.test(html), 'report must not contain scripts');
   });
 
+  it('names the number of days actually shown instead of a hard-coded "Last 30 Days"', () => {
+    const s = snapshot();
+    const point = s.chartData.dailyBars.points[0]!;
+    const withDays = (n: number) => {
+      const copy = snapshot();
+      copy.chartData.dailyBars.points = Array.from({ length: n }, () => ({ ...point }));
+      return generateReport(copy);
+    };
+    assert.ok(withDays(7).includes('Daily Usage — Last 7 Days'));
+    assert.ok(withDays(90).includes('Daily Usage — Last 90 Days'));
+    assert.ok(withDays(1).includes('Daily Usage — Last 1 Day<'));
+    assert.ok(!withDays(7).includes('Last 30 Days'));
+    assert.ok(withDays(0).includes('<h2>Daily Usage</h2>'));
+  });
+
   it('escapes HTML in model names', () => {
     const s = snapshot();
     s.chartData.modelBreakdown.labels[0] = '<img src=x onerror=alert(1)>';

@@ -1,37 +1,44 @@
 /**
- * Builds and wires every Mallard service in one place, so activation reads as a
- * flat list of registrations. All disposables are pushed onto the extension
- * context's subscriptions.
+ * The composition root: builds every Mallard service by calling the focused
+ * `wire*` functions in `wiring/`, in dependency order, so activation reads as a
+ * flat list of registrations. Keep it free of logic — anything with a branch
+ * belongs in a (unit-tested) wiring module; this file is excluded from coverage.
+ *
+ * ORDER MATTERS. Construction order is the order of the calls below (and of the
+ * statements inside each wire function); `scope.started` collects cleanups that
+ * run in reverse if a later step throws; and the `subscriptions.push` at the end
+ * fixes the disposal order on shutdown.
  */
 import * as vscode from 'vscode';
-import { EXPORT_CONFIG_KEYS, readConfig, readCopilotOtel } from './config';
-import { onSettingsChanged } from './util/vscodeSettings';
-import { UsageService } from './app/UsageService';
-import { UserConfigStore } from './app/UserConfigStore';
-import { LayoutStore } from './app/LayoutStore';
-import { GitHubSession } from './billing/GitHubSession';
-import { GitHubUsageService } from './billing/GitHubUsageService';
-import { RestrictionEngine } from './app/RestrictionEngine';
-import { PricingManifest } from './domain/pricing';
-import { initRepoAttribution } from './ingest/repoResolver';
-import { CopilotConnector } from './ingest/CopilotConnector';
-import { CopilotOtelRequirement } from './ingest/CopilotOtelRequirement';
-import { ClaudeCodeConnector } from './ingest/ClaudeCodeConnector';
-import { ConnectorRegistry } from './ingest/ConnectorRegistry';
+import { readConfig } from './config';
+import type { AlertService } from './app/AlertService';
+import type { UsageService } from './app/UsageService';
+import type { ConfigService } from './app/ConfigService';
+import type { ImportResult } from './app/ConfigImporter';
+import type { LayoutStore } from './app/LayoutStore';
+import type { RestrictionEngine } from './app/RestrictionEngine';
 import { ConnectorSetupGate } from './ingest/ConnectorSetupGate';
-import { WorkspaceFolderMatcher } from './ingest/WorkspaceFolderMatcher';
-import { IngestService } from './ingest/IngestService';
-import { PricingService } from './pricing/PricingService';
-import { CurrencyService } from './pricing/CurrencyService';
-import { EventStore } from './store/EventStore';
-import { AuthProvider } from './export/AuthProvider';
-import { buildStreamBatch, chunkEvents } from './export/payload';
-import { opt } from './util/lang';
+import type { IngestService } from './ingest/IngestService';
+import { initRepoAttribution } from './ingest/repoResolver';
+import type { PricingService } from './pricing/PricingService';
+import type { EventStore } from './store/EventStore';
+import { wireAlerts } from './wiring/wireAlerts';
+import { wireConfig } from './wiring/wireConfig';
+import { wireExport } from './wiring/wireExport';
+import { wireRestriction } from './wiring/wireRestriction';
+import { loadBundledManifest, wireStore } from './wiring/wireStore';
+import { wireUsage } from './wiring/wireUsage';
+import { withStartupRollback } from './wiring/startupRollback';
+import type { WiringScope } from './wiring/scope';
 
 export interface Container {
   usage: UsageService;
   store: EventStore;
-  userConfig: UserConfigStore;
+  userConfig: ConfigService;
+  /** Fires the alerts; also the owner of the velocity history the restriction rules read. */
+  alerts: AlertService;
+  /** What the one-time `config.json` import did at this activation. */
+  imported: ImportResult;
   layout: LayoutStore;
   pricing: PricingService;
   restriction: RestrictionEngine;
@@ -39,151 +46,45 @@ export interface Container {
   setupGate: ConnectorSetupGate;
 }
 
+/**
+ * Builds every service. All-or-nothing: if any step throws, everything started
+ * before it is torn down and nothing is left on `context.subscriptions`.
+ */
 export async function buildContainer(context: vscode.ExtensionContext): Promise<Container> {
+  return withStartupRollback(context.subscriptions, (started) =>
+    assembleContainer({ context, storageDir: context.globalStorageUri.fsPath, started }),
+  );
+}
+
+async function assembleContainer(scope: WiringScope): Promise<Container> {
+  const { context, started } = scope;
   void initRepoAttribution();
   const bundledManifest = await loadBundledManifest(context);
-
   const cfg = readConfig();
-  const storageDir = context.globalStorageUri.fsPath;
 
-  const pricing = new PricingService(storageDir, bundledManifest, cfg.pricingManifestUrl || '');
-  const currency = new CurrencyService(storageDir);
-  // Independent (pricing feed vs FX feed) — load their local caches in parallel
-  // rather than awaiting one after the other. Neither blocks on the network now.
-  await Promise.all([pricing.load(), currency.load()]);
-  pricing.startDailyRefresh();
-  currency.startDailyRefresh();
-
-  const store = await EventStore.open(storageDir, cfg.dataRetentionDays);
-  await store.writer.setPrices(pricing.allPrices());
-
-  const COMPACT_INTERVAL_MS = 60 * 60 * 1000;
-  const compactHandle = setInterval(() => { void store.compact(); }, COMPACT_INTERVAL_MS);
-  context.subscriptions.push({ dispose: () => clearInterval(compactHandle) });
-
-  const copilot = new CopilotConnector(
-    pricing,
-    store.meta,
-    store.fileReader,
-    () => readCopilotOtel(),
-    [new CopilotOtelRequirement()],
-  );
-  const claudeCode = new ClaudeCodeConnector(
-    pricing,
-    store.meta,
-    store.fileReader,
-    new WorkspaceFolderMatcher(() => vscode.workspace.workspaceFolders),
-  );
-
-  const enabledConnectors = new Set(
-    vscode.workspace.getConfiguration('mallard').get<string[]>('enabledConnectors')
-      ?? ['copilot', 'claude-code'],
-  );
-  // Every connector exposes a canonical `.id`; enable/label off that so adding a
-  // new usage source is one entry in this list, not four hardcoded id checks.
-  const allConnectors = [copilot, claudeCode];
-  const registry = new ConnectorRegistry();
-  for (const c of allConnectors) {
-    if (enabledConnectors.has(c.id)) registry.register(c);
-  }
-  const ingest = new IngestService(registry.build());
-
-  const githubSession = new GitHubSession(context.secrets);
-  const github = new GitHubUsageService(githubSession);
-  const userConfig = new UserConfigStore(storageDir);
-  const layout = new LayoutStore(userConfig);
-
-  // Deliver the config.json githubBilling block (mode/pat/org) and keep it
-  // live on config changes — previously configure() was never called, so the
-  // whole user-level PAT path was dead.
-  githubSession.configure(userConfig.get().githubBilling);
-  context.subscriptions.push(
-    userConfig.onDidChange((c) => githubSession.configure(c.githubBilling)),
-  );
-
-  // Extra webhook/MQTT targets from config.json fan the export out to
-  // multiple destinations.
-  let exporter = await new AuthProvider(
+  const { pricing, currency, store, ingest, activeConnectors } = await wireStore(scope, {
     cfg,
-    context,
-    userConfig.get().export ?? {},
-  ).createExporter();
-
-  // Transport/auth/URL/cert changes rebuild the exporter in place — they used
-  // to silently require a window reload. The onInserted pipeline below reads
-  // `exporter` per call, so it picks up the replacement immediately.
-  const rebuildExporter = async (): Promise<void> => {
-    const next = await new AuthProvider(
-      readConfig(),
-      context,
-      userConfig.get().export ?? {},
-    ).createExporter();
-    const old = exporter;
-    exporter = next;
-    old.dispose();
-  };
-  context.subscriptions.push(
-    onSettingsChanged(EXPORT_CONFIG_KEYS, () => {
-      rebuildExporter().catch((err: unknown) =>
-        console.error('[mallard] exporter rebuild failed:', err),
-      );
-    }),
-  );
-  // Fanout target changes live in config.json (export.webhookTargets /
-  // export.mqttTargets) rather than settings — watch the export block too so
-  // "Mallard: Configure Export Fanout Targets" applies without a reload.
-  let lastExportBlock = JSON.stringify(userConfig.get().export ?? {});
-  context.subscriptions.push(
-    userConfig.onDidChange((c) => {
-      const next = JSON.stringify(c.export ?? {});
-      if (next === lastExportBlock) return;
-      lastExportBlock = next;
-      rebuildExporter().catch((err: unknown) =>
-        console.error('[mallard] exporter rebuild failed:', err),
-      );
-    }),
-  );
-
-  const usage = new UsageService(store.reader, pricing, ingest, userConfig, currency, github);
-
-  // The streaming pipeline: every batch of freshly ingested (deduped) events
-  // is priced/labeled already — chunk it and hand it to the exporter, which
-  // owns durable retry. Fire-and-forget; ingest never blocks on the network.
-  store.writer.onInserted = (events) => {
-    void (async () => {
-      for (const chunk of chunkEvents(events)) {
-        await exporter.export(buildStreamBatch(chunk));
-      }
-    })().catch((err: unknown) => console.error('[mallard] event stream export failed:', err));
-  };
-  // When the background FX refresh lands real rates, recompute so the dashboard
-  // updates from the USD-only default it started with.
-  currency.onRatesUpdated = () => void usage.refresh();
-  const restriction = new RestrictionEngine(storageDir);
+    bundledManifest,
+    enabledConnectors: new Set(cfg.enabledConnectors),
+  });
+  const { userConfig, layout, githubSession, github, imported } = await wireConfig(scope, { pricing });
+  const { exporter } = await wireExport(scope, { cfg, userConfig, store });
+  const { alerts } = await wireAlerts(scope, { userConfig, imported });
+  const { usage, refreshUsage } = wireUsage(scope, {
+    store, pricing, ingest, userConfig, currency, github, alerts,
+  });
+  const { restriction } = wireRestriction(scope, { usage, userConfig, alerts });
 
   // Generic gate that nudges the user to enable any connector prerequisite
   // (e.g. Copilot's OTel exporter) and re-refreshes once applied. Scoped to
   // only the enabled connectors — no point nudging Copilot OTel setup for a
   // connector the user opted out of via mallard.enabledConnectors.
-  const activeConnectors = allConnectors.filter((c) => enabledConnectors.has(c.id));
-  const setupGate = new ConnectorSetupGate(context, activeConnectors, () => void usage.refresh());
-
-  context.subscriptions.push(
-    usage.onDidChangeSnapshot((snapshot) => {
-      const userCfg = userConfig.get();
-      void restriction.reconcile({
-        snapshot,
-        rules: userCfg.rules ?? [],
-        ...opt('vars',           userCfg.vars),
-        ...opt('groups',         userCfg.groups),
-        signedIn: snapshot.authStatus === 'signed-in',
-        ...opt('branchBudgets', userCfg.branchBudgets),
-      }).catch((err: unknown) =>
-        console.error('[mallard] restriction reconcile failed:', err),
-      );
-    }),
+  const setupGate = new ConnectorSetupGate(context, activeConnectors, () =>
+    refreshUsage('refresh after connector setup'),
   );
+  started.push(() => setupGate.dispose());
 
+  // Shutdown disposal order (VS Code disposes subscriptions in array order).
   context.subscriptions.push(
     { dispose: () => pricing.dispose() },
     { dispose: () => currency.dispose() },
@@ -193,20 +94,9 @@ export async function buildContainer(context: vscode.ExtensionContext): Promise<
     layout,
     usage,
     restriction,
-    { dispose: () => exporter.dispose() },
+    { dispose: () => exporter.close() },
     setupGate,
   );
 
-  return { usage, store, userConfig, layout, pricing, restriction, ingest, setupGate };
-}
-
-async function loadBundledManifest(context: vscode.ExtensionContext): Promise<PricingManifest> {
-  const fallback: PricingManifest = { version: 1, pricePerCredit: 0.04, updatedAt: '', models: {} };
-  const manifestPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'pricing-manifest.json');
-  try {
-    const raw = await vscode.workspace.fs.readFile(manifestPath);
-    return JSON.parse(Buffer.from(raw).toString('utf8')) as PricingManifest;
-  } catch {
-    return fallback;
-  }
+  return { usage, store, userConfig, alerts, imported, layout, pricing, restriction, ingest, setupGate };
 }

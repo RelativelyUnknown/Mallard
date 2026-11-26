@@ -16,9 +16,29 @@ export interface GitHubBillingStripHandle {
   update(snapshot: UsageSnapshot): void;
 }
 
+/** The snapshot fields this strip renders — it re-renders only when they change. */
+function renderKey(s: UsageSnapshot): string {
+  const status: AuthStatus = s.authStatus;
+  if (status === 'error') return JSON.stringify([status, s.authError ?? null]);
+  if (status === 'signed-in') {
+    const b = s.githubBilling;
+    return JSON.stringify([
+      status, s.currency, s.fxRates[s.currency] ?? null, s.budget.usedCost,
+      b ? [b.totalNetAmount, b.quota?.resetDate ?? null] : null,
+    ]);
+  }
+  return status;
+}
+
 export function mountGitHubBillingStrip(el: HTMLElement): GitHubBillingStripHandle {
+  // update() runs on every live snapshot. Rebuilding an unchanged strip would
+  // detach its Retry / Set PAT button from under a keyboard user mid-press.
+  let renderedKey: string | null = null;
   return {
     update(s: UsageSnapshot) {
+      const key = renderKey(s);
+      if (key === renderedKey) return;
+      renderedKey = key;
       el.innerHTML = '';
       const status: AuthStatus = s.authStatus;
 

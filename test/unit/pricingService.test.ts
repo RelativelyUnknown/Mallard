@@ -29,7 +29,8 @@ function stubHttpsGet(routes: Record<string, unknown>): () => void {
     setImmediate(() => {
       if (!matched) {
         const listeners: Record<string, () => void> = {};
-        const res = { statusCode: 404, on(ev: string, fn: () => void) { listeners[ev] = fn; } } as unknown as { statusCode: number; on(ev: string, d?: Buffer): void };
+        // A real IncomingMessage has headers and resume(); the fetcher drains non-200 responses.
+        const res = { statusCode: 404, headers: {}, resume(): void {}, on(ev: string, fn: () => void) { listeners[ev] = fn; } } as unknown as { statusCode: number; on(ev: string, d?: Buffer): void };
         cb(res);
         setImmediate(() => listeners['end']?.());
         return;
@@ -131,12 +132,14 @@ describe('PricingService — load() with cache', () => {
       updatedAt: '2020-01-01T00:00:00Z',
     };
     writeFileSync(path.join(dir, 'pricing-manifest.json'), JSON.stringify(stale));
+    const restore = stubHttpsGet({}); // keep load() off the real network
     try {
       const svc = new PricingService(dir, BUNDLED);
       await svc.load();
       assert.equal(svc.pricePerCredit, 0.04); // bundled, not stale
       svc.dispose();
     } finally {
+      restore();
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
@@ -329,15 +332,76 @@ describe('PricingService — lifecycle and clearCache', () => {
     }
   });
 
+  it('a manifest cache write that fails is swallowed: the fetched manifest still applies in memory', async () => {
+    const dir = await tmpDir();
+    // A directory where the cache file belongs makes writeFile() fail (EISDIR), whoever runs the tests.
+    await fs.mkdir(path.join(dir, 'pricing-manifest.json'));
+    const fresh: PricingManifest = {
+      version: 1,
+      pricePerCredit: 0.09,
+      updatedAt: new Date().toISOString(),
+      models: { 'gpt-4o': 3 },
+    };
+    const restore = stubHttpsGet({ 'raw.githubusercontent': fresh });
+    try {
+      const svc = new PricingService(dir, BUNDLED);
+      await svc.load();
+      await new Promise((r) => setTimeout(r, 100));
+      assert.equal(svc.pricePerCredit, 0.09, 'the refreshed manifest is in force even though it could not be cached');
+      assert.ok((await fs.stat(path.join(dir, 'pricing-manifest.json'))).isDirectory(), 'nothing replaced the blocker');
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('loadCached returns null for an invalid manifest shape', async () => {
     const dir = await tmpDir();
     writeFileSync(path.join(dir, 'pricing-manifest.json'), JSON.stringify({ version: 'not-a-number' }));
+    const restore = stubHttpsGet({}); // keep load() off the real network
     try {
       const svc = new PricingService(dir, BUNDLED, '');
       await svc.load();
       assert.equal(svc.pricePerCredit, 0.04); // bundled, cache rejected
       svc.dispose();
     } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('PricingService — setRemoteUrl (mallard.pricingManifestUrl applies live)', () => {
+  const fresh = (pricePerCredit: number): PricingManifest => ({
+    version: 1,
+    pricePerCredit,
+    updatedAt: new Date().toISOString(),
+    models: { 'gpt-4o': 3 },
+  });
+
+  it('starts using a newly configured URL straight away, and stops fetching once it is cleared', async () => {
+    const dir = await tmpDir();
+    const restore = stubHttpsGet({ 'custom.example': fresh(0.07), 'other.example': fresh(0.2) });
+    try {
+      const svc = new PricingService(dir, BUNDLED, ''); // blank at startup: no remote refresh
+      await svc.load();
+      assert.equal(svc.pricePerCredit, 0.04);
+
+      svc.setRemoteUrl('https://custom.example/manifest.json');
+      await new Promise((r) => setTimeout(r, 100));
+      assert.equal(svc.pricePerCredit, 0.07, 'the new URL was fetched without a reload');
+
+      svc.setRemoteUrl('');
+      svc.setRemoteUrl('https://other.example/manifest.json');
+      await new Promise((r) => setTimeout(r, 100));
+      assert.equal(svc.pricePerCredit, 0.2, 'a later change replaces the earlier URL');
+
+      svc.setRemoteUrl('');
+      assert.equal(svc.pricePerCredit, 0.2, 'blank turns the remote refresh off and keeps the current manifest');
+      svc.dispose();
+    } finally {
+      restore();
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
@@ -382,6 +446,240 @@ describe('PricingService — response size cap', () => {
       svc.dispose();
     } finally {
       stub.restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+/** Stub https.get to answer every URL with `body` (raw text) and status 200. */
+function stubHttpsRaw(route: (url: string) => string | null): () => void {
+  const origGet = https.get;
+  https.get = ((url: unknown, _opts: unknown, cb: (res: unknown) => void) => {
+    const fakeReq = { on() { return fakeReq; }, destroy() { return fakeReq; } } as unknown as ReturnType<typeof https.get>;
+    setImmediate(() => {
+      const body = route(String(url));
+      const listeners: Record<string, (d?: Buffer) => void> = {};
+      const res = {
+        statusCode: body === null ? 404 : 200,
+        headers: {},
+        resume(): void {},
+        on(ev: string, fn: (d?: Buffer) => void) { listeners[ev] = fn; return res; },
+      };
+      cb(res);
+      setImmediate(() => {
+        if (body !== null) listeners['data']?.(Buffer.from(body));
+        listeners['end']?.();
+      });
+    });
+    return fakeReq;
+  }) as typeof https.get;
+  return () => { https.get = origGet; };
+}
+
+const OPENROUTER_SONNET = {
+  data: [{ id: 'anthropic/claude-sonnet-4-5', pricing: { prompt: '3e-6', completion: '15e-6' } }],
+};
+
+describe('PricingService — remote manifest hardening', () => {
+  async function remoteLoad(manifestBody: string): Promise<{ svc: PricingService; cleanup(): Promise<void> }> {
+    const dir = await tmpDir();
+    const restore = stubHttpsRaw((u) => (u.includes('example.com') ? manifestBody : null));
+    const svc = new PricingService(dir, BUNDLED, 'https://example.com/manifest.json', 10);
+    await svc.load();
+    await new Promise((r) => setTimeout(r, 100));
+    return { svc, cleanup: async () => { svc.dispose(); restore(); await fs.rm(dir, { recursive: true, force: true }); } };
+  }
+  const base = { version: 1, pricePerCredit: 0.07, updatedAt: '2026-06-01T00:00:00Z', models: { 'gpt-4o': 3 } };
+
+  it('accepts a well-formed newer manifest', async () => {
+    const { svc, cleanup } = await remoteLoad(JSON.stringify(base));
+    try { assert.equal(svc.pricePerCredit, 0.07); } finally { await cleanup(); }
+  });
+
+  for (const [name, patch] of Object.entries({
+    'a negative multiplier': { models: { 'gpt-4o': -1 } },
+    'a non-numeric multiplier': { models: { 'gpt-4o': '3' } },
+    'a null multiplier': { models: { 'gpt-4o': null } },
+    'an array of models': { models: [1, 2] },
+    'a zero price per credit': { pricePerCredit: 0 },
+    'an absurd price per credit': { pricePerCredit: 1000 },
+    'a non-finite version': { version: 'x' },
+  })) {
+    it(`rejects ${name} and keeps the bundled manifest`, async () => {
+      const { svc, cleanup } = await remoteLoad(JSON.stringify({ ...base, ...patch }));
+      try { assert.equal(svc.pricePerCredit, 0.04); } finally { await cleanup(); }
+    });
+  }
+
+  it('rejects a non-finite multiplier (JSON 1e999 parses to Infinity)', async () => {
+    const { svc, cleanup } = await remoteLoad(
+      '{"version":1,"pricePerCredit":0.07,"updatedAt":"2026-06-01T00:00:00Z","models":{"gpt-4o":1e999}}',
+    );
+    try { assert.equal(svc.pricePerCredit, 0.04); } finally { await cleanup(); }
+  });
+
+  it('does not let an older remote manifest downgrade the bundled one', async () => {
+    const { svc, cleanup } = await remoteLoad(JSON.stringify({ ...base, updatedAt: '2025-01-01T00:00:00Z' }));
+    try { assert.equal(svc.pricePerCredit, 0.04); } finally { await cleanup(); }
+    const { svc: older, cleanup: c2 } = await remoteLoad(JSON.stringify({ ...base, version: 0 }));
+    try { assert.equal(older.pricePerCredit, 0.04); } finally { await c2(); }
+  });
+
+  it('keeps the manifest content date in the cache and records the fetch time separately', async () => {
+    const dir = await tmpDir();
+    const restore = stubHttpsRaw((u) => (u.includes('example.com') ? JSON.stringify(base) : null));
+    try {
+      const svc = new PricingService(dir, BUNDLED, 'https://example.com/manifest.json', 10);
+      await svc.load();
+      await new Promise((r) => setTimeout(r, 100));
+      const cached = JSON.parse(await fs.readFile(path.join(dir, 'pricing-manifest.json'), 'utf8'));
+      assert.equal(cached.updatedAt, '2026-06-01T00:00:00Z');
+      assert.ok(Date.now() - Date.parse(cached.fetchedAt) < 10_000);
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('prefers the bundled manifest over a fresh cache that is older than it', async () => {
+    const dir = await tmpDir();
+    // Fetched moments ago, but the content predates what this build ships.
+    writeFileSync(
+      path.join(dir, 'pricing-manifest.json'),
+      JSON.stringify({ ...base, pricePerCredit: 0.99, updatedAt: '2025-06-01T00:00:00Z', fetchedAt: new Date().toISOString() }),
+    );
+    const restore = stubHttpsRaw(() => null);
+    try {
+      const svc = new PricingService(dir, BUNDLED, '', 10);
+      await svc.load();
+      assert.equal(svc.pricePerCredit, 0.04);
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('uses a cached manifest that is newer than the bundled one', async () => {
+    const dir = await tmpDir();
+    writeFileSync(
+      path.join(dir, 'pricing-manifest.json'),
+      JSON.stringify({ ...base, pricePerCredit: 0.06, version: 2, fetchedAt: new Date().toISOString() }),
+    );
+    const restore = stubHttpsRaw(() => null);
+    try {
+      const svc = new PricingService(dir, BUNDLED, '', 10);
+      await svc.load();
+      assert.equal(svc.pricePerCredit, 0.06);
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('PricingService — token prices at cold start', () => {
+  it('load() waits for the first token-price fetch, so the first ingest is priced', async () => {
+    const dir = await tmpDir();
+    const restore = stubHttpsRaw((u) => (u.includes('openrouter.ai') ? JSON.stringify(OPENROUTER_SONNET) : null));
+    try {
+      const svc = new PricingService(dir, BUNDLED, '');
+      await svc.load(); // no extra wait: prices must already be there
+      assert.ok(svc.tokenPrices, 'token prices available right after load()');
+      assert.deepEqual(svc.tokenPrices!['claude-sonnet-4-5'], { input: 3e-6, output: 15e-6 });
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not wait past the timeout for a feed that never answers', async () => {
+    const dir = await tmpDir();
+    const origGet = https.get;
+    https.get = (() => ({ on() { return this; }, destroy() { return this; } })) as unknown as typeof https.get;
+    try {
+      const svc = new PricingService(dir, BUNDLED, '', 40);
+      const t0 = Date.now();
+      await svc.load();
+      assert.ok(Date.now() - t0 < 2_000, 'load() is bounded by the first-fetch wait');
+      assert.equal(svc.tokenPrices, undefined);
+      svc.dispose();
+    } finally {
+      https.get = origGet;
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps a stale (<= 30 day) cache when the refresh fails offline', async () => {
+    const dir = await tmpDir();
+    writeFileSync(
+      path.join(dir, 'token-prices.json'),
+      JSON.stringify({
+        fetchedAt: new Date(Date.now() - 3 * 24 * 3600_000).toISOString(),
+        prices: { 'claude-sonnet-4-5': { input: 3e-6, output: 15e-6 } },
+      }),
+    );
+    const restore = stubHttpsRaw(() => null);
+    try {
+      const svc = new PricingService(dir, BUNDLED, '', 1000);
+      await svc.load();
+      assert.deepEqual(svc.tokenPrices?.['claude-sonnet-4-5'], { input: 3e-6, output: 15e-6 });
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('replaces a stale cache with fresh prices when the network is up', async () => {
+    const dir = await tmpDir();
+    writeFileSync(
+      path.join(dir, 'token-prices.json'),
+      JSON.stringify({
+        fetchedAt: new Date(Date.now() - 3 * 24 * 3600_000).toISOString(),
+        prices: { 'claude-sonnet-4-5': { input: 9e-6, output: 9e-6 } },
+      }),
+    );
+    const restore = stubHttpsRaw((u) => (u.includes('openrouter.ai') ? JSON.stringify(OPENROUTER_SONNET) : null));
+    try {
+      const svc = new PricingService(dir, BUNDLED, '', 1000);
+      await svc.load();
+      assert.equal(svc.tokenPrices?.['claude-sonnet-4-5']?.input, 3e-6);
+      svc.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('discards a cache older than 30 days and malformed cached entries', async () => {
+    const dir = await tmpDir();
+    writeFileSync(
+      path.join(dir, 'token-prices.json'),
+      JSON.stringify({ fetchedAt: new Date(Date.now() - 40 * 24 * 3600_000).toISOString(), prices: { a: { input: 1, output: 1 } } }),
+    );
+    const restore = stubHttpsRaw(() => null);
+    try {
+      const svc = new PricingService(dir, BUNDLED, '', 1000);
+      await svc.load();
+      assert.equal(svc.tokenPrices, undefined);
+      svc.dispose();
+      writeFileSync(
+        path.join(dir, 'token-prices.json'),
+        JSON.stringify({
+          fetchedAt: new Date().toISOString(),
+          prices: { good: { input: 1e-6, output: 2e-6 }, bad: { input: -1, output: 1 }, worse: 'x', nan: { input: null, output: 1 } },
+        }),
+      );
+      const svc2 = new PricingService(dir, BUNDLED, '', 1000);
+      await svc2.load();
+      assert.deepEqual(Object.keys(svc2.tokenPrices ?? {}), ['good']);
+      svc2.dispose();
+    } finally {
+      restore();
       await fs.rm(dir, { recursive: true, force: true });
     }
   });

@@ -8,6 +8,13 @@ import { defaultLogger, Logger } from '../util/logger';
 export type RowMapper = (row: Record<string, unknown>, ctx: ParseContext) => UsageEvent | null;
 
 /**
+ * Combines two events that map to the same id within one ingest batch (e.g. a
+ * streamed API message written as several log lines). Without a merger,
+ * duplicates are passed through and the writer keeps the first.
+ */
+export type EventMerger = (kept: UsageEvent, incoming: UsageEvent, ctx: ParseContext) => UsageEvent;
+
+/**
  * DuckDB's `read_ndjson` throws "No files found that match the pattern …" when
  * a glob matches zero files on disk. That is an expected, benign condition
  * (a discovered log dir may simply contain no matching files), not a failure —
@@ -15,6 +22,29 @@ export type RowMapper = (row: Record<string, unknown>, ctx: ParseContext) => Usa
  */
 function isNoFilesError(err: unknown): boolean {
   return /No files found/i.test(String(err));
+}
+
+/**
+ * Epoch ms of a `timestamp` column of any inferred type, independent of the
+ * connection's TimeZone setting. DuckDB infers ISO "...Z" strings as a naive
+ * TIMESTAMP holding the UTC instant, and casting that straight to TIMESTAMPTZ
+ * would read it in the session zone (shifting by the UTC offset). Going via
+ * text instead: a zone designator is honoured, a naive date-time is UTC (the
+ * same rule as connectorUtils.parseTimestampString), numeric text is epoch ms,
+ * and anything else is NULL.
+ */
+function timestampMsSql(): string {
+  const col = `trim(CAST("timestamp" AS VARCHAR), '"')`;
+  return `CASE
+    WHEN regexp_matches(${col}, ':[0-9]{2}(\\.[0-9]+)?\\s?(Z|z|[+-][0-9]{2}(:?[0-9]{2})?)$')
+      THEN epoch_ms(TRY_CAST(${col} AS TIMESTAMPTZ))
+    ELSE COALESCE(epoch_ms(timezone('UTC', TRY_CAST(${col} AS TIMESTAMP))), TRY_CAST(${col} AS BIGINT))
+  END`;
+}
+
+/** DuckDB's binder error for a column the files don't have. */
+function isMissingColumnError(err: unknown): boolean {
+  return /Referenced column .* not found|not found in FROM clause/i.test(String(err));
 }
 
 /** Alias DuckDB attaches a SQLite source under; `query` selects from it. */
@@ -63,8 +93,9 @@ export class DuckDBFileReader {
     mapRow: RowMapper,
     ctx: ParseContext,
     sinceMs?: number,
+    merge?: EventMerger,
   ): Promise<IngestResult> {
-    const task = () => this._ingestGlob(globs, mapRow, ctx, sinceMs);
+    const task = () => this._ingestGlob(globs, mapRow, ctx, sinceMs, merge);
     this.queue = this.queue.then(task, task);
     return this.queue as Promise<IngestResult>;
   }
@@ -82,10 +113,12 @@ export class DuckDBFileReader {
     sql: string,
     mapRow: RowMapper,
     ctx: ParseContext,
+    merge?: EventMerger,
   ): Promise<{ events: UsageEvent[]; rowsRead: number }> {
     const result = await this.conn.stream(sql);
     const columnNames = result.deduplicatedColumnNames();
     const events: UsageEvent[] = [];
+    const indexById = new Map<string, number>();
     let rowsRead = 0;
     for (;;) {
       const chunk = await result.fetchChunk();
@@ -96,7 +129,14 @@ export class DuckDBFileReader {
         const row: Record<string, unknown> = {};
         for (let i = 0; i < columnNames.length; i++) row[columnNames[i]!] = values[i];
         const ev = mapRow(row, ctx);
-        if (ev !== null) events.push(ev);
+        if (ev === null) continue;
+        const at = indexById.get(ev.id);
+        if (merge && at !== undefined) {
+          events[at] = merge(events[at]!, ev, ctx);
+        } else {
+          if (merge) indexById.set(ev.id, events.length);
+          events.push(ev);
+        }
       }
     }
     return { events, rowsRead };
@@ -107,26 +147,38 @@ export class DuckDBFileReader {
     mapRow: RowMapper,
     ctx: ParseContext,
     sinceMs?: number,
+    merge?: EventMerger,
   ): Promise<IngestResult> {
     const globArray = Array.isArray(globs) ? globs : [globs];
     if (globArray.length === 0) return { inserted: 0, maxEventTs: null };
 
     const globList = globArray.map((g) => `'${g.replace(/'/g, "''")}'`).join(', ');
     // sinceMs is an internal epoch-ms watermark; the integer guard keeps any
-    // non-numeric value out of the SQL text.
+    // non-numeric value out of the SQL text. `>=`, not `>`: the watermark is the
+    // newest ts already ingested, and a later row can share that exact
+    // millisecond — a strict compare skipped it forever. Re-reading the rows at
+    // the watermark is harmless (inserts dedupe by id). Rows whose timestamp is
+    // not readable in SQL always pass: they are re-read each run and deduped on
+    // their stable ids.
+    const rowMs = timestampMsSql();
     const tsFilter =
       sinceMs != null && Number.isFinite(sinceMs)
-        ? `WHERE COALESCE(epoch_ms(TRY_CAST(timestamp AS TIMESTAMPTZ)), TRY_CAST(timestamp AS BIGINT)) > ${Math.floor(sinceMs)}`
+        ? `WHERE (${rowMs} IS NULL OR ${rowMs} >= ${Math.floor(sinceMs)})`
         : '';
+    const select = (where: string): string =>
+      `SELECT *, filename FROM read_ndjson([${globList}], ignore_errors := true, auto_detect := true, filename := true) ${where}`;
 
     let events: UsageEvent[];
     let rowsRead: number;
     try {
-      ({ events, rowsRead } = await this.streamEvents(
-        `SELECT *, filename FROM read_ndjson([${globList}], ignore_errors := true, auto_detect := true, filename := true) ${tsFilter}`,
-        mapRow,
-        ctx,
-      ));
+      try {
+        ({ events, rowsRead } = await this.streamEvents(select(tsFilter), mapRow, ctx, merge));
+      } catch (err) {
+        // Files with no `timestamp` column (e.g. OTel spans keyed by a
+        // nanosecond epoch) cannot be filtered in SQL: read them whole.
+        if (!tsFilter || !isMissingColumnError(err)) throw err;
+        ({ events, rowsRead } = await this.streamEvents(select(''), mapRow, ctx, merge));
+      }
     } catch (err) {
       if (isNoFilesError(err)) return { inserted: 0, maxEventTs: null };
       this.logger.warn('duckdb', `ingest failed for [${globArray.join(', ')}]: ${String(err)}`);
@@ -156,12 +208,25 @@ export class DuckDBFileReader {
   }
 
   private sqliteExtensionReady = false;
+  /** Set when INSTALL/LOAD failed (e.g. offline): not retried until restart. */
+  private sqliteExtensionFailure: unknown;
 
-  /** Load the DuckDB sqlite extension once per connection (idempotent). */
+  /**
+   * Load the DuckDB sqlite extension once per connection (idempotent). A
+   * failure is cached for the session — INSTALL downloads the extension, and
+   * retrying on every debounced file-watcher tick only repeats a failing
+   * network call.
+   */
   private async ensureSqliteExtension(): Promise<void> {
     if (this.sqliteExtensionReady) return;
-    await this.conn.run('INSTALL sqlite');
-    await this.conn.run('LOAD sqlite');
+    if (this.sqliteExtensionFailure !== undefined) throw this.sqliteExtensionFailure;
+    try {
+      await this.conn.run('INSTALL sqlite');
+      await this.conn.run('LOAD sqlite');
+    } catch (err) {
+      this.sqliteExtensionFailure = err;
+      throw err;
+    }
     this.sqliteExtensionReady = true;
   }
 

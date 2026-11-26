@@ -3,6 +3,7 @@
  * Shared, pure data model for Mallard. Imported by BOTH the extension host and
  * the webview bundle — must never import `vscode` or any Node/DOM API.
  */
+import type { FlatAlertRule } from './contracts';
 
 export type Granularity = 'day' | 'week' | 'month';
 
@@ -102,118 +103,17 @@ export interface UsageEvent {
   costByCategory?: Partial<Record<CostCategory, number>>;
 }
 
-/**
- * User-editable config that lives in extension globalState (NOT settings.json)
- * and is edited from the webview. Shared so both host and webview are typed.
- */
+/** The velocity alert's settings (`mallard.alerts.velocity*`). */
 export interface AlertConfig {
   /** Warn when the recent spending rate exceeds the credits/hour threshold. */
   velocityEnabled: boolean;
   velocityCreditsPerHour: number;
 }
 
-// ── JSON condition types ─────────────────────────────────────────────────────
-
-/** A value that can appear on either side of a comparison operator. */
-export type JsonOperand = number | string | boolean | { var: string };
-
-/**
- * A JSONLogic-inspired condition tree. Evaluated by `evalCondition()`.
- *
- * Examples:
- *   `true` — always fires
- *   `{ ">": [{ "var": "today.credits" }, 50] }` — fires when today > 50 cr
- *   `{ "and": [ ... ] }` — all sub-conditions must be true
- *   `{ "var": "group.g1" }` — truthy check (used for group gates)
- */
-export type JsonCondition =
-  | boolean
-  | { '>':  [JsonOperand, JsonOperand] }
-  | { '>=': [JsonOperand, JsonOperand] }
-  | { '<':  [JsonOperand, JsonOperand] }
-  | { '<=': [JsonOperand, JsonOperand] }
-  | { '==': [JsonOperand, JsonOperand] }
-  | { '!=': [JsonOperand, JsonOperand] }
-  | { 'and': JsonCondition[] }
-  | { 'or':  JsonCondition[] }
-  | { 'not': JsonCondition }
-  | { 'var': string };
-
-export interface RuleRestrict {
-  reEnableWhen?: JsonCondition;
-}
-
-/**
- * A single condition in the structured `conditions` shorthand.
- * More approachable than raw JSONLogic — no nested prefix notation required.
- *
- * Supported operators: `>` `>=` `<` `<=` `==` `!=` `in` `matches`
- */
-export interface SimpleCondition {
-  /** Dot-path into the rule context. E.g. "today.credits", "budget.percentOfBudget". */
-  field: string;
-  /** Comparison operator. */
-  op: '>' | '>=' | '<' | '<=' | '==' | '!=' | 'in' | 'matches';
-  /** Value to compare against. For `in`, provide an array. */
-  value: number | string | boolean | (string | number)[];
-}
-
-/**
- * A single severity level in a threshold escalation rule.
- * The highest-severity threshold whose condition fires wins.
- */
-export interface ThresholdLevel extends SimpleCondition {
-  severity: 'info' | 'warning' | 'critical';
-  /** Per-level cooldown (overrides the rule-level cooldown for this severity). */
-  cooldown?: string;
-}
-
-export interface AlertRule {
-  id: string;
-  severity: 'info' | 'warning' | 'critical';
-  cooldown?: string;
-  message: string;
-  /**
-   * JSONLogic condition tree (original syntax). Required unless `conditions` is provided.
-   */
-  when?: JsonCondition;
-  /**
-   * Structured conditions shorthand. Easier to read and write than JSONLogic.
-   * Use `match` to control how conditions are combined.
-   */
-  conditions?: SimpleCondition[];
-  /**
-   * How to combine `conditions`. Defaults to "all" (AND).
-   * Ignored when `when` is used.
-   */
-  match?: 'all' | 'any' | 'none';
-  active?: JsonCondition;
-  requiresAuth?: boolean;
-  notify?: boolean;
-  restrict?: RuleRestrict;
-  /**
-   * Severity escalation: instead of a single `when`, declare multiple threshold
-   * levels. The highest-severity level whose condition fires wins. Each level
-   * can have its own cooldown.
-   */
-  thresholds?: ThresholdLevel[];
-  /**
-   * Snooze this rule until an ISO 8601 timestamp. The rule is suppressed while
-   * the current time is before `snoozeUntil`. Typically set via the UI.
-   */
-  snoozeUntil?: string;
-}
-
-export interface AlertGroup {
-  id: string;
-  label?: string;
-  active: JsonCondition;
-}
-
 export interface DisplayPrefs {
   /** Days shown in the daily-bars and cumulative-area charts. Default 30. */
   dailyBarsWindow?: number;
-  /** Weeks shown in the activity heatmap. Default 12. */
+  /** Weeks shown in the activity heatmap. Default 52 (a full year). */
   heatmapWeeks?: number;
   /** Max models/repos shown in ranked lists. Default 8. */
   topN?: number;
@@ -227,28 +127,27 @@ export interface UserConfig {
   /** Warn once a day when daily credits exceed this; 0 = off. */
   dailyCreditAlert: number;
   alerts: AlertConfig;
-  /** Optional v2 fields (added in §4 of the design). */
-  version?: 1 | 2;
-  vars?: Record<string, number | string | boolean | (string | number)[]>;
-  groups?: AlertGroup[];
-  rules?: AlertRule[];
-  budget?: { monthlyUsd: number; includedCredits: number };
-  /** Per-branch credit caps keyed by branch name. Used in restriction rules. */
+  /** The validated `mallard.alerts.rules` setting (flat threshold rules). */
+  flatRules?: FlatAlertRule[];
+  /** Per-branch credit caps keyed by branch name (`mallard.branchBudgets`). */
   branchBudgets?: Record<string, number>;
-  /** Config-driven dashboard layout (CSS grid syntax). Overrides globalState order/sizing. */
+  /**
+   * Legacy dashboard block of config.json. Not part of the settings and not read at
+   * runtime (the layout is `LayoutV2` in globalState); only the one-time importer
+   * feeds `panels` into the layout migration.
+   */
   dashboard?: ConfigDashboard;
-  /** GitHub billing auth configuration (PAT or VS Code session). */
+  /** GitHub billing auth configuration (`mallard.githubBilling.*`). */
   githubBilling?: GitHubBillingConfig;
-  /** Dashboard display preferences (chart windows, top-N). */
+  /** Dashboard display preferences (`mallard.display.*`). */
   display?: DisplayPrefs;
-  /** Display currency (ISO code, e.g. "EUR"). Dashboard-editable, so it lives
-   *  here in UserConfigStore rather than VS Code settings. */
+  /** Display currency, an ISO code such as "EUR" (`mallard.currency`). */
   currency?: string;
-  /** Metric export extras beyond the mallard.* settings. */
+  /** Extra export fan-out targets (`mallard.export.webhookTargets` / `mqttTargets`). */
   export?: ExportConfig;
 }
 
-/** Metric export configuration block in config.json. */
+/** Extra metric export destinations, from the `mallard.export.*Targets` settings. */
 export interface ExportConfig {
   /**
    * Additional webhook servers to mirror every metric payload to, on top of
@@ -267,9 +166,12 @@ export interface ExportConfig {
 /** One extra export destination (webhook server or MQTT broker). */
 export interface ExportTarget {
   /**
-   * Unique name for this target (e.g. "team"). Also namespaces the target's
-   * credentials in SecretStorage — set them via "Mallard: Manage Credentials".
+   * Stable id (letters, digits, dot, underscore, dash; unique across both
+   * lists). Namespaces the target's credentials in SecretStorage and its retry
+   * queue file, so it must not change once credentials are set.
    */
+  id: string;
+  /** Label shown in the pickers; may be edited freely. */
   name: string;
   /**
    * Endpoint URL: https:// base URL for webhook targets, wss:// URL for MQTT
@@ -278,10 +180,7 @@ export interface ExportTarget {
   url: string;
 }
 
-/**
- * GitHub billing authentication and scope configuration.
- * All fields are machine-scoped and never synced.
- */
+/** GitHub billing authentication and scope configuration (user-level settings). */
 export interface GitHubBillingConfig {
   /**
    * Auth mode:
@@ -304,17 +203,6 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
   includedCredits: 300,
   dailyCreditAlert: 0,
   alerts: { velocityEnabled: false, velocityCreditsPerHour: 0 },
-  version: 1,
-  vars: {},
-  groups: [],
-  rules: [],
-  budget: { monthlyUsd: 0, includedCredits: 300 },
-};
-
-/** Opinionated first-install config. Only written when config.json does not yet exist. */
-export const SEED_USER_CONFIG: Partial<UserConfig> = {
-  dailyCreditAlert: 50,
-  alerts: { velocityEnabled: true, velocityCreditsPerHour: 100 },
 };
 
 export interface RestrictionState {
@@ -326,14 +214,9 @@ export interface RestrictionState {
   userOverrideUntil: number | null;
 }
 
-export const DEFAULT_RESTRICTION_STATE: RestrictionState = {
-  version: 1,
-  active: false,
-  ruleId: '',
-  reasonMessage: '',
-  firedAt: 0,
-  userOverrideUntil: null,
-};
+// One line on purpose: the last runtime statement of this module must not end on a bare `};`, or tsx's
+// end-of-file coverage hint lands on a line nothing executes (the old default layout array carried a c8 marker for this).
+export const DEFAULT_RESTRICTION_STATE: RestrictionState = { version: 1, active: false, ruleId: '', reasonMessage: '', firedAt: 0, userOverrideUntil: null };
 
 /**
  * Chart colour palette mode (the `mallard.palette` setting):
@@ -345,24 +228,11 @@ export const DEFAULT_RESTRICTION_STATE: RestrictionState = {
 export type PaletteMode = 'swiss' | 'theme';
 
 /**
- * Persisted dashboard layout. Each analysis panel has a position (array order),
- * a width span (number of grid columns it occupies, 1..MAX_PANEL_SPAN, clamped
- * at render time to the configured column count), and a visibility flag. Edited
- * in the dashboard's edit mode and stored in globalState.
+ * Height tier of a panel in the legacy v1 dashboard layout (and in config.json's
+ * `dashboard.panels`). The current layout (`LayoutV2`, domain/layout.ts) stores
+ * grid rows instead; the tiers only survive as migration input.
  */
 export type PanelSize = 'compact' | 'normal' | 'tall';
-
-/** Widest a panel may span — matches the maximum configurable column count. */
-export const MAX_PANEL_SPAN = 4;
-
-export interface DashboardPanelLayout {
-  id: string;
-  span: number;
-  hidden: boolean;
-  size?: PanelSize;
-}
-
-export type DashboardLayout = DashboardPanelLayout[];
 
 /**
  * Dashboard panel entry from config.json, using CSS grid shorthand syntax so
@@ -379,49 +249,17 @@ export interface ConfigPanelLayout {
   size?: PanelSize;
 }
 
-/** Dashboard block in config.json — sets column count and panel order/sizing. */
+/**
+ * Legacy dashboard block of config.json. Nothing reads it at runtime any more:
+ * the grid is a fixed 4 columns and the layout lives in globalState
+ * (`mallard.layout.v2`). `panels` is only the source for the one-time importer.
+ */
 export interface ConfigDashboard {
-  /** Number of columns in the grid (1–4). Default: 2. */
+  /** Retired: the grid column count is fixed. */
   columns?: number;
-  /** Panel declarations. Unlisted panels fall back to globalState defaults. */
+  /** Legacy panel declarations, imported once into the layout (never rewritten). */
   panels?: ConfigPanelLayout[];
 }
-
-/** The analysis panels that can be reordered, resized, and hidden. */
-export const DASHBOARD_PANELS = [
-  'daily',
-  'heatmap',
-  'models',
-  'sankey',
-  'category',
-  'cumulative',
-  'weekday',
-  'hourly',
-  'repos',
-  'categoryTrend',
-  'tokens',
-  'billing',
-  'languages',
-] as const;
-
-export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = [
-  { id: 'daily', span: 2, hidden: false, size: 'normal' },
-  { id: 'heatmap', span: 2, hidden: false, size: 'normal' },
-  { id: 'models', span: 1, hidden: false, size: 'normal' },
-  { id: 'sankey', span: 1, hidden: false, size: 'normal' },
-  { id: 'category', span: 1, hidden: false, size: 'normal' },
-  { id: 'cumulative', span: 1, hidden: false, size: 'normal' },
-  { id: 'weekday', span: 1, hidden: false, size: 'normal' },
-  { id: 'hourly', span: 1, hidden: false, size: 'normal' },
-  // Extra charts: part of the panel set but hidden until added via the
-  // dashboard's "Add chart" picker.
-  { id: 'repos', span: 1, hidden: true, size: 'normal' },
-  { id: 'categoryTrend', span: 2, hidden: true, size: 'normal' },
-  { id: 'tokens', span: 1, hidden: true, size: 'normal' },
-  { id: 'billing', span: 1, hidden: true, size: 'normal' },
-  { id: 'languages', span: 1, hidden: true, size: 'normal' },
-/* c8 ignore next */
-];
 
 /** Active filter applied to build the current snapshot. */
 export interface Filter {
@@ -433,6 +271,13 @@ export interface Filter {
   branches?: string[];
   /** Filter to specific sources (e.g. 'local', 'claude-code'). */
   sources?: SourceKind[];
+  /**
+   * The date preset `range` was resolved from. Relative presets ('today',
+   * '7d', '30d', 'month') must be re-resolved against the clock — see
+   * `resolveRangePreset` — or the stored `range` goes stale and new events
+   * fall outside it. Also lets a reopened dashboard restore its preset button.
+   */
+  rangePreset?: DatePreset;
 }
 
 export interface Bucket {
@@ -608,8 +453,10 @@ export interface CategoryTrendData {
 export interface WeekdayData {
   /** Credits per weekday, index 0=Sun … 6=Sat. */
   totals: number[];
-  /** Index of the busiest weekday (0–6, Sun=0 basis). */
+  /** Index of the busiest weekday (0–6, Sun=0 basis). 0 when every total is zero — prefer `peakWeekday`. */
   peak: number;
+  /** Busiest weekday (Sun=0 basis), or null when there is no weekday activity at all (mirrors `peakHour`). */
+  peakWeekday?: number | null;
 }
 
 export interface ChartData {

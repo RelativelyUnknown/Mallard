@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { BaseFileConnector } from '../../../src/extension-backend/ingest/BaseFileConnector';
-import type { IFsWatcher } from '../../../src/extension-backend/ingest/IFsWatcher';
+import { IFsWatcher, NoopFsWatcher } from '../../../src/extension-backend/ingest/IFsWatcher';
 import type { ParseContext } from '../../../src/extension-backend/ingest/otelParse';
 import type { PricingService } from '../../../src/extension-backend/pricing/PricingService';
 import type { IMetaStore as MetaStore } from '../../../src/extension-backend/store/MetaStore';
@@ -254,5 +254,107 @@ describe('BaseFileConnector — buildContext', () => {
     const ctx = await (c as unknown as { buildContext(g: string[]): Promise<ParseContext> }).buildContext([]);
     assert.equal(ctx.pricePerCredit, 0.04);
     assert.ok(typeof ctx.now === 'number');
+  });
+});
+
+describe('BaseFileConnector — repeated start() (UsageService refreshes)', () => {
+  function countingWatcher() {
+    const stats = { watches: 0, closes: 0, dirs: [] as string[] };
+    const watcher: IFsWatcher = {
+      watch: (dir) => {
+        stats.watches++;
+        stats.dirs.push(dir);
+        return { close: () => { stats.closes++; } };
+      },
+    };
+    return { stats, watcher };
+  }
+
+  it('does not add a watcher per refresh', async () => {
+    const { pricing, meta, fileReader } = makeStubs();
+    const { stats, watcher } = countingWatcher();
+    const c = new TestConnector(pricing, meta, fileReader, watcher);
+    c.setDiscoverResult({ globs: ['/tmp/a/*.jsonl'], allowedRoots: ['/tmp/a'], searchedDirs: ['/tmp/a'] });
+    await c.start();
+    await c.start();
+    await c.start();
+    assert.equal(stats.watches, 1, 'one recursive watcher for the root, however many refreshes');
+    assert.equal(stats.closes, 0, 'the live watcher is kept, not churned');
+    c.dispose();
+    assert.equal(stats.closes, 1, 'dispose closes exactly the one watcher');
+  });
+
+  it('closes watchers for roots that disappear and watches new ones', async () => {
+    const { pricing, meta, fileReader } = makeStubs();
+    const { stats, watcher } = countingWatcher();
+    const c = new TestConnector(pricing, meta, fileReader, watcher);
+    c.setDiscoverResult({ globs: ['/tmp/a/*.jsonl'], allowedRoots: ['/tmp/a'], searchedDirs: ['/tmp/a'] });
+    await c.start();
+    c.setDiscoverResult({ globs: ['/tmp/b/*.jsonl'], allowedRoots: ['/tmp/b'], searchedDirs: ['/tmp/b'] });
+    await c.start();
+    assert.deepEqual(stats.dirs, ['/tmp/a', '/tmp/b']);
+    assert.equal(stats.closes, 1, 'the stale root watcher is closed');
+    // Target goes empty: everything is released.
+    c.setDiscoverResult({ globs: [], allowedRoots: [], searchedDirs: [] });
+    await c.start();
+    assert.equal(stats.closes, 2);
+    assert.equal(c.getStatus(), 'empty');
+  });
+
+  it('retries a root whose watch failed instead of remembering the failure', async () => {
+    const { pricing, meta, fileReader } = makeStubs();
+    let attempts = 0;
+    const flaky: IFsWatcher = {
+      watch: () => {
+        attempts++;
+        if (attempts <= 2) throw new Error('EMFILE'); // recursive + flat fallback of the first start()
+        return { close() {} };
+      },
+    };
+    const c = new TestConnector(pricing, meta, fileReader, flaky);
+    c.setDiscoverResult({ globs: ['/tmp/a/*.jsonl'], allowedRoots: ['/tmp/a'], searchedDirs: ['/tmp/a'] });
+    await c.start();
+    await c.start();
+    assert.equal(attempts, 3, 'the second refresh tries the root again');
+    await c.start();
+    assert.equal(attempts, 3, 'and stops once a watcher is held');
+  });
+
+  it('reports "loading" only for the first pass, not for later refreshes', async () => {
+    const { pricing, meta } = makeStubs();
+    const seen: string[] = [];
+    const ref: { connector?: TestConnector } = {};
+    const reader = {
+      ingestGlob: async () => { seen.push(ref.connector!.getStatus()); return { inserted: 1, maxEventTs: FIXED_EVENT_TS }; },
+      hasField: async () => false,
+    } as unknown as DuckDBFileReader;
+    const c = new TestConnector(pricing, meta, reader, new NoopFsWatcher());
+    ref.connector = c;
+    c.setDiscoverResult({ globs: ['/tmp/a/*.jsonl'], allowedRoots: ['/tmp/a'], searchedDirs: ['/tmp/a'] });
+    await c.start();
+    await c.start();
+    await c.start();
+    assert.deepEqual(seen, ['loading', 'ok', 'ok']);
+  });
+
+  it('a debounced reparse after a refresh uses the re-discovered target', async () => {
+    let cb: (() => void) | undefined;
+    const watcher: IFsWatcher = { watch: (_d, fn) => { cb = fn; return { close() {} }; } };
+    const { pricing, meta } = makeStubs();
+    const globsSeen: string[][] = [];
+    const reader = {
+      ingestGlob: async (globs: string[]) => { globsSeen.push(globs); return { inserted: 0, maxEventTs: null }; },
+      hasField: async () => false,
+    } as unknown as DuckDBFileReader;
+    const c = new TestConnector(pricing, meta, reader, watcher);
+    c.setDiscoverResult({ globs: ['/tmp/a/*.jsonl'], allowedRoots: ['/tmp/a'], searchedDirs: ['/tmp/a'] });
+    await c.start();
+    cb!(); // schedules the debounce against the first target
+    c.setDiscoverResult({ globs: ['/tmp/b/*.jsonl'], allowedRoots: ['/tmp/a'], searchedDirs: ['/tmp/a'] });
+    await c.start();
+    const before = globsSeen.length;
+    await new Promise((r) => setTimeout(r, 1700));
+    assert.deepEqual(globsSeen[before], ['/tmp/b/*.jsonl']);
+    c.dispose();
   });
 });

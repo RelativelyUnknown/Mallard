@@ -20,7 +20,7 @@ export const ALL_SECRET_KEYS: string[] = Object.values(SECRET_KEYS);
 
 export interface CredentialSlot {
   /** SecretStorage key. Base slots use a SECRET_KEYS value; per-target slots
-   * append `:<targetName>` (see webhookTargetSlots). */
+   * append `:<targetId>` (see webhookTargetSlots). */
   key: string;
   /** Short name shown in the QuickPick. */
   label: string;
@@ -56,32 +56,40 @@ export const CREDENTIAL_SLOTS: CredentialSlot[] = [
   },
 ];
 
-/** SecretStorage key for a per-target credential (multi-server webhook export). */
-export function targetSecretKey(base: SecretKey, targetName: string): string {
-  return `${base}:${targetName}`;
+/**
+ * SecretStorage key for a per-target credential (multi-server export). Keyed by
+ * the target's stable `id`, never its display name, so renaming a target in
+ * settings.json cannot orphan its credentials.
+ */
+export function targetSecretKey(base: SecretKey, targetId: string): string {
+  return `${base}:${targetId}`;
+}
+
+/** The identity of a fan-out target as far as credentials are concerned. */
+interface TargetRef {
+  id: string;
+  name: string;
 }
 
 /**
- * Credential slots for the extra webhook targets declared in config.json
- * (`export.webhookTargets`). Each target gets its own API key / bearer token /
- * signing secret, namespaced by the target name.
+ * Credential slots for the extra webhook targets declared in
+ * `mallard.export.webhookTargets`. Each target gets its own API key / bearer
+ * token / signing secret, namespaced by the target's id.
  */
-export function webhookTargetSlots(
-  targets: ReadonlyArray<{ name: string }>,
-): CredentialSlot[] {
+export function webhookTargetSlots(targets: ReadonlyArray<TargetRef>): CredentialSlot[] {
   return targets.flatMap((t) => [
     {
-      key: targetSecretKey(SECRET_KEYS.webhookApiKey, t.name),
+      key: targetSecretKey(SECRET_KEYS.webhookApiKey, t.id),
       label: `Webhook API key — target "${t.name}"`,
       description: `X-API-Key for the "${t.name}" webhook target`,
     },
     {
-      key: targetSecretKey(SECRET_KEYS.webhookBearerToken, t.name),
+      key: targetSecretKey(SECRET_KEYS.webhookBearerToken, t.id),
       label: `Webhook bearer token — target "${t.name}"`,
       description: `Authorization: Bearer for the "${t.name}" webhook target`,
     },
     {
-      key: targetSecretKey(SECRET_KEYS.webhookSigningSecret, t.name),
+      key: targetSecretKey(SECRET_KEYS.webhookSigningSecret, t.id),
       label: `Webhook signing secret — target "${t.name}"`,
       description: `HMAC-SHA256 signing for the "${t.name}" webhook target`,
     },
@@ -89,14 +97,12 @@ export function webhookTargetSlots(
 }
 
 /**
- * Credential slots for the extra MQTT brokers declared in config.json
- * (`export.mqttTargets`). Each broker gets its own CONNECT password.
+ * Credential slots for the extra MQTT brokers declared in
+ * `mallard.export.mqttTargets`. Each broker gets its own CONNECT password.
  */
-export function mqttTargetSlots(
-  targets: ReadonlyArray<{ name: string }>,
-): CredentialSlot[] {
+export function mqttTargetSlots(targets: ReadonlyArray<TargetRef>): CredentialSlot[] {
   return targets.map((t) => ({
-    key: targetSecretKey(SECRET_KEYS.mqttPassword, t.name),
+    key: targetSecretKey(SECRET_KEYS.mqttPassword, t.id),
     label: `MQTT password — broker "${t.name}"`,
     description: `CONNECT password for the "${t.name}" MQTT broker`,
   }));
@@ -104,13 +110,25 @@ export function mqttTargetSlots(
 
 /** All dynamic per-target slots for an export config block. */
 export function exportTargetSlots(exportCfg: {
-  webhookTargets?: ReadonlyArray<{ name: string }>;
-  mqttTargets?: ReadonlyArray<{ name: string }>;
+  webhookTargets?: ReadonlyArray<TargetRef>;
+  mqttTargets?: ReadonlyArray<TargetRef>;
 } | undefined): CredentialSlot[] {
   return [
     ...webhookTargetSlots(exportCfg?.webhookTargets ?? []),
     ...mqttTargetSlots(exportCfg?.mqttTargets ?? []),
   ];
+}
+
+/**
+ * True for a SecretStorage key the metric exporter reads — a base export
+ * secret or a per-target `<base>:<id>` one (the GitHub PAT is not one).
+ * The exporter captures its credentials when built, so a change to any of
+ * these must rebuild it.
+ */
+export function isExportSecretKey(key: string): boolean {
+  return ALL_SECRET_KEYS.some(
+    (base) => base !== SECRET_KEYS.githubPat && (key === base || key.startsWith(`${base}:`)),
+  );
 }
 
 /** Prompt for a value and store/clear the given secret. Reused by all setter commands. */

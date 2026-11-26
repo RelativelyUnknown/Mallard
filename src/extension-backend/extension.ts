@@ -1,9 +1,7 @@
 import * as vscode from 'vscode';
-import { RELEVANT_CONFIG_KEYS } from './config';
 import { watchReloadRequiredSettings } from './util/reloadPrompt';
 import { buildContainer, Container } from './container';
 import {
-  ALL_SECRET_KEYS,
   CREDENTIAL_SLOTS,
   SECRET_KEYS,
   exportTargetSlots,
@@ -12,23 +10,42 @@ import {
 } from './app/credentials';
 import { defaultReportPath, generateReport } from './app/ReportGenerator';
 import { configureExportTargets } from './app/exportTargets';
+import { decideRestrictionPrompt, restrictionStatus } from './app/restrictionUi';
+import { registerStartupFailure } from './app/startupFailure';
+import { wipeAllData } from './app/uninstall';
 import { DashboardPanel } from './ui/DashboardPanel';
 import { SidebarView } from './ui/SidebarView';
 import { formatCredits } from './domain/format';
 import { severityFor } from './domain/budget';
 import { runOnboardingIfNeeded, showOnboarding } from './onboarding';
 import { FLAG_REMOTE_COPILOT_WARNED, getFlag, setFlag } from './app/EphemeralFlags';
+import { defaultLogger } from './util/logger';
+import { buildReconcileInput } from './wiring/wireRestriction';
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+/**
+ * What the extension exposes to other extensions and to the integration
+ * tests: whether it actually started. A failed start still registers recovery
+ * handlers (see startupFailure.ts), so command registration alone cannot tell.
+ */
+export interface MallardExports {
+  readonly status: 'ready' | 'failed';
+  readonly error?: string;
+}
+
+export async function activate(context: vscode.ExtensionContext): Promise<MallardExports> {
+  // A real Output channel, so the failure toast's "Output panel" pointer is
+  // true; the shared logger mirrors info/warn/error into it.
+  const output = vscode.window.createOutputChannel('Mallard');
+  context.subscriptions.push(output, { dispose: defaultLogger.attachSink(output) });
+
   let container: import('./container').Container;
   try {
     container = await buildContainer(context);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    void vscode.window.showErrorMessage(
-      `Mallard failed to start: ${msg}. Check the Output panel (Mallard) for details.`,
-    );
-    return;
+    defaultLogger.error('activate', 'Mallard failed to start', err);
+    registerStartupFailure(context, msg, output);
+    return { status: 'failed', error: msg };
   }
   const { usage, restriction, ingest, userConfig } = container;
 
@@ -39,16 +56,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const s = usage.current;
     const auth = s?.authStatus ?? 'signed-out';
     const r = restriction.getState();
-    if (r.active) {
+    const now = Date.now();
+    const restrictionState = restrictionStatus(r, now);
+    // A snooze is checked first: the restriction stays `active` underneath it,
+    // so testing `r.active` first made the override state unreachable.
+    if (restrictionState === 'snoozed') {
+      const m = Math.max(1, Math.round(((r.userOverrideUntil ?? now) - now) / 60_000));
+      statusBar.text = `$(debug-pause) Mallard · override ${m}m`;
+      statusBar.backgroundColor = undefined;
+      statusBar.tooltip = r.reasonMessage
+        ? `Restriction snoozed: ${r.reasonMessage}`
+        : 'Restriction rule is being overridden.';
+      statusBar.show();
+    } else if (restrictionState === 'limit') {
       statusBar.text = `$(shield) Usage limit reached`;
       statusBar.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
       statusBar.tooltip = r.reasonMessage;
-      statusBar.show();
-    } else if (r.userOverrideUntil && r.userOverrideUntil > Date.now()) {
-      const m = Math.max(1, Math.round((r.userOverrideUntil - Date.now()) / 60_000));
-      statusBar.text = `$(debug-pause) Mallard · override ${m}m`;
-      statusBar.backgroundColor = undefined;
-      statusBar.tooltip = 'Restriction rule is being overridden.';
       statusBar.show();
     } else if (s) {
       const cr = formatCredits(s.today.credits);
@@ -79,20 +102,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(usage.onDidChangeSnapshot(updateStatusBar));
   context.subscriptions.push(restriction.onDidChange(updateStatusBar));
 
+  // The popup opens once per restriction (on the transition to active, or when
+  // its reason changes), never while snoozed, and again once a snooze ends.
+  // Snoozing itself fires a change event with the restriction still active, so
+  // keying only on `state.active` re-opened the popup the instant it was snoozed.
+  let promptedFor: string | undefined;
   context.subscriptions.push(
     restriction.onDidChange(async (state) => {
-      if (!state.active) return;
+      const decision = decideRestrictionPrompt(state, promptedFor, Date.now());
+      promptedFor = decision.shownKey;
+      if (!decision.show) return;
       const cfg = userConfig.get();
-      const rule = cfg.rules?.find((r) => r.id === state.ruleId);
+      const rule = cfg.flatRules?.find((r) => r.id === state.ruleId);
       if (!rule?.restrict) return;
       const msg = state.reasonMessage || 'Copilot usage limit reached.';
-      const choice = await vscode.window.showWarningMessage(
-        `Mallard · ${msg}`, 'Dismiss', 'Snooze 15m', 'Snooze 1h', 'Disable Mallard…',
-      );
-      if (choice === 'Snooze 15m') await restriction.snooze(15);
-      if (choice === 'Snooze 1h') await restriction.snooze(60);
-      if (choice === 'Disable Mallard…') {
-        await vscode.commands.executeCommand('mallard.disableExtension');
+      try {
+        const choice = await vscode.window.showWarningMessage(
+          `Mallard · ${msg}`, 'Dismiss', 'Snooze 15m', 'Snooze 1h', 'Disable Mallard…',
+        );
+        if (choice === 'Snooze 15m') await restriction.snooze(15);
+        if (choice === 'Snooze 1h') await restriction.snooze(60);
+        if (choice === 'Disable Mallard…') {
+          await vscode.commands.executeCommand('mallard.disableExtension');
+        }
+      } catch (err) {
+        defaultLogger.error('restriction', 'restriction popup failed', err);
       }
     }),
   );
@@ -104,20 +138,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     { dispose: () => sidebar.dispose() },
   );
 
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (RELEVANT_CONFIG_KEYS.some((k) => e.affectsConfiguration(k))) {
-        if (e.affectsConfiguration('mallard.copilotLogPath')) {
-          void usage.refresh();
-        } else {
-          usage.onConfigChanged();
-        }
-      }
-    }),
-    // Settings only read at activation (connector registry, store retention)
-    // get a "Reload Window" prompt — changing them was a silent no-op before.
-    watchReloadRequiredSettings(),
-  );
+  // Settings only read at activation (connector registry, store retention) get
+  // a "Reload Window" prompt — changing them was a silent no-op before. Every
+  // other `mallard.*` change reaches the services through `userConfig.onDidChange`.
+  context.subscriptions.push(watchReloadRequiredSettings(userConfig.onDidChange));
 
   await usage.start();
   // Runs before setupGate.start() so onboarding gets first crack at asking
@@ -150,6 +174,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     });
     context.subscriptions.push(d);
   }
+  return { status: 'ready' };
 }
 
 export function deactivate(): void {
@@ -161,7 +186,7 @@ export function deactivate(): void {
 }
 
 function registerCommands(context: vscode.ExtensionContext, c: Container): void {
-  const { usage, store, userConfig, layout, pricing, restriction, setupGate } = c;
+  const { usage, store, userConfig, alerts, layout, pricing, restriction, setupGate } = c;
   const reg = (id: string, fn: (...args: unknown[]) => unknown) =>
     context.subscriptions.push(vscode.commands.registerCommand(id, fn));
 
@@ -250,42 +275,30 @@ function registerCommands(context: vscode.ExtensionContext, c: Container): void 
       tried.length > 0 ? `\n\nSearched:\n${tried.map((p) => '  ' + p).join('\n')}` : '';
     const pick = await vscode.window.showInformationMessage(
       'Mallard: No Copilot or Claude Code log files detected. Make sure one of them is installed ' +
-        'and has been used. Copilot\'s log directory can be overridden via the mallard.copilotLogPath ' +
-        'setting.' +
+        'and has been used. Copilot usage is read from its OpenTelemetry export: enable it with ' +
+        '"Mallard: Enable Copilot Usage Tracking", or point the mallard.copilotOtelPath setting at ' +
+        'the export file.' +
         detail,
-      'Pick Copilot log folder…',
+      'Enable Copilot tracking',
     );
-    if (pick) {
-      const uri = await vscode.window.showOpenDialog({
-        canSelectFolders: true,
-        canSelectFiles: false,
-        canSelectMany: false,
-        openLabel: 'Use this folder',
-        title: 'Select Copilot log folder',
-      });
-      if (uri && uri[0]) {
-        await vscode.workspace
-          .getConfiguration('mallard')
-          .update('copilotLogPath', uri[0].fsPath, vscode.ConfigurationTarget.Global);
-        await usage.refresh();
-      }
-    }
+    if (pick) await vscode.commands.executeCommand('mallard.enableCopilotTelemetry');
   });
 
+  // One channel for every simulation run (created lazily): creating a fresh
+  // channel per invocation leaked an entry in the Output dropdown each time.
+  let simulationChannel: vscode.OutputChannel | undefined;
+  context.subscriptions.push({ dispose: () => simulationChannel?.dispose() });
+
   reg('mallard.simulateRestriction', async () => {
-    const snapshot = usage.current;
-    const cfg = userConfig.get();
-    const report = await restriction.simulate({
-      snapshot: snapshot ?? null,
-      rules: cfg.rules ?? [],
-      ...(cfg.vars !== undefined ? { vars: cfg.vars } : {}),
-      ...(cfg.groups !== undefined ? { groups: cfg.groups } : {}),
-      signedIn: snapshot?.authStatus === 'signed-in',
-    });
-    const channel = vscode.window.createOutputChannel('Mallard Restriction');
-    channel.clear();
-    channel.appendLine(JSON.stringify(report, null, 2));
-    channel.show(true);
+    // The same input the live reconcile gets: the latest UNFILTERED snapshot (a
+    // dashboard filter would simulate a slice of the data) and the alert history.
+    const report = await restriction.simulate(
+      buildReconcileInput(usage.currentUnfiltered ?? null, userConfig.get(), alerts.getHistory()),
+    );
+    simulationChannel ??= vscode.window.createOutputChannel('Mallard Restriction');
+    simulationChannel.clear();
+    simulationChannel.appendLine(JSON.stringify(report, null, 2));
+    simulationChannel.show(true);
   });
 
   reg('mallard.exportData', async () => {
@@ -307,18 +320,16 @@ function registerCommands(context: vscode.ExtensionContext, c: Container): void 
       'Delete everything',
     );
     if (ok !== 'Delete everything') return;
-    await store.clear();
-    await userConfig.reset();
-    await layout.reset();
-    await pricing.clearCache();
-    await restriction.clearAll();
-    for (const key of context.globalState.keys()) {
-      await context.globalState.update(key, undefined);
-    }
-    const targetSlots = exportTargetSlots(userConfig.get().export);
-    for (const secretKey of [...ALL_SECRET_KEYS, ...targetSlots.map((s) => s.key)]) {
-      await context.secrets.delete(secretKey);
-    }
+    await wipeAllData({
+      storageDir: context.globalStorageUri.fsPath,
+      secrets: context.secrets,
+      globalState: context.globalState,
+      store,
+      userConfig,
+      layout,
+      pricing,
+      restriction,
+    });
     void vscode.window.showInformationMessage(
       'All Mallard data cleared. You can now uninstall via the Extensions view.',
     );

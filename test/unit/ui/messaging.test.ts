@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { defaultLayout } from '../../../src/extension-backend/domain/layout';
 import { isHostBoundMsg, isWebviewBoundMsg } from '../../../src/extension-backend/ui/messaging';
 
 describe('messaging — isHostBoundMsg', () => {
@@ -8,15 +9,19 @@ describe('messaging — isHostBoundMsg', () => {
     }
   });
 
-  it('requires an object value for setFilter/setConfig', () => {
+  it('requires an object value for setFilter', () => {
     assert.equal(isHostBoundMsg({ type: 'setFilter', value: { models: [] } }), true);
     assert.equal(isHostBoundMsg({ type: 'setFilter', value: 'nope' }), false);
-    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { monthlyBudget: 1 } }), true);
+  });
+
+  it('no longer has a setConfig message: settings are edited in the Settings UI, the dashboard only sets the currency', () => {
+    assert.equal(isHostBoundMsg({ type: 'setConfig', value: { monthlyBudget: 1 } }), false);
     assert.equal(isHostBoundMsg({ type: 'setConfig' }), false);
   });
 
-  it('requires an array for setLayout', () => {
-    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [] }), true);
+  it('requires a version-2 layout for setLayout', () => {
+    assert.equal(isHostBoundMsg({ type: 'setLayout', value: defaultLayout() }), true);
+    assert.equal(isHostBoundMsg({ type: 'setLayout', value: [] }), false);
     assert.equal(isHostBoundMsg({ type: 'setLayout', value: {} }), false);
   });
 
@@ -64,7 +69,8 @@ describe('messaging — isWebviewBoundMsg', () => {
     assert.equal(isWebviewBoundMsg({ type: 'snapshot', payload: {} }), true);
     assert.equal(isWebviewBoundMsg({ type: 'snapshot', payload: 7 }), false);
     assert.equal(isWebviewBoundMsg({ type: 'config', value: {} }), true);
-    assert.equal(isWebviewBoundMsg({ type: 'layout', value: [] }), true);
+    assert.equal(isWebviewBoundMsg({ type: 'layout', value: defaultLayout() }), true);
+    assert.equal(isWebviewBoundMsg({ type: 'layout', value: [] }), false);
     assert.equal(isWebviewBoundMsg({ type: 'layout', value: {} }), false);
     assert.equal(isWebviewBoundMsg({ type: 'restriction', value: {} }), true);
     assert.equal(isWebviewBoundMsg({ type: 'alertFired', message: 'over budget' }), true);

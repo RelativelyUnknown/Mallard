@@ -1,7 +1,7 @@
 {
   "name": "mallard",
   "displayName": "Mallard",
-  "description": "Get your Copilot spend all in a row. A live dashboard of cost, model usage, and where every credit goes — read from Copilot's local logs. No sign-in, no telemetry.",
+  "description": "Get your Copilot spend all in a row. A live dashboard of cost, model usage, and where every credit goes — read from Copilot's local logs. No sign-in required, no telemetry.",
   "version": "0.2.0",
   "publisher": "RelativelyUnknown",
   "license": "MIT",
@@ -17,6 +17,19 @@
   },
   "engines": {
     "vscode": "^1.95.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In an untrusted workspace Mallard ignores a workspace-level override of the Copilot OpenTelemetry path, so a downloaded project cannot point it at other files. Every other Mallard setting is user-level (application or machine scope) and is never read from a workspace.",
+      "restrictedConfigurations": [
+        "mallard.copilotOtelPath"
+      ]
+    },
+    "virtualWorkspaces": {
+      "supported": "limited",
+      "description": "Mallard reads usage from log files on the local machine, so it works with virtual workspaces, but repository and branch attribution needs a real folder on disk and is unavailable for virtual folders."
+    }
   },
   "categories": [
     "Visualization",
@@ -177,32 +190,150 @@
     "configuration": {
       "title": "Mallard",
       "properties": {
-        "mallard.enabledConnectors": {
+        "mallard.monthlyBudget": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1000000,
+          "scope": "application",
+          "description": "Monthly budget in USD. 0 disables budget tracking and the budget alerts."
+        },
+        "mallard.includedCredits": {
+          "type": "number",
+          "default": 300,
+          "minimum": 0,
+          "maximum": 1000000,
+          "scope": "application",
+          "description": "Premium requests included in your Copilot plan each month. Colours the spend gauge and drives the \"% of included\" alerts."
+        },
+        "mallard.dailyCreditAlert": {
+          "type": "number",
+          "default": 50,
+          "minimum": 0,
+          "maximum": 1000000,
+          "scope": "application",
+          "description": "Warn once a day when the day's credits exceed this. 0 disables the alert."
+        },
+        "mallard.alerts.velocityEnabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Warn when credits are being spent faster than the velocity threshold."
+        },
+        "mallard.alerts.velocityCreditsPerHour": {
+          "type": "number",
+          "default": 100,
+          "minimum": 0,
+          "maximum": 1000000,
+          "scope": "application",
+          "description": "Credits per hour above which the velocity alert fires. 0 disables it."
+        },
+        "mallard.alerts.rules": {
           "type": "array",
+          "default": [],
           "items": {
-            "type": "string",
-            "enum": ["copilot", "claude-code"]
+            "type": "object",
+            "required": [
+              "id",
+              "metric",
+              "op",
+              "value",
+              "cooldown",
+              "severity"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Unique rule id."
+              },
+              "metric": {
+                "type": "string",
+                "description": "What to compare: a fixed metric, or model:<id>.credits|cost / repo:<name>.credits|cost.",
+                "anyOf": [
+                  {
+                    "enum": [
+                      "today.credits",
+                      "today.cost",
+                      "month.credits",
+                      "month.cost",
+                      "budget.percentOfBudget",
+                      "budget.percentOfIncluded",
+                      "forecast.projectedCredits",
+                      "forecast.projectedCost",
+                      "velocity.creditsPerHour",
+                      "window7d.credits",
+                      "currentBranchCredits"
+                    ]
+                  },
+                  {
+                    "pattern": "^(model|repo):.+\\.(credits|cost)$"
+                  }
+                ]
+              },
+              "op": {
+                "enum": [
+                  ">",
+                  ">=",
+                  "<",
+                  "<=",
+                  "==",
+                  "!="
+                ],
+                "description": "Comparison operator."
+              },
+              "value": {
+                "type": "number",
+                "description": "Threshold the metric is compared against."
+              },
+              "cooldown": {
+                "type": "string",
+                "pattern": "^\\d+(\\.\\d+)?[mhdw]$",
+                "description": "Minimum time between firings: a positive number and m/h/d/w, e.g. \"30m\", \"1.5h\", \"2d\"."
+              },
+              "severity": {
+                "enum": [
+                  "info",
+                  "warning",
+                  "critical"
+                ],
+                "description": "Notification severity."
+              },
+              "notify": {
+                "type": "boolean",
+                "description": "Show a notification when the rule fires."
+              },
+              "restrict": {
+                "type": "boolean",
+                "description": "Raise the (notification-only) usage-limit restriction while the rule matches."
+              },
+              "clearBelow": {
+                "type": "number",
+                "description": "Lift the restriction once the metric falls below this value, instead of as soon as the rule stops matching."
+              }
+            },
+            "additionalProperties": false
           },
-          "default": ["copilot", "claude-code"],
-          "description": "Which usage connectors Mallard ingests from. Set automatically by the onboarding flow when both Copilot and Claude Code are installed (Mallard: Show Onboarding to re-run it). Changing this setting requires reloading the window."
+          "scope": "application",
+          "description": "Custom threshold alerts: each rule compares one metric with a value, e.g. { \"id\": \"big-day\", \"metric\": \"today.credits\", \"op\": \">\", \"value\": 200, \"cooldown\": \"6h\", \"severity\": \"warning\" }. Edit in settings.json."
         },
-        "mallard.copilotLogPath": {
-          "type": "string",
-          "default": "",
-          "scope": "machine-overridable",
-          "description": "Override path to the Copilot log directory (blank = auto-detect via VS Code logUri)."
+        "mallard.branchBudgets": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "scope": "application",
+          "description": "Per-branch credit caps keyed by branch name, e.g. { \"main\": 500, \"feature/x\": 120 }. A branch over its cap raises an alert."
         },
-        "mallard.copilotOtelPath": {
+        "mallard.currency": {
           "type": "string",
-          "default": "",
-          "scope": "machine-overridable",
-          "description": "Override path to Copilot's OpenTelemetry export target — a JSONL file, or a .sqlite/.db database. Blank = auto-detect from github.copilot.chat.otel.outfile. Run 'Mallard: Enable Copilot Usage Tracking' to set it up automatically."
-        },
-        "mallard.pricingManifestUrl": {
-          "type": "string",
-          "default": "",
-          "scope": "machine-overridable",
-          "description": "Override URL for the pricing manifest JSON. Leave blank to use the auto-refreshed default."
+          "default": "USD",
+          "pattern": "^[A-Za-z]{3}$",
+          "scope": "application",
+          "description": "Display currency as an ISO 4217 code (e.g. EUR). Costs are converted from USD with daily exchange rates; metric exports always use USD. Also set by the dashboard's currency selector."
         },
         "mallard.palette": {
           "type": "string",
@@ -215,26 +346,101 @@
             "Derive the accent from your VS Code theme (validated for contrast and colour-blindness)."
           ],
           "default": "swiss",
+          "scope": "application",
           "description": "Dashboard chart palette. Both modes keep the duotone structure and are checked for accessibility."
+        },
+        "mallard.display.dailyBarsWindow": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 7,
+          "maximum": 90,
+          "scope": "application",
+          "description": "Days shown in the daily bars, cumulative area and token charts."
+        },
+        "mallard.display.heatmapWeeks": {
+          "type": "integer",
+          "default": 52,
+          "minimum": 4,
+          "maximum": 52,
+          "scope": "application",
+          "description": "Weeks shown in the activity heatmap (52 is a full year)."
+        },
+        "mallard.display.topN": {
+          "type": "integer",
+          "default": 8,
+          "minimum": 3,
+          "maximum": 20,
+          "scope": "application",
+          "description": "How many models and repositories to show in ranked lists."
+        },
+        "mallard.enabledConnectors": {
+          "type": "array",
+          "default": [
+            "copilot",
+            "claude-code"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "copilot",
+              "claude-code"
+            ]
+          },
+          "scope": "application",
+          "description": "Which usage connectors Mallard ingests from. Set by the onboarding flow when both Copilot and Claude Code are installed (run \"Mallard: Show Onboarding\" to redo it). Changing this requires reloading the window."
+        },
+        "mallard.copilotOtelPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Override path to Copilot's OpenTelemetry export target: a JSONL file, or a .sqlite/.db database. Blank auto-detects it from github.copilot.chat.otel.outfile. Run \"Mallard: Enable Copilot Usage Tracking\" to set it up automatically."
+        },
+        "mallard.pricingManifestUrl": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Override URL for the pricing manifest JSON. Blank uses the auto-refreshed default. Applies without a reload."
         },
         "mallard.refreshIntervalMinutes": {
           "type": "number",
           "default": 10,
           "minimum": 1,
           "maximum": 60,
-          "description": "How often Mallard re-reads logs and recomputes the snapshot (minutes). Lower values increase responsiveness at the cost of CPU."
+          "scope": "application",
+          "description": "How often Mallard re-reads logs and recomputes the snapshot, in minutes. Lower values update the dashboard sooner at the cost of CPU."
         },
         "mallard.dataRetentionDays": {
           "type": "number",
           "default": 90,
           "minimum": 30,
           "maximum": 365,
-          "description": "How many days of raw per-request events to keep before rolling up into daily totals. Higher values use more disk."
+          "scope": "application",
+          "description": "Days of raw per-request events to keep before they are rolled up into daily totals. Higher values use more disk. Changing this requires reloading the window."
+        },
+        "mallard.githubBilling.mode": {
+          "type": "string",
+          "enum": [
+            "vscode-session",
+            "pat"
+          ],
+          "enumDescriptions": [
+            "Use VS Code's built-in GitHub sign-in.",
+            "Use the personal access token stored by \"Mallard: Set GitHub Personal Access Token\"; never prompts for sign-in."
+          ],
+          "default": "vscode-session",
+          "scope": "application",
+          "description": "How Mallard authenticates for GitHub billing data."
+        },
+        "mallard.githubBilling.org": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "GitHub organization slug for org-level Copilot billing (needs read:org). Blank shows your personal billing."
         },
         "mallard.server.url": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
+          "scope": "machine",
           "description": "Base URL of your self-hosted Mallard server (e.g. https://mallard.example.com). Used as the webhook endpoint and as the fallback MQTT WebSocket host."
         },
         "mallard.export.transport": {
@@ -250,8 +456,72 @@
             "Publish usage metrics over MQTT/WebSocket to the server."
           ],
           "default": "",
-          "scope": "machine-overridable",
-          "description": "Transport to use for metric export. Set mallard.server.url first. Leave blank to disable."
+          "scope": "machine",
+          "description": "Transport used for metric export. Set mallard.server.url first. Leave blank to disable."
+        },
+        "mallard.export.webhookTargets": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "url"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]{1,32}$",
+                "description": "Stable id (letters, digits, dot, underscore, dash). Namespaces this target's stored credentials: do not change it once credentials are set."
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Label shown in the Mallard pickers."
+              },
+              "url": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Endpoint URL."
+              }
+            },
+            "additionalProperties": false
+          },
+          "scope": "machine",
+          "description": "Extra webhook servers that mirror every payload when the transport is \"webhook\", as { \"id\", \"name\", \"url\" }. Each target's credentials are stored under its id (see \"Mallard: Configure Export Fanout Targets\"). Ids must be unique across webhook and MQTT targets. Edit in settings.json."
+        },
+        "mallard.export.mqttTargets": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "url"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]{1,32}$",
+                "description": "Stable id (letters, digits, dot, underscore, dash). Namespaces this target's stored credentials: do not change it once credentials are set."
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Label shown in the Mallard pickers."
+              },
+              "url": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Endpoint URL."
+              }
+            },
+            "additionalProperties": false
+          },
+          "scope": "machine",
+          "description": "Extra MQTT brokers that mirror every payload when the transport is \"mqtt\", as { \"id\", \"name\", \"url\" } with a wss:// URL. Each broker's password is stored under its id. Ids must be unique across webhook and MQTT targets. Edit in settings.json."
         },
         "mallard.webhook.auth": {
           "type": "string",
@@ -261,72 +531,46 @@
             "certificate"
           ],
           "enumDescriptions": [
-            "Send an X-API-Key header. Run 'Mallard: Set Webhook API Key' to store it.",
-            "Send an Authorization: Bearer header. Run 'Mallard: Set Webhook Bearer Token' to store it.",
+            "Send an X-API-Key header. Run \"Mallard: Set Webhook API Key\" to store it.",
+            "Send an Authorization: Bearer header. Run \"Mallard: Set Webhook Bearer Token\" to store it.",
             "Authenticate with a client TLS certificate. Set mallard.shared.certificate.*."
           ],
           "default": "apiKey",
-          "scope": "machine-overridable",
-          "description": "Auth method for webhook transport. Credentials are stored in SecretStorage via the Mallard credential commands, never in settings."
+          "scope": "machine",
+          "description": "Auth method for the webhook transport. Credentials are kept in SecretStorage via the Mallard credential commands, never in settings."
         },
         "mallard.mqtt.url": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
-          "description": "MQTT broker WebSocket URL (e.g. wss://mallard.example.com/mqtt). Overrides mallard.server.url for MQTT. Only wss:// accepted."
-        },
-        "mallard.mqtt.auth": {
-          "type": "string",
-          "enum": [
-            "password",
-            "certificate"
-          ],
-          "enumDescriptions": [
-            "Authenticate with username and password. Set mallard.mqtt.username and run Mallard: Set MQTT Export Password.",
-            "Authenticate with a client TLS certificate. Set mallard.shared.certificate.*."
-          ],
-          "default": "password",
-          "scope": "machine-overridable",
-          "description": "Auth method for MQTT transport."
+          "scope": "machine",
+          "description": "MQTT broker WebSocket URL (e.g. wss://mallard.example.com/mqtt). Overrides mallard.server.url for MQTT. Only TLS URLs are accepted."
         },
         "mallard.mqtt.username": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
-          "description": "MQTT username, sent in the CONNECT packet as broker metadata. The Mallard server identifies you by the shared broker password and tags all MQTT data source='mqtt' — the username is not used for identification."
-        },
-        "mallard.githubBilling.org": {
-          "type": "string",
-          "default": "",
-          "scope": "resource",
-          "description": "GitHub organization slug for org-level Copilot billing in this workspace. Overrides the githubBilling.org value from config.json. Leave blank for personal billing."
+          "scope": "machine",
+          "description": "MQTT username, sent in the CONNECT packet as broker metadata. The Mallard server identifies you by the shared broker password; the username is not used for identification."
         },
         "mallard.shared.certificate.file": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
-          "description": "Path to PEM client certificate file. Used by any transport where auth = certificate."
+          "scope": "machine",
+          "description": "Path to the PEM client certificate file. Used when the webhook auth is \"certificate\"."
         },
         "mallard.shared.certificate.keyFile": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
-          "description": "Path to PEM private key file paired with mallard.shared.certificate.file."
+          "scope": "machine",
+          "description": "Path to the PEM private key file paired with mallard.shared.certificate.file."
         },
         "mallard.shared.certificate.caFile": {
           "type": "string",
           "default": "",
-          "scope": "machine-overridable",
-          "description": "Path to CA bundle PEM file to verify the server's TLS certificate."
+          "scope": "machine",
+          "description": "Path to a CA bundle PEM file used to verify the server's TLS certificate."
         }
       }
-    },
-    "jsonValidation": [
-      {
-        "fileMatch": "**/mallard/config.json",
-        "url": "./schemas/mallard-config.schema.json"
-      }
-    ]
+    }
   },
   "scripts": {
     "compile": "bun esbuild.mjs",
@@ -336,7 +580,12 @@
     "lint": "eslint src/extension-backend src/extension-frontend test",
     "test:unit": "mocha",
     "test:coverage": "c8 mocha",
+    "test:webview": "node --require ./test/unit/setup/vscode-mock.cjs --require tsx/cjs test/webview/smoke.ts",
     "bench": "tsx test/bench/benchmark.ts",
+    "bench:ndjson": "tsx test/bench/benchmark-ndjson.ts",
+    "bench:sqlite": "tsx test/bench/benchmark-sqlite.ts",
+    "golden:record": "tsx test/golden/record.ts",
+    "golden:fixtures": "tsx test/golden/generate-fixtures.ts",
     "compile-tests": "tsc -p tsconfig.host.json --outDir out",
     "pretest": "bun run compile-tests && bun run compile && bun run check-types && bun run lint",
     "test": "vscode-test",
@@ -344,12 +593,15 @@
     "vsce:package": "vsce package",
     "prune-duckdb": "node scripts/prune-duckdb.mjs",
     "assets": "node scripts/render-assets.mjs",
+    "docs:settings": "tsx scripts/gen-settings-docs.ts",
+    "docs:settings:check": "tsx scripts/gen-settings-docs.ts --check",
     "docs:build": "vitepress build docs",
     "docs:dev": "vitepress dev docs"
   },
   "dependencies": {
     "@duckdb/node-api": "^1.5.3-r.3",
     "echarts": "^6.1.0",
+    "gridstack": "14.1.1",
     "mqtt": "^5.15.1",
     "neverthrow": "^8.2.0",
     "p-retry": "^8.0.0",

@@ -12,6 +12,10 @@
   /* Border */
   --w-border: var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.25)));
 
+  /* Chart tooltip surface (the forced schemes below invert it). */
+  --w-tooltip-bg: var(--vscode-editorHoverWidget-background, var(--w-bg-card));
+  --w-tooltip-fg: var(--vscode-editorHoverWidget-foreground, var(--w-fg));
+
   /* Input */
   --w-input-bg: var(--vscode-input-background);
   --w-input-fg: var(--vscode-input-foreground);
@@ -49,10 +53,6 @@
   --w-r1: 4px;
   --w-r2: 6px;
   --w-r3: 10px;
-
-  /* Chart dimensions */
-  --w-chart-main: 260px;
-  --w-chart-mini: 200px;
 
   /* ── Analogous data layer ──────────────────────────────────────────
      Surfaces stay theme-native (derived from --vscode-* above). The data
@@ -156,7 +156,7 @@ body.vscode-high-contrast-light {
    non-colour encoding (see chart builders) so meaning never rests on hue. */
 body.vscode-high-contrast,
 body.vscode-high-contrast-light {
-  --w-border: var(--vscode-contrastBorder, var(--w-border));
+  --w-border: var(--vscode-contrastBorder, var(--vscode-panel-border, rgba(128, 128, 128, 0.25)));
   --w-grid-line: color-mix(in srgb, var(--w-fg) 22%, transparent);
 }
 
@@ -165,7 +165,11 @@ body.vscode-high-contrast-light {
    custom properties are visible on document.documentElement's computed style —
    which is what theme.ts reads to build the ECharts theme. On body they would
    only cascade DOWN to body's descendants, leaving the charts on the live
-   editor theme after a manual toggle. */
+   editor theme after a manual toggle.
+
+   --w-accent below is only the pre-palette fallback: applyPalette writes the
+   derived accent inline (which wins), and theme.ts re-runs it whenever the
+   scheme is toggled so the two never disagree. */
 :root[data-force-scheme='light'] {
   --w-bg: #ffffff;
   --w-bg-card: #f5f5f5;

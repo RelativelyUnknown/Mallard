@@ -5,16 +5,16 @@
  */
 import * as vscode from 'vscode';
 import { UsageService } from '../app/UsageService';
-import { UserConfigStore } from '../app/UserConfigStore';
+import { IConfigService, watchValue } from '../app/ConfigService';
 import { LayoutStore } from '../app/LayoutStore';
 import { RestrictionEngine } from '../app/RestrictionEngine';
-import { Filter } from '../domain/types';
 import { readConfig } from '../config';
-import { isHostBoundMsg, ThemeKind, WebviewBoundMsg } from './messaging';
+import { defaultLogger } from '../util/logger';
+import { isHostBoundMsg, parseFilter, ThemeKind, WebviewBoundMsg } from './messaging';
 
 export interface DashboardDeps {
   usage: UsageService;
-  userConfig: UserConfigStore;
+  userConfig: IConfigService;
   layout: LayoutStore;
   restriction: RestrictionEngine;
 }
@@ -57,17 +57,18 @@ export function bindDashboard(webview: vscode.Webview, deps: DashboardDeps): vsc
       case 'refresh':
         await usage.refresh();
         break;
-      case 'setFilter':
-        await usage.setFilter(raw.value as Filter);
+      case 'setFilter': {
+        // Rebuilt from the validated shape instead of trusting a cast.
+        const filter = parseFilter(raw.value);
+        if (filter) await usage.setFilter(filter);
         break;
-      case 'setConfig':
-        await userConfig.set(raw.value);
-        break;
+      }
       case 'setLayout':
         await layout.set(raw.value);
         break;
       case 'openConfig':
-        await vscode.window.showTextDocument(userConfig.uri);
+        // Mallard's settings are ordinary VS Code settings: open the Settings UI on the alert ones (the rules are `mallard.alerts.rules`).
+        await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:RelativelyUnknown.mallard alerts');
         break;
       case 'command':
         if (raw.id === 'openDashboard') void vscode.commands.executeCommand('mallard.openDashboard');
@@ -84,29 +85,30 @@ export function bindDashboard(webview: vscode.Webview, deps: DashboardDeps): vsc
         await restriction.snooze(raw.minutes);
         break;
       case 'setCurrency':
-        // Currency is dashboard-editable, so it's persisted in UserConfigStore
-        // (the authoritative store for dashboard config) rather than VS Code
-        // settings. Writing here fires userConfig.onDidChange, which recomputes
-        // the snapshot immediately — the old settings.json write could lag.
-        await userConfig.set({ currency: (raw.value || 'USD').trim().toUpperCase() || 'USD' });
+        // Writes `mallard.currency` (validated and upper-cased there); the
+        // resulting settings change recomputes the snapshot through the one
+        // config event.
+        await userConfig.update({ currency: raw.value });
         break;
     }
   };
 
   return [
-    webview.onDidReceiveMessage((m) => void onMessage(m)),
+    // A handler that throws (a failing store write, a refresh error…) must be
+    // logged, not left as an unhandled rejection that vanishes silently.
+    webview.onDidReceiveMessage((m) => {
+      onMessage(m).catch((err: unknown) => defaultLogger.error('dashboard', 'message handler failed', err));
+    }),
     // The event carries host-side SnapshotData; the wire payload is the
     // composed (and cached) full snapshot with chart data.
     usage.onDidChangeSnapshot(() => {
       const s = usage.current;
       if (s) post({ type: 'snapshot', payload: s });
     }),
-    userConfig.onDidChange((value) => post({ type: 'config', value })),
+    userConfig.onDidChange(() => post({ type: 'config', value: userConfig.get() })),
     layout.onDidChange((value) => post({ type: 'layout', value })),
     restriction.onDidChange((value) => post({ type: 'restriction', value })),
     vscode.window.onDidChangeActiveColorTheme(() => post(themeMsg())),
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('mallard.palette')) post(themeMsg());
-    }),
+    watchValue(userConfig.onDidChange, () => readConfig().palette, () => post(themeMsg())),
   ];
 }

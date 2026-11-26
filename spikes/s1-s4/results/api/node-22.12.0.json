@@ -1,0 +1,11 @@
+{
+  "node": "22.12.0",
+  "electron": null,
+  "sqliteVersionHint": "3.47.0",
+  "loads": false,
+  "loadError": "No such built-in module: node:sqlite",
+  "moduleExports": [],
+  "databaseSyncProto": [],
+  "statementSyncProto": [],
+  "checks": {}
+}

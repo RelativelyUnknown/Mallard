@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import * as vscode from 'vscode';
-import { readConfig, readCopilotOtel, RELEVANT_CONFIG_KEYS } from '../../src/extension-backend/config';
+import { readConfig, readCopilotOtel, readSettingValues } from '../../src/extension-backend/config';
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 const ws = vscode.workspace as Mutable<typeof vscode.workspace>;
@@ -19,13 +19,15 @@ describe('readConfig', () => {
   it('returns documented defaults when nothing is configured', () => {
     withSettings({});
     const cfg = readConfig();
-    assert.equal(cfg.copilotLogPath, '');
+    assert.equal(cfg.copilotOtelPath, '');
+    assert.equal(cfg.pricingManifestUrl, '');
+    assert.deepEqual(cfg.enabledConnectors, ['copilot', 'claude-code']);
     assert.equal(cfg.palette, 'swiss');
     assert.equal(cfg.refreshIntervalMinutes, 10);
     assert.equal(cfg.dataRetentionDays, 90);
     assert.equal(cfg.export.transport, '');
     assert.equal(cfg.webhook.auth, 'apiKey');
-    assert.equal(cfg.mqtt.auth, 'password');
+    assert.deepEqual(cfg.mqtt, { url: '', username: '' });
     assert.deepEqual(cfg.shared.certificate, { file: '', keyFile: '', caFile: '' });
   });
 
@@ -50,19 +52,29 @@ describe('readConfig', () => {
     assert.equal(readConfig().export.transport, '');
   });
 
-  it('narrows webhook.auth and mqtt.auth, defaulting unknown values', () => {
-    withSettings({ 'webhook.auth': 'bearer', 'mqtt.auth': 'certificate' });
-    let cfg = readConfig();
-    assert.equal(cfg.webhook.auth, 'bearer');
-    assert.equal(cfg.mqtt.auth, 'certificate');
+  it('narrows webhook.auth, defaulting unknown values', () => {
+    for (const auth of ['apiKey', 'bearer', 'certificate'] as const) {
+      withSettings({ 'webhook.auth': auth });
+      assert.equal(readConfig().webhook.auth, auth);
+    }
+    withSettings({ 'webhook.auth': 'magic' });
+    assert.equal(readConfig().webhook.auth, 'apiKey');
+  });
 
-    withSettings({ 'webhook.auth': 'certificate' });
-    assert.equal(readConfig().webhook.auth, 'certificate');
+  it('narrows palette to the known values', () => {
+    withSettings({ palette: 'theme' });
+    assert.equal(readConfig().palette, 'theme');
+    withSettings({ palette: 'neon' });
+    assert.equal(readConfig().palette, 'swiss');
+  });
 
-    withSettings({ 'webhook.auth': 'magic', 'mqtt.auth': 'magic' });
-    cfg = readConfig();
-    assert.equal(cfg.webhook.auth, 'apiKey');
-    assert.equal(cfg.mqtt.auth, 'password');
+  it('reads the connector list: exactly the configured ids (including none), unknown ones dropped', () => {
+    withSettings({ enabledConnectors: ['claude-code'] });
+    assert.deepEqual(readConfig().enabledConnectors, ['claude-code']);
+    withSettings({ enabledConnectors: [] });
+    assert.deepEqual(readConfig().enabledConnectors, []);
+    withSettings({ enabledConnectors: ['copilot', 'nonsense'] });
+    assert.deepEqual(readConfig().enabledConnectors, ['copilot']);
   });
 
   it('trims server and mqtt URLs', () => {
@@ -72,17 +84,25 @@ describe('readConfig', () => {
     assert.equal(cfg.mqtt.url, 'wss://b/mqtt');
   });
 
-  it('RELEVANT_CONFIG_KEYS lists every setting readConfig consumes', () => {
-    // Guard against drift: each key read above must be watched for changes.
-    for (const key of [
-      'mallard.copilotLogPath', 'mallard.refreshIntervalMinutes',
-      'mallard.dataRetentionDays', 'mallard.server.url', 'mallard.export.transport',
-      'mallard.webhook.auth', 'mallard.mqtt.url', 'mallard.mqtt.auth', 'mallard.mqtt.username',
-      'mallard.shared.certificate.file', 'mallard.shared.certificate.keyFile',
-      'mallard.shared.certificate.caFile',
-    ]) {
-      assert.ok(RELEVANT_CONFIG_KEYS.includes(key), `${key} missing from RELEVANT_CONFIG_KEYS`);
-    }
+  it('reads the dropped dead settings nowhere: mqtt.auth and copilotLogPath are ignored if still in a settings file', () => {
+    withSettings({ 'mqtt.auth': 'certificate', copilotLogPath: '/old/logs' });
+    const cfg = readConfig();
+    assert.ok(!('auth' in cfg.mqtt));
+    assert.ok(!('copilotLogPath' in cfg));
+  });
+});
+
+describe('readSettingValues', () => {
+  const originalGetConfiguration = ws.getConfiguration;
+  afterEach(() => { ws.getConfiguration = originalGetConfiguration; });
+
+  it('reads every setting through its sanitiser, by full key', () => {
+    withSettings({ monthlyBudget: -4, 'display.topN': 12, currency: 'eur' });
+    const v = readSettingValues();
+    assert.equal(v['mallard.monthlyBudget'], 0);
+    assert.equal(v['mallard.display.topN'], 12);
+    assert.equal(v['mallard.currency'], 'EUR');
+    assert.equal(v['mallard.includedCredits'], 300);
   });
 });
 

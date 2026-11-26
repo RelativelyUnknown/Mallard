@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Changed
+
+- **Freeform dashboard layout**: the analysis charts now sit on a four-column
+  grid (gridstack) instead of the preset-width, three-height-tier layout. Drag a
+  panel by its header, resize it from an edge or corner, and panels make room for
+  each other. **Edit layout** replaces the separate **Resize** and **Move**
+  buttons. Hidden and empty panels leave the grid instead of leaving gaps, and a
+  window narrower than 700 px shows one column without touching your layout.
+- **Keyboard layout editing**: focus a panel's move handle, press `Space` or
+  `Enter` to lift it, arrow keys to move it, `R` to switch to resizing, `Space`
+  to drop and `Escape` to cancel; every step is announced to screen readers.
+  This replaces `Alt`+arrow reordering, which clashed with VS Code's own
+  `Alt`+`Left`/`Right` navigation.
+- **Layout storage**: the layout is saved as grid rectangles under
+  `mallard.layout.v2` in extension storage. The previous layout is migrated once
+  and left in place, so a downgrade still finds it. The `dashboard.columns`
+  option and the `gridColumn`/`gridRow` fields are no longer used.
+
 ### Added
 
 - **Event streaming (wire protocol v1)**: metric export is now a true stream.
@@ -46,11 +64,34 @@
   rotation; startup gets faster because ingest resumes from its watermark instead
   of re-parsing everything. **Mallard: Prepare for Uninstall** remains the full
   wipe.
-- **One config store**: the dashboard layout moved from VS Code `globalState`
-  into `config.json`'s `dashboard.panels` block, and the now-redundant "Save to
-  config" button was removed — every layout change saves directly. The
-  `mallard.currency` setting was removed; currency lives in `config.json` and is
-  set from the dashboard.
+- **VS Code settings are the one place to configure Mallard**: `config.json` is
+  gone. Budgets, alert thresholds, branch budgets, display preferences, currency,
+  GitHub billing and the export fan-out targets are now `mallard.*` settings
+  (`mallard.monthlyBudget`, `mallard.includedCredits`, `mallard.dailyCreditAlert`,
+  `mallard.alerts.*`, `mallard.branchBudgets`, `mallard.display.*`,
+  `mallard.currency`, `mallard.export.webhookTargets` / `mqttTargets`,
+  `mallard.githubBilling.mode`). Each setting has an explicit scope: user-level
+  and synced for preferences, machine-only for anything that points at a server or
+  a file. Mallard validates every value itself (ranges, enums, per-entry in
+  lists), from one table that also generates `docs/reference/settings.md`.
+  The dashboard layout stays in the extension's own storage, not in settings.
+- **One-time `config.json` import**: on the first start, an existing `config.json`
+  is imported into the settings above (export targets get a stable `id`, and their
+  stored credentials follow it), the dashboard layout is kept, and the file is
+  renamed to `config.json.migrated` with a single summary message. Custom alert
+  rules are converted into the flat `mallard.alerts.rules` list in a second step
+  (see the next entries).
+- **Export target credentials are keyed by a stable `id`** (new in each
+  `mallard.export.*Targets` entry) instead of the target name, so renaming a
+  target cannot orphan its credentials.
+- **Settings now take effect live**: one configuration event drives every
+  consumer, so changing `mallard.pricingManifestUrl`, the refresh interval, the
+  GitHub billing org or any export setting applies without a reload. Only
+  `mallard.enabledConnectors` and `mallard.dataRetentionDays` still ask for a
+  window reload.
+- **New first-install defaults come from the settings**: the daily credit alert
+  (50) and the velocity alert (100 credits/hour) are the defaults of their
+  settings, as the old first-run `config.json` seeded them.
 - **Billing on its own cadence**: a GitHub auth/billing refresh no longer forces
   a full usage recompute, chart rebuild, or metric export.
 - **Infisical support removed** from the server. It required its own Postgres +
@@ -60,14 +101,95 @@
   copy your credentials into `.env`/`mallard-server-secrets` (static) or OpenBao
   and update the variable.
 
+- **Alert rules are a flat list**: the JSON rules language (`when` trees,
+  `conditions`, `thresholds`, `active`, groups, variables, `{{ }}` message
+  templates and the 32-field context) is replaced by `mallard.alerts.rules`: each
+  rule is `id`, `metric`, `op`, `value`, `cooldown`, `severity` and optionally
+  `notify`, `restrict`, `clearBelow`, over a fixed list of metrics (today, month,
+  budget percentage, forecast, velocity, the last 7 days, the current branch,
+  `model:<id>` and `repo:<name>`). Notification text is a fixed
+  `metric op value (now x)`. The `in` and `matches` operators (and so the wildcard
+  patterns of earlier releases) no longer exist. See the new
+  [alert rules reference](./reference/alert-rules.md).
+- **Old alert rules are converted once**: right after the `config.json` import,
+  every rule a flat rule can express (a single comparison, each `thresholds` level
+  as its own rule, `restrict` with a `reEnableWhen` of the form "below a number" as
+  `clearBelow`) is appended to `mallard.alerts.rules`, without ever duplicating an
+  id. One message says how many converted and how many did not; each skipped rule
+  and its reason is in the **Mallard** output channel and in `config.json.migrated`
+  (combined conditions, groups, variables, `requiresAuth`, `in`/`matches`, future
+  snoozes).
+- **Alert cooldowns persist**: they are kept in extension storage, so reloading
+  the window no longer re-fires every active alert. Each entry lives exactly as
+  long as its own rule's cooldown (not a flat 24 hours), and month-based alerts
+  are keyed by year and month, so the 80 % budget alert cannot collide with the
+  same month of another year. A rule on a metric that resets with the period
+  (`today.*`, `month.*`, `budget.*`, `forecast.*`) fires again on the first
+  snapshot of the new period.
+- **One velocity**: the built-in velocity alert and `velocity.creditsPerHour` in
+  your rules now use the same least-squares rate over the last hour of snapshots
+  (the built-in alert used to look only at the first and last sample, so the two
+  disagreed). A rule fires again only once *more than* its cooldown has passed;
+  the old rules language also allowed exactly the cooldown.
+- **Velocity restrictions work**: a restriction on `velocity.creditsPerHour` never
+  matched, because the restriction engine was not given the recent spend history.
+  It is now, and **Mallard: Simulate Restriction State** reports from the same
+  input. A restriction ends when its rule stops matching, or, with `clearBelow`,
+  once the metric is below that number; the popup and banner name the rule's
+  condition instead of a changing value.
+- **Docs**: the branch-cap alert was documented as a "critical notification". Every
+  Mallard alert is a warning notification; `severity` only picks the rule of an
+  escalation ladder (the budget pair, or `<id>:<n>` levels) that notifies.
+- **Edit alert rules** opens the Settings editor on the alert settings.
+
+### Removed
+
+- **`mallard.copilotLogPath`**: it was read but never used to find Copilot's
+  usage (that comes from its OpenTelemetry export, `mallard.copilotOtelPath`).
+  **Mallard: Show Detected Log Path** now offers to enable Copilot tracking
+  instead of picking a log folder.
+- **`mallard.mqtt.auth`**: declared but never read.
+- **The `config.json` JSON schema**, its `budget.*` duplicate of the top-level
+  budget fields, and the webview's config-patch message: Settings is the editor.
+
 ### Fixed
 
+- **`githubBilling.org` works**: the org used to be split between a setting that
+  was never read and a `config.json` value; `mallard.githubBilling.org` is now
+  the single setting, read for org-level billing (user-level, so a workspace
+  cannot override it), and changing it refreshes the billing data.
+- **Settings out of range no longer slip through**: the settings schema, the
+  config merge and the chart builders each had their own idea of a valid range
+  for the display options; there is now one range per setting.
 - **Sidebar budget gauge**: the month-to-date gauge in the activity-bar panel
   read snapshot fields that don't exist, so it never rendered. It now shows spend
   against your monthly budget as designed.
 - **"Don't show again" actually persists**: one-shot dismissals (the remote-SSH
   warning, onboarding, setup nudges) were erased by the shutdown wipe fixed
   above; they now stick.
+- **A bad `config.json` no longer costs you your settings**: a malformed or partly
+  invalid file used to reset the whole config to defaults, and the next change from
+  the dashboard overwrote your file. Now the last good configuration stays in force,
+  invalid blocks are ignored individually (with a warning in the **Mallard** Output
+  panel), the file is left untouched until you change something, and the unreadable
+  original is first saved as `config.json.bad-<timestamp>`. Writes are atomic, and
+  the editor-save watcher survives replace-by-rename saves.
+- **Restriction popup**: snoozing a restriction no longer re-opens the popup
+  immediately; it appears once per restriction and again when a snooze ends. A rule's
+  `reEnableWhen` now works as hysteresis (the restriction holds until it is true),
+  and the status bar shows the snooze state. Filtered dashboard views no longer feed
+  alerts or restriction rules.
+- **Export reliability**: rotating a webhook key/token/secret or MQTT password now
+  rebuilds the exporter (no window reload). Webhook `401`/`403`/`408`/`429` are
+  retried, other `4xx` and redirects are fatal, and redirects are never followed.
+  MQTT applies the CA file with password auth too, treats unreadable certificate
+  files as a permanent error, and publishes event batches **without** `retain`
+  (a retained delta kept only the latest batch for late subscribers). Per-target
+  queue files can no longer collide, and "Prepare for Uninstall" now also removes
+  per-target credentials and queued batches.
+- Export, server URL and certificate settings are `machine`-scoped (a workspace can
+  no longer set them); the extension declares limited untrusted/virtual-workspace
+  support; the `config.json` schema association now matches the real file location.
 
 
 ## 0.2.0 (2026-06-25)

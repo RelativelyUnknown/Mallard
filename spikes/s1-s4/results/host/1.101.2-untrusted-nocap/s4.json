@@ -1,0 +1,516 @@
+{
+  "info": {
+    "vscodeVersion": "1.101.2",
+    "appName": "Visual Studio Code",
+    "uiKind": 1,
+    "remoteName": null,
+    "platform": "linux",
+    "arch": "x64",
+    "pid": 17705,
+    "execPath": "/home/user/Mallard/.claude/worktrees/agent-a46488cff5c2483b2/spikes/s1-s4/.vscode-test/vscode-linux-x64-1.101.2/code",
+    "processType": "utility",
+    "versions": {
+      "node": "22.15.1",
+      "electron": "35.5.1",
+      "chrome": "134.0.6998.205",
+      "v8": "13.4.114.21-electron.0",
+      "sqlite": "3.49.1"
+    },
+    "execArgv": [
+      "--dns-result-order=ipv4first",
+      "--experimental-network-inspection",
+      "--expose-gc"
+    ],
+    "NODE_OPTIONS": null,
+    "ELECTRON_RUN_AS_NODE": "1",
+    "globalStorage": "/tmp/s1t/vmwvp91on/user-data/User/globalStorage/spike.mallard-spike",
+    "extensionKind": 1
+  },
+  "trusted": false,
+  "results": [
+    {
+      "id": "S4.6",
+      "item": "package.json contributes.configuration readable at runtime via extensions.getExtension().packageJSON (defaults/ranges/enums)",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "manifestIsArray": false,
+        "keysInManifest": 10,
+        "monthlyBudget": {
+          "default": 100,
+          "minimum": 0,
+          "maximum": 100000,
+          "scope": "application"
+        },
+        "displayMode": {
+          "default": "credits",
+          "enum": [
+            "credits",
+            "cost"
+          ],
+          "scope": "application"
+        },
+        "scopesDeclared": {
+          "spike.rulesApp": "application",
+          "spike.rulesMachine": "machine",
+          "spike.targets": "machine",
+          "spike.rulesResource": "resource",
+          "spike.rulesMachineOverridable": "machine-overridable",
+          "spike.rulesWindow": "window",
+          "spike.rulesLang": "language-overridable",
+          "spike.branchBudgets": "application",
+          "spike.monthlyBudget": "application",
+          "spike.display.mode": "application"
+        },
+        "arrayItemsSchemaReadable": true,
+        "inspectKeys": [
+          "defaultLanguageValue",
+          "defaultValue",
+          "globalLanguageValue",
+          "globalLocalLanguageValue",
+          "globalLocalValue",
+          "globalRemoteLanguageValue",
+          "globalRemoteValue",
+          "globalValue",
+          "key",
+          "languageIds",
+          "workspaceFolderLanguageValue",
+          "workspaceFolderValue",
+          "workspaceLanguageValue",
+          "workspaceValue"
+        ]
+      }
+    },
+    {
+      "id": "S4.1a",
+      "item": "get/inspect return the contributed defaults for array, object, number, enum",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "values": {
+          "rulesApp": [],
+          "branchBudgets": {},
+          "monthlyBudget": 100,
+          "mode": "credits"
+        },
+        "inspectedGlobalValue": "undefined",
+        "defaultValue": []
+      }
+    },
+    {
+      "id": "S4.1b",
+      "item": "returned arrays/objects are read-only proxies (callers must clone before mutating)",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "push": "allowed (mutated returned array)",
+        "mutateElement": "allowed",
+        "afterAttempts": 50,
+        "isFrozen": false
+      }
+    },
+    {
+      "id": "S4.1c",
+      "item": "config.update('rulesApp', arrayOfObjects, Global) round-trips (scope application); settings.json holds it; change event fires",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "roundTrip": true,
+        "onDiskEqual": true,
+        "eventFired": true,
+        "latencyMs": 77,
+        "parentSectionFired": true,
+        "siblingsFired": []
+      }
+    },
+    {
+      "id": "S4.1d",
+      "item": "config.update('rulesMachine', arrayOfObjects, Global) round-trips (scope machine); settings.json holds it; change event fires",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "roundTrip": true,
+        "onDiskEqual": true,
+        "eventFired": true,
+        "latencyMs": 53,
+        "parentSectionFired": true,
+        "siblingsFired": []
+      }
+    },
+    {
+      "id": "S4.1e",
+      "item": "config.update('targets', arrayOfObjects, Global) round-trips (scope machine); settings.json holds it; change event fires",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "roundTrip": true,
+        "onDiskEqual": true,
+        "eventFired": true,
+        "latencyMs": 47,
+        "parentSectionFired": true,
+        "siblingsFired": []
+      }
+    },
+    {
+      "id": "S4.1f",
+      "item": "update(key, undefined, Global) removes the key from settings.json (reset to default) and fires",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "keyRemovedFromFile": true,
+        "eventFired": true,
+        "latencyMs": 55
+      }
+    },
+    {
+      "id": "S4.1g",
+      "item": "EXTERNAL edit of settings.json (new array): onDidChangeConfiguration fires with affectsConfiguration(\"spike.rulesApp\")",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "eventFired": true,
+        "latencyMs": 244,
+        "otherKeysFired": []
+      }
+    },
+    {
+      "id": "S4.1h",
+      "item": "EXTERNAL edit of ONE field of ONE array element: rulesApp fires; unrelated keys do not",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "rulesAppFired": true,
+        "monthlyBudgetFired": false,
+        "rulesMachineFired": false,
+        "latencyMs": 247
+      }
+    },
+    {
+      "id": "S4.1i",
+      "item": "EXTERNAL formatting-only rewrite (indent + comment + trailing newline): rulesApp must NOT be reported affected",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "rulesAppFired": false,
+        "anyEventCount": 0
+      }
+    },
+    {
+      "id": "S4.1j",
+      "item": "EXTERNAL property-order change inside array elements: affected or not (informational)",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "rulesAppFired": false,
+        "eventCount": 0,
+        "note": "if true, consumers must re-evaluate idempotently"
+      }
+    },
+    {
+      "id": "S4.1k",
+      "item": "schema-violating items (missing required id, bad enum, wrong types, extra property) are NOT enforced by get(); value passes through verbatim; event still fires",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "passedVerbatim": true,
+        "eventFired": true,
+        "got": [
+          {
+            "metric": "today.credits",
+            "op": ">",
+            "value": 1
+          },
+          {
+            "id": "b2",
+            "metric": "bogus.metric",
+            "op": "~",
+            "value": "abc"
+          },
+          {
+            "id": "b3",
+            "metric": "today.cost",
+            "op": ">",
+            "value": 1,
+            "unknown": true
+          },
+          "not-an-object",
+          null,
+          42
+        ]
+      }
+    },
+    {
+      "id": "S4.1l",
+      "item": "config.update() with a schema-violating value is accepted and written (no runtime validation on the write path either)",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "onDisk": [
+          {
+            "id": 1,
+            "metric": 7
+          }
+        ]
+      }
+    },
+    {
+      "id": "S4.1m",
+      "item": "wrong top-level type (string / null / object for an array setting; negative / string for a ranged number; bad enum) is returned verbatim",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "rulesApp=\"oops\"": {
+          "get": "oops",
+          "typeofGet": "string",
+          "isArray": false
+        },
+        "rulesApp=null": {
+          "get": null,
+          "typeofGet": "null",
+          "isArray": false
+        },
+        "rulesApp={}": {
+          "get": {
+            "a": 1
+          },
+          "typeofGet": "object",
+          "isArray": false
+        },
+        "monthlyBudget=-5": {
+          "get": -5,
+          "typeofGet": "number",
+          "isArray": false
+        },
+        "monthlyBudget=1e9": {
+          "get": 1000000000,
+          "typeofGet": "number",
+          "isArray": false
+        },
+        "monthlyBudget=\"abc\"": {
+          "get": "abc",
+          "typeofGet": "string",
+          "isArray": false
+        },
+        "display.mode=\"bogus\"": {
+          "get": "bogus",
+          "typeofGet": "string",
+          "isArray": false
+        }
+      }
+    },
+    {
+      "id": "S4.1n",
+      "item": "JSON language service flags the violations (diagnostics on settings.json) but nothing blocks the value",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "languageId": "jsonc",
+        "count": 6,
+        "messages": [
+          "L3: Missing property \"id\".",
+          "L10: Value is not accepted. Valid values: \"today.credits\", \"today.cost\", \"month.credits\", \"month.cost\", \"velocity.creditsPerHour\".",
+          "L11: Value is not accepted. Valid values: \">\", \">=\", \"<\", \"<=\", \"==\", \"!=\".",
+          "L12: Incorrect type. Expected \"number\".",
+          "L15: Value is below the minimum of 0.",
+          "L16: Value is not accepted. Valid values: \"credits\", \"cost\"."
+        ]
+      }
+    },
+    {
+      "id": "S4.2a",
+      "item": "branchBudgets {branch:number}: update/get/inspect round-trip incl. keys with '/' and '.'; change event; settings.json holds the object",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "roundTrip": true,
+        "latencyMs": 59,
+        "keys": [
+          "main",
+          "feature/x",
+          "release/1.2"
+        ]
+      }
+    },
+    {
+      "id": "S4.2b",
+      "item": "EXTERNAL edit of one object key: fires affectsConfiguration(\"spike.branchBudgets\")",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "fired": true,
+        "latencyMs": 246
+      }
+    },
+    {
+      "id": "S4.2c",
+      "item": "object values violating additionalProperties (string/negative budgets) pass through verbatim",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "passedVerbatim": true,
+        "got": {
+          "main": "lots",
+          "dev": -1,
+          "x.y": null
+        }
+      }
+    },
+    {
+      "id": "S4.2d",
+      "item": "config.update('branchBudgets.main', 700, Global) (dotted sub-key write): behaviour",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "error": "Unable to write to User Settings because spike.branchBudgets.main is not a registered configuration.",
+        "fileAfter": {
+          "spike.branchBudgets": {
+            "main": 1
+          }
+        },
+        "getAfter": {
+          "main": 1
+        },
+        "note": "object settings are replaced wholesale; prefer update(\"branchBudgets\", wholeObject)"
+      }
+    },
+    {
+      "id": "S4.4a",
+      "item": "workspace .vscode/settings.json: which scopes are applied (application/machine ignored?), effective get() and inspect().workspaceValue",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "isTrusted": false,
+        "trustLabel": "untrusted",
+        "workspaceFolders": [
+          "/tmp/s1t/vmwvp91on/workspace"
+        ],
+        "anyEventFired": true,
+        "table": {
+          "rulesApp": {
+            "scope": "application",
+            "workspaceValueApplied": false,
+            "effectiveEqualsWorkspace": false
+          },
+          "rulesMachine": {
+            "scope": "machine",
+            "workspaceValueApplied": false,
+            "effectiveEqualsWorkspace": false
+          },
+          "targets": {
+            "scope": "machine",
+            "workspaceValueApplied": false,
+            "effectiveEqualsWorkspace": false
+          },
+          "branchBudgets": {
+            "scope": "application",
+            "workspaceValueApplied": false,
+            "effectiveEqualsWorkspace": false
+          },
+          "monthlyBudget": {
+            "scope": "application",
+            "workspaceValueApplied": false,
+            "effectiveEqualsWorkspace": false
+          },
+          "display.mode": {
+            "scope": "application",
+            "workspaceValueApplied": false,
+            "effectiveEqualsWorkspace": false
+          },
+          "rulesResource": {
+            "scope": "resource",
+            "workspaceValueApplied": true,
+            "effectiveEqualsWorkspace": true
+          },
+          "rulesMachineOverridable": {
+            "scope": "machine-overridable",
+            "workspaceValueApplied": true,
+            "effectiveEqualsWorkspace": true
+          },
+          "rulesWindow": {
+            "scope": "window",
+            "workspaceValueApplied": true,
+            "effectiveEqualsWorkspace": true
+          },
+          "rulesLang": {
+            "scope": "language-overridable",
+            "workspaceValueApplied": true,
+            "effectiveEqualsWorkspace": true
+          }
+        }
+      }
+    },
+    {
+      "id": "S4.4b",
+      "item": "diagnostics on workspace .vscode/settings.json for scopes that cannot be applied in a workspace (warning text)",
+      "status": "PASS",
+      "pass": true,
+      "evidence": [
+        "L2 sev3: This setting has an application scope and can be set only in the user settings file.",
+        "L10 sev3: This setting can only be applied in user settings in local window or in remote settings in remote window.",
+        "L18 sev3: This setting can only be applied in user settings in local window or in remote settings in remote window.",
+        "L24 sev3: This setting has an application scope and can be set only in the user settings file.",
+        "L27 sev3: This setting has an application scope and can be set only in the user settings file.",
+        "L28 sev3: This setting has an application scope and can be set only in the user settings file."
+      ]
+    },
+    {
+      "id": "S4.4c",
+      "item": "config.update(..., ConfigurationTarget.Workspace) for application/machine/resource scope: allowed or rejected",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "rulesApp": "rejected: Unable to write spike.rulesApp to Workspace Settings. This setting can be written only into User settings.",
+        "rulesMachine": "rejected: Unable to write spike.rulesMachine to Workspace Settings. This setting can be written only into User settings.",
+        "rulesResource": "accepted",
+        "rulesWindow": "accepted"
+      }
+    },
+    {
+      "id": "S4.4d",
+      "item": "workspace edit of resource-scope array fires onDidChangeConfiguration",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "fired": true,
+        "latencyMs": 250
+      }
+    },
+    {
+      "id": "S4.misc1",
+      "item": "affectsConfiguration granularity: parent section \"spike\" and exact key; sibling keys unaffected",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "monthlyBudget": true,
+        "spike": true,
+        "rulesApp": false,
+        "branchBudgets": false,
+        "displayModeSection": false
+      }
+    },
+    {
+      "id": "S4.misc2",
+      "item": "getConfiguration(\"spike\") object: keys visible (for table-driven reads)",
+      "status": "PASS",
+      "pass": true,
+      "evidence": {
+        "keys": [
+          "branchBudgets",
+          "display",
+          "get",
+          "has",
+          "inspect",
+          "monthlyBudget",
+          "rulesApp",
+          "rulesLang",
+          "rulesMachine",
+          "rulesMachineOverridable",
+          "rulesResource",
+          "rulesWindow",
+          "targets",
+          "update"
+        ]
+      }
+    }
+  ]
+}

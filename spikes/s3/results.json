@@ -1,0 +1,1355 @@
+[
+  {
+    "section": "1 keyboard",
+    "name": "stock DOM (item attrs / handles)",
+    "pass": null,
+    "evidence": {
+      "itemHtml": "<div class=\"grid-stack-item\" gs-x=\"0\" gs-y=\"0\" gs-w=\"2\" gs-h=\"2\" gs-id=\"a\" style=\"width: calc(2 * var(--gs-column-width)); height: calc(2 * var(--gs-cell-height)); --gs-x: 0; --gs-y: 0; --gs-w: 2; --gs-h: 2;\"><div class=\"grid-stack-item-content\">Widget A</div><div class=\"ui-resizable-handle ui-resizable-se\"></div></div>",
+      "itemAttrs": [
+        "class",
+        "gs-x",
+        "gs-y",
+        "gs-w",
+        "gs-h",
+        "gs-id",
+        "style"
+      ],
+      "handleCount": 1,
+      "handleHasTabindexOrRole": false,
+      "tabbable": 0
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "stock: no element is tabbable, handles have no tabindex/role",
+    "pass": true,
+    "evidence": {
+      "tabbable": 0
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "stock: Tab reaches nothing; no key moves/resizes a widget (positions unchanged)",
+    "pass": true,
+    "evidence": {
+      "tabSequence": [
+        "BODY",
+        "BODY",
+        "BODY",
+        "BODY",
+        "BODY"
+      ],
+      "unchanged": true
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "source scan of gridstack dist/*.js for aria-/role=/tabindex/.focus(/keyboard",
+    "pass": null,
+    "evidence": {
+      "dd-draggable.js": 1,
+      "dd-resizable-handle.js": 1
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "README + API.md mentions of accessibility/aria/screen reader/keyboard",
+    "pass": null,
+    "evidence": 8
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] view mode: only the Edit button is tabbable (no tab-order pollution)",
+    "pass": true,
+    "evidence": {
+      "tabbableView": 1
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] Enter on Edit button -> grid non-static, aria-pressed=true",
+    "pass": true
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] Alt+ArrowLeft moves models x-1",
+    "pass": true,
+    "evidence": {
+      "before": "3,0,1x13",
+      "after": "2,0,1x13"
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] announcement states the RESULTING column",
+    "pass": true,
+    "evidence": "Models moved to column 3, row 1."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] aria-live region content equals the announcement",
+    "pass": true,
+    "evidence": "Models moved to column 3, row 1."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] focus retained on the SAME grip element after re-render",
+    "pass": true
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] layout after move (gravity pushes the overlapped panel down, no swap)",
+    "pass": null,
+    "evidence": "models:2,0,1x13 | timeline:0,13,3x13 | weekday:0,26,2x7 | hourly:2,26,2x7 | categories:0,33,2x21 | heatmap:2,33,2x7"
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] Alt+ArrowDown moves timeline below its lower neighbour",
+    "pass": true,
+    "evidence": {
+      "before": "0,13,3x13",
+      "after": "0,20,3x13"
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] focus retained after vertical move",
+    "pass": true,
+    "evidence": "Cost over time moved to column 1, row 3."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] Alt+ArrowUp moves it back up (reversible)",
+    "pass": true,
+    "evidence": {
+      "restoredTo": "0,13,3x13"
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] after moves, DOM (= Tab) order equals visual row-major order",
+    "pass": true,
+    "evidence": {
+      "dom": [
+        "weekday",
+        "models",
+        "timeline",
+        "categories",
+        "hourly",
+        "heatmap"
+      ],
+      "vis": [
+        "weekday",
+        "models",
+        "timeline",
+        "categories",
+        "hourly",
+        "heatmap"
+      ]
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] Tab sequence from the Edit button: grip, width, height, hide per panel in visual order",
+    "pass": null,
+    "evidence": [
+      "weekday:move",
+      "weekday:w",
+      "weekday:h",
+      "weekday:hide",
+      "models:move",
+      "models:w",
+      "models:h",
+      "models:hide"
+    ]
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] Alt+Arrow at a boundary is a no-op and says so",
+    "pass": true,
+    "evidence": "Models cannot move further up."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] ArrowRight on width slider: w+1",
+    "pass": true,
+    "evidence": {
+      "before": "0,0,2x7",
+      "after": "0,0,3x7"
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] slider aria-valuenow/valuetext follow, focus retained",
+    "pass": true,
+    "evidence": "Weekday resized to 3 of 4 columns wide."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] ArrowLeft x2 clamps at 1 column; second press announces minimum",
+    "pass": true,
+    "evidence": "Weekday resized to 1 of 4 columns wide."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] ArrowUp on height slider steps compact -> normal tier (7 -> 13 rows)",
+    "pass": true,
+    "evidence": {
+      "rect": "0,0,1x13",
+      "ann": "Weekday resized to normal height, 13 rows."
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] ArrowDown steps back to compact",
+    "pass": true
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] plain Arrow on a slider never changes x (only w/h)",
+    "pass": true,
+    "evidence": {
+      "x": 0
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] Enter on Hide removes the panel from the grid (nodes 6->5) and announces",
+    "pass": true,
+    "evidence": {
+      "nodes": 5,
+      "items": 6,
+      "announce": "Heatmap hidden."
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[native moveBefore] Enter on \"Show Heatmap\" restores it",
+    "pass": true
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] view mode: only the Edit button is tabbable (no tab-order pollution)",
+    "pass": true,
+    "evidence": {
+      "tabbableView": 1
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] Enter on Edit button -> grid non-static, aria-pressed=true",
+    "pass": true
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] Alt+ArrowLeft moves models x-1",
+    "pass": true,
+    "evidence": {
+      "before": "3,0,1x13",
+      "after": "2,0,1x13"
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] announcement states the RESULTING column",
+    "pass": true,
+    "evidence": "Models moved to column 3, row 1."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] aria-live region content equals the announcement",
+    "pass": true,
+    "evidence": "Models moved to column 3, row 1."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] focus retained on the SAME grip element after re-render",
+    "pass": true
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] layout after move (gravity pushes the overlapped panel down, no swap)",
+    "pass": null,
+    "evidence": "models:2,0,1x13 | timeline:0,13,3x13 | weekday:0,26,2x7 | hourly:2,26,2x7 | categories:0,33,2x21 | heatmap:2,33,2x7"
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] Alt+ArrowDown moves timeline below its lower neighbour",
+    "pass": true,
+    "evidence": {
+      "before": "0,13,3x13",
+      "after": "0,20,3x13"
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] focus retained after vertical move",
+    "pass": true,
+    "evidence": "Cost over time moved to column 1, row 3."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] Alt+ArrowUp moves it back up (reversible)",
+    "pass": true,
+    "evidence": {
+      "restoredTo": "0,13,3x13"
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] after moves, DOM (= Tab) order equals visual row-major order",
+    "pass": true,
+    "evidence": {
+      "dom": [
+        "weekday",
+        "models",
+        "timeline",
+        "categories",
+        "hourly",
+        "heatmap"
+      ],
+      "vis": [
+        "weekday",
+        "models",
+        "timeline",
+        "categories",
+        "hourly",
+        "heatmap"
+      ]
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] Tab sequence from the Edit button: grip, width, height, hide per panel in visual order",
+    "pass": null,
+    "evidence": [
+      "weekday:move",
+      "weekday:w",
+      "weekday:h",
+      "weekday:hide",
+      "models:move",
+      "models:w",
+      "models:h",
+      "models:hide"
+    ]
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] Alt+Arrow at a boundary is a no-op and says so",
+    "pass": true,
+    "evidence": "Models cannot move further up."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] ArrowRight on width slider: w+1",
+    "pass": true,
+    "evidence": {
+      "before": "0,0,2x7",
+      "after": "0,0,3x7"
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] slider aria-valuenow/valuetext follow, focus retained",
+    "pass": true,
+    "evidence": "Weekday resized to 3 of 4 columns wide."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] ArrowLeft x2 clamps at 1 column; second press announces minimum",
+    "pass": true,
+    "evidence": "Weekday resized to 1 of 4 columns wide."
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] ArrowUp on height slider steps compact -> normal tier (7 -> 13 rows)",
+    "pass": true,
+    "evidence": {
+      "rect": "0,0,1x13",
+      "ann": "Weekday resized to normal height, 13 rows."
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] ArrowDown steps back to compact",
+    "pass": true
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] plain Arrow on a slider never changes x (only w/h)",
+    "pass": true,
+    "evidence": {
+      "x": 0
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] Enter on Hide removes the panel from the grid (nodes 6->5) and announces",
+    "pass": true,
+    "evidence": {
+      "nodes": 5,
+      "items": 6,
+      "announce": "Heatmap hidden."
+    }
+  },
+  {
+    "section": "1 keyboard",
+    "name": "[no moveBefore] Enter on \"Show Heatmap\" restores it",
+    "pass": true
+  },
+  {
+    "section": "1 keyboard",
+    "name": "WITHOUT moveBefore a bare grid.update() blurs the focused handle (our restoreFocus() repairs it, checks above)",
+    "pass": null,
+    "evidence": {
+      "lostFocusAfterBareUpdate": true,
+      "activeTag": "BODY"
+    }
+  },
+  {
+    "section": "2 CSP",
+    "name": "exact repo CSP (style-src 'unsafe-inline'), gridstack + ECharts",
+    "pass": null,
+    "evidence": {
+      "label": "exact repo CSP (style-src 'unsafe-inline'), gridstack + ECharts",
+      "dragMovedPanel": true,
+      "violations": 0,
+      "consoleCspMessages": 0,
+      "otherConsoleErrors": [],
+      "unique": []
+    }
+  },
+  {
+    "section": "2 CSP",
+    "name": "STRICT (style-src 'self' only), gridstack only (charts=0)",
+    "pass": null,
+    "evidence": {
+      "label": "STRICT (style-src 'self' only), gridstack only (charts=0)",
+      "dragMovedPanel": true,
+      "violations": 0,
+      "consoleCspMessages": 0,
+      "otherConsoleErrors": [],
+      "unique": []
+    }
+  },
+  {
+    "section": "2 CSP",
+    "name": "STRICT, stock gridstack markup",
+    "pass": null,
+    "evidence": {
+      "label": "STRICT, stock gridstack markup",
+      "dragMovedPanel": null,
+      "violations": 0,
+      "consoleCspMessages": 0,
+      "otherConsoleErrors": [],
+      "unique": []
+    }
+  },
+  {
+    "section": "2 CSP",
+    "name": "STRICT, gridstack + ECharts",
+    "pass": null,
+    "evidence": {
+      "label": "STRICT, gridstack + ECharts",
+      "dragMovedPanel": true,
+      "violations": 26,
+      "consoleCspMessages": 26,
+      "otherConsoleErrors": [],
+      "unique": [
+        "style-src-attr | inline"
+      ]
+    }
+  },
+  {
+    "section": "2 CSP",
+    "name": "exact repo CSP: zero violations during init, drag, resize, keyboard, hide/show, tooltip, breakpoint switch",
+    "pass": true,
+    "evidence": {
+      "violations": 0
+    }
+  },
+  {
+    "section": "2 CSP",
+    "name": "gridstack alone needs NO 'unsafe-inline' (strict CSP, zero violations, and drag/resize still function)",
+    "pass": true,
+    "evidence": {
+      "demoNoCharts": 0,
+      "stock": 0
+    }
+  },
+  {
+    "section": "2 CSP",
+    "name": "with ECharts under strict CSP (what 'unsafe-inline' is really for)",
+    "pass": null,
+    "evidence": {
+      "violations": 26,
+      "unique": [
+        "style-src-attr | inline"
+      ]
+    }
+  },
+  {
+    "section": "2 CSP",
+    "name": "under strict CSP the ONLY violations come from the ECharts DOM tooltip on hover (style=\"\" attributes), none at chart init",
+    "pass": true,
+    "evidence": {
+      "afterInit": 0,
+      "afterHover": 26
+    }
+  },
+  {
+    "section": "2 CSP",
+    "name": "source scan: eval / new Function / createElement('style') / insertRule / setAttribute('style')",
+    "pass": null,
+    "evidence": {
+      "eval": false,
+      "newFunction": false,
+      "styleElement": false,
+      "insertRule": false,
+      "setAttributeStyle": false,
+      "note": "v14 sizes via CSS custom properties set through the CSSOM (el.style.setProperty); the old injected <style> sheet and its `nonce` option are gone/unused"
+    }
+  },
+  {
+    "section": "3 charts",
+    "name": "initial: every chart canvas fills its widget body",
+    "pass": true
+  },
+  {
+    "section": "3 charts",
+    "name": "grid.update(w:3,h:21) -> RO-driven chart.resize() matches new body box",
+    "pass": true,
+    "evidence": {
+      "innerW": 771,
+      "innerH": 435,
+      "canvasW": 771,
+      "canvasH": 435,
+      "chartW": 771,
+      "chartH": 435,
+      "sameCanvas": true,
+      "bodyH": 451
+    }
+  },
+  {
+    "section": "3 charts",
+    "name": "chart.resize() calls for that one update (rAF-coalesced; animation ticks add a few)",
+    "pass": null,
+    "evidence": 18
+  },
+  {
+    "section": "3 charts",
+    "name": "shrink back: canvas shrinks (no stale larger canvas / no overflow)",
+    "pass": true,
+    "evidence": {
+      "innerW": 504,
+      "innerH": 99,
+      "canvasW": 504,
+      "canvasH": 99,
+      "chartW": 504,
+      "chartH": 99,
+      "sameCanvas": true,
+      "bodyH": 115
+    }
+  },
+  {
+    "section": "3 charts",
+    "name": "MOUSE resize via SE handle: chart follows to correct size, same canvas, not disposed",
+    "pass": true,
+    "evidence": {
+      "rect": "2,13,1x12",
+      "innerW": 237,
+      "innerH": 219,
+      "canvasW": 237,
+      "canvasH": 219,
+      "chartW": 237,
+      "chartH": 219,
+      "sameCanvas": true,
+      "bodyH": 235,
+      "resizeCalls": 38
+    }
+  },
+  {
+    "section": "3 charts",
+    "name": "after header-drag: same canvas node, not disposed, size matches body",
+    "pass": true,
+    "evidence": {
+      "before": "504x99",
+      "after": "504x99",
+      "newRect": "1,13,2x7"
+    }
+  },
+  {
+    "section": "3 charts",
+    "name": "after dragging: chart hover (mouseover/showTip/tooltip DOM) and click still work",
+    "pass": true,
+    "evidence": {
+      "before": {
+        "click": 0,
+        "mouseover": 0,
+        "showTip": 0
+      },
+      "after": {
+        "click": 1,
+        "mouseover": 2,
+        "showTip": 8
+      },
+      "tooltipDomVisible": true
+    }
+  },
+  {
+    "section": "3 charts",
+    "name": "edit mode: dragging INSIDE a chart body does not move the panel (handle is the header only)",
+    "pass": true,
+    "evidence": "3,0,1x13"
+  },
+  {
+    "section": "3 charts",
+    "name": "mid-drag state (the dragged item itself becomes position:fixed, pointer-events:none; chart keeps its canvas)",
+    "pass": null,
+    "evidence": {
+      "helperIsItem": true,
+      "position": "fixed",
+      "pointerEvents": "none",
+      "chartAlive": true,
+      "canvasW": 504
+    }
+  },
+  {
+    "section": "3 charts",
+    "name": "same update with animate:false -> chart.resize() calls (animate:true costs ~19: one per frame of the 0.3s width/height transition)",
+    "pass": null,
+    "evidence": 1
+  },
+  {
+    "section": "4 layout",
+    "name": "mode:'top' (v14's replacement for float:false): update(y:40) is pulled back up (gravity) - no gaps, no overlaps",
+    "pass": true,
+    "evidence": {
+      "models": "3,27,1x13",
+      "problems": []
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "grid.getMode()/getColumn(); grid.move / grid.resize exist in 14.1.1?",
+    "pass": null,
+    "evidence": {
+      "mode": "top",
+      "column": 4,
+      "cssCols": "4",
+      "gridMoveFn": "undefined",
+      "gridResizeFn": "undefined",
+      "updateFn": "function"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "grid.move and grid.resize are NOT in the 14.1.1 public API (update() is the only mover)",
+    "pass": true,
+    "evidence": {
+      "mode": "top",
+      "column": 4,
+      "cssCols": "4",
+      "gridMoveFn": "undefined",
+      "gridResizeFn": "undefined",
+      "updateFn": "function"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "12-column grid works with the stock CSS (CSS custom properties; no gridstack-extra.css)",
+    "pass": true,
+    "evidence": {
+      "gridW": 1068,
+      "timelineW": 1068,
+      "modelsLeft": 979,
+      "cols": "12"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "breakpoint {w:700,c:1,breakpointForWindow:true}: columns + grid.save() while resizing 701 -> 700 -> 400 -> 701",
+    "pass": null,
+    "evidence": [
+      {
+        "width": 701,
+        "columns": 4,
+        "saveEqualsWide": true
+      },
+      {
+        "width": 700,
+        "columns": 1,
+        "saveEqualsWide": true
+      },
+      {
+        "width": 400,
+        "columns": 1,
+        "saveEqualsWide": true
+      },
+      {
+        "width": 701,
+        "columns": 4,
+        "saveEqualsWide": true
+      }
+    ]
+  },
+  {
+    "section": "4 layout",
+    "name": "switches to 1 column at <=700px and back to 4 at 701px (same boundary as @media (max-width:700px))",
+    "pass": true,
+    "evidence": [
+      4,
+      1,
+      1,
+      4
+    ]
+  },
+  {
+    "section": "4 layout",
+    "name": "grid.save() while in 1-column state returns the WIDE (cached 4-col) coordinates",
+    "pass": true,
+    "evidence": "engine.save() uses _layouts[highest]"
+  },
+  {
+    "section": "4 layout",
+    "name": "4 -> 1 -> 4 round trip restores the layout EXACTLY with columnOpts.layout:'moveScale' ('list' did not)",
+    "pass": true,
+    "evidence": {
+      "width": 701,
+      "columns": 4,
+      "saveEqualsWide": true
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "a breakpoint switch fires no persistence (no change-event-driven writes)",
+    "pass": true,
+    "evidence": {
+      "persistedBefore": 1
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "narrow view: Edit button disabled and grid forced static by the onColumnChange handler",
+    "pass": true,
+    "evidence": {
+      "disabled": true,
+      "static": true
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "back to wide: Edit button re-enabled",
+    "pass": true
+  },
+  {
+    "section": "4 layout",
+    "name": "HAZARD: editing while 1-column corrupts the cached wide layout (overlaps/gaps) -> must set static in narrow mode",
+    "pass": true,
+    "evidence": {
+      "problems": [
+        "gap:timeline@y13(want 0)",
+        "overlap:timeline/hourly",
+        "overlap:timeline/categories",
+        "overlap:timeline/heatmap"
+      ],
+      "wideSaveNow": "models:3,0,1x13 | timeline:0,13,3x13 | weekday:0,13,1x7 | hourly:2,13,2x7 | categories:0,20,2x21 | heatmap:2,20,2x7"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "our gate (engine.columns() !== wide) suppressed the persist for that narrow edit",
+    "pass": true
+  },
+  {
+    "section": "4 layout",
+    "name": "engine.onColumnChange (built on the `resizecontent` event) observed",
+    "pass": null,
+    "evidence": [
+      4,
+      1
+    ]
+  },
+  {
+    "section": "4 layout",
+    "name": "startup while ALREADY 1-column: per-item register() vs registerAll() (via load())",
+    "pass": null,
+    "evidence": {
+      "each": {
+        "narrowColumns": 1,
+        "narrowStackOrder": "models>hourly>heatmap>categories>weekday>timeline",
+        "wideRestoredExactly": true
+      },
+      "all": {
+        "narrowColumns": 1,
+        "narrowStackOrder": "timeline>models>weekday>hourly>categories>heatmap",
+        "wideRestoredExactly": true
+      }
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "registerAll(): restoring wide rects into an already-narrow grid keeps reading order (row-major) AND restores the wide layout exactly when widened",
+    "pass": true,
+    "evidence": {
+      "narrowColumns": 1,
+      "narrowStackOrder": "timeline>models>weekday>hourly>categories>heatmap",
+      "wideRestoredExactly": true
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "PITFALL: per-item register() in a narrow grid scrambles the 1-column order (wide layout is still restored)",
+    "pass": true,
+    "evidence": {
+      "narrowColumns": 1,
+      "narrowStackOrder": "models>hourly>heatmap>categories>weekday>timeline",
+      "wideRestoredExactly": true
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "tier -> rows (cellHeight 24, margin 6 => panel box = h*24-12 px; body = box - 39px header incl. border; today's bodies are 120/260/455)",
+    "pass": null,
+    "evidence": [
+      {
+        "tier": "compact",
+        "rows": 7,
+        "targetBody": 120,
+        "measuredBody": 115,
+        "delta": -5,
+        "header": 39,
+        "section": 156,
+        "canvas": 99
+      },
+      {
+        "tier": "normal",
+        "rows": 13,
+        "targetBody": 260,
+        "measuredBody": 259,
+        "delta": -1,
+        "header": 39,
+        "section": 300,
+        "canvas": 243
+      },
+      {
+        "tier": "tall",
+        "rows": 21,
+        "targetBody": 455,
+        "measuredBody": 451,
+        "delta": -4,
+        "header": 39,
+        "section": 492,
+        "canvas": 435
+      },
+      {
+        "tier": "compact-8",
+        "rows": 8,
+        "targetBody": 120,
+        "measuredBody": 139,
+        "delta": 19,
+        "header": 39,
+        "section": 180,
+        "canvas": 123
+      },
+      {
+        "tier": "tall-22",
+        "rows": 22,
+        "targetBody": 455,
+        "measuredBody": 475,
+        "delta": 20,
+        "header": 39,
+        "section": 516,
+        "canvas": 459
+      }
+    ]
+  },
+  {
+    "section": "4 layout",
+    "name": "proposed {compact:7, normal:13, tall:21} land within 6 px (<=4.5%) of today's body heights (120/260/455)",
+    "pass": true,
+    "evidence": [
+      "compact:-5",
+      "normal:-1",
+      "tall:-4"
+    ]
+  },
+  {
+    "section": "4 layout",
+    "name": "staticGrid:true -> no drag/resize handles in the DOM, .grid-stack-static set",
+    "pass": true,
+    "evidence": {
+      "static": true,
+      "cls": true,
+      "handleNodes": 0,
+      "seHandle": "absent"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "static: header mouse-drag does nothing",
+    "pass": true
+  },
+  {
+    "section": "4 layout",
+    "name": "static: programmatic grid.update() still works (so load()/restore work in view mode)",
+    "pass": true
+  },
+  {
+    "section": "4 layout",
+    "name": "setStatic(false): 3 handles per panel (e,se,s) appear; drag works",
+    "pass": true,
+    "evidence": {
+      "static": false,
+      "cls": false,
+      "handleNodes": 18,
+      "seHandle": "present"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "gridstack's own resize handles are DESTROYED + RE-CREATED on every setStatic toggle (so ARIA/tabindex on them would not stick; we use our own sliders)",
+    "pass": null,
+    "evidence": {
+      "recreated": true,
+      "count": 6
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "non-static: header drag moves the panel",
+    "pass": true,
+    "evidence": {
+      "before": "0,13,2x7",
+      "after": "2,20,2x7"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "removeWidget(el,false): DOM node + chart instance + canvas survive; node is no longer tracked",
+    "pass": true,
+    "evidence": {
+      "connected": true,
+      "hiddenAttr": true,
+      "rectW": 0,
+      "hasNode": false,
+      "nodes": 5,
+      "getGridItems": 6,
+      "sameCanvas": true,
+      "sameChart": true
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "PITFALL: the node stays a child of .grid-stack with .grid-stack-item, so grid.getGridItems() still returns it (6 vs 5 nodes) and it stays absolutely positioned at its old slot until we hide it",
+    "pass": null,
+    "evidence": {
+      "getGridItems": 6,
+      "nodes": 5,
+      "hiddenByUs": true,
+      "widthWhenHidden": 0
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "remaining panels re-compact: no gaps, no overlaps after a panel is removed",
+    "pass": true,
+    "evidence": {
+      "layout": "timeline:0,0,3x13 | models:3,0,1x13 | categories:0,13,2x21 | hourly:2,13,2x7 | heatmap:2,20,2x7",
+      "problems": []
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "re-adding with its remembered rect restores the slot and leaves no gaps/overlaps",
+    "pass": true,
+    "evidence": {
+      "weekday": "0,13,2x7",
+      "problems": []
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "chart is correctly sized again after re-add (ResizeObserver fires on un-hide)",
+    "pass": true,
+    "evidence": {
+      "sameCanvas": true,
+      "bodyW": 504,
+      "canvasW": 504
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "re-adding into an OCCUPIED rect pushes the occupants down (no overlap, but reflows others)",
+    "pass": null,
+    "evidence": {
+      "afterReadd": "no gaps/overlaps",
+      "ap": [
+        "heatmap:0,0,4x7",
+        "timeline:0,7,3x13",
+        "models:3,7,1x13",
+        "weekday:0,20,2x7",
+        "hourly:2,20,2x7",
+        "categories:0,27,2x21"
+      ]
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "load() does not echo back into persistence (change fired with ignorable=true is gated; no write loop)",
+    "pass": true,
+    "evidence": {
+      "persistedBeforeLoad": 0
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "adapter load(): unknown ids ignored (no ghost widget), panels missing from the list are kept",
+    "pass": true,
+    "evidence": {
+      "items": 6,
+      "nodes": 6,
+      "ghost": false,
+      "models": "0,0,1x13",
+      "timeline": "1,0,3x13",
+      "hourly": "2,13,2x7"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "adapter load(): out-of-range x/w/y clamped by sanitizeRects (w:9@x:3,y:99 -> fits 4 columns, gravity applies)",
+    "pass": true,
+    "evidence": "0,34,4x7"
+  },
+  {
+    "section": "4 layout",
+    "name": "adapter load(): applied positions are the saved ones for known ids (models x0, timeline x1)",
+    "pass": true,
+    "evidence": {
+      "models": "0,0,1x13",
+      "timeline": "1,0,3x13"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "load result has no gaps/overlaps",
+    "pass": true,
+    "evidence": []
+  },
+  {
+    "section": "4 layout",
+    "name": "HAZARD: raw grid.load() of an oversize rect clamps the LIVE node but grid.save() keeps returning the unclamped cached layout (it was cached as \"saved for a wider grid\") -> persisting would write the bad rect back; sanitize BEFORE load",
+    "pass": true,
+    "evidence": {
+      "liveNode": "0,34,4x7",
+      "gridSave": "3,99,9xdefault"
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "HAZARD (raw grid.load(list) with default addRemove=true): unknown ids CREATE empty widgets; panels not in the list are REMOVED. The adapter filters + passes addRemove=false",
+    "pass": null,
+    "evidence": {
+      "items": 4,
+      "nodes": 4,
+      "ghost": true
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "one mouse drag => dragstart, dragstop, ONE `change`, ONE debounced persist",
+    "pass": true,
+    "evidence": {
+      "events": {
+        "gs:dragstart": 1,
+        "gs:dragstop": 1,
+        "gs:change": 1
+      },
+      "persisted": 1,
+      "last": 4
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "one mouse resize => resizestart, resizestop, ONE `change`, one more persist",
+    "pass": true,
+    "evidence": {
+      "events": {
+        "gs:resizestart": 1,
+        "gs:resizestop": 1,
+        "gs:change": 1
+      },
+      "persisted": 2
+    }
+  },
+  {
+    "section": "4 layout",
+    "name": "5 rapid programmatic updates coalesce into one debounced persist (250ms)",
+    "pass": true,
+    "evidence": 3
+  },
+  {
+    "section": "4 layout",
+    "name": "persisted snapshot has every panel {id,x,y,w,h,hidden} incl. hidden ones",
+    "pass": true,
+    "evidence": [
+      {
+        "id": "models",
+        "x": 2,
+        "y": 0,
+        "w": 1,
+        "h": 13,
+        "hidden": false
+      },
+      {
+        "id": "timeline",
+        "x": 0,
+        "y": 13,
+        "w": 3,
+        "h": 13,
+        "hidden": false
+      }
+    ]
+  },
+  {
+    "section": "5 size",
+    "name": "esbuild --minify iife es2022 (repo webview config)",
+    "pass": null,
+    "evidence": {
+      "gridstackJsBytes": 98011,
+      "gridstackJsGzip": 27702,
+      "gridstackCssBytes": 6068,
+      "gridstackCssGzip": 1435,
+      "echartsOnlyForScale": 574783,
+      "vs700KB": "14.0% JS growth"
+    }
+  },
+  {
+    "section": "7 motion/contrast",
+    "name": "gridstack animates by default (animate:true -> .grid-stack-animate, 0.3s left/top/width/height)",
+    "pass": true,
+    "evidence": {
+      "animateClass": true,
+      "itemTransition": "left, right, top, height, width / 0.3s, 0.3s, 0.3s, 0.3s, 0.3s"
+    }
+  },
+  {
+    "section": "7 motion/contrast",
+    "name": "animate:false removes the class; item transitions are none/0s",
+    "pass": true,
+    "evidence": {
+      "animateClass": false,
+      "itemTransition": "all / 0s"
+    }
+  },
+  {
+    "section": "7 motion/contrast",
+    "name": "prefers-reduced-motion: reduce -> our @media override zeroes the transitions (class stays, CSS neutralises it)",
+    "pass": true,
+    "evidence": {
+      "animateClass": true,
+      "itemTransition": "none / 0s"
+    }
+  },
+  {
+    "section": "7 motion/contrast",
+    "name": "gridstack itself never consults prefers-reduced-motion (JS or CSS) -> the override is ours to ship",
+    "pass": true,
+    "evidence": {
+      "jsMatchMedia": false,
+      "cssReducedMotion": false
+    }
+  },
+  {
+    "section": "7 motion/contrast",
+    "name": "also ours to neutralise: touch long-press \"armed\" wiggle/pulse keyframes (gs-armed-wiggle/pulse)",
+    "pass": null,
+    "evidence": {
+      "keyframes": [
+        "@keyframes gs-armed-wiggle",
+        "@keyframes gs-armed-pulse"
+      ]
+    }
+  },
+  {
+    "section": "7 motion/contrast",
+    "name": "hard-coded colours in gridstack.css (none use var(--vscode-*)); computed on the stock page",
+    "pass": null,
+    "evidence": {
+      "hardcoded": [
+        "rgba(0, 0, 0, 0.1)",
+        "%23666",
+        "rgba(0, 0, 0, 0.2)"
+      ],
+      "placeholderBg": "rgba(0, 0, 0, 0.1)",
+      "handleBgImageIsHardcodedSvg": false,
+      "draggingShadow": "none"
+    }
+  },
+  {
+    "section": "7 motion/contrast",
+    "name": "stock placeholder is rgba(0,0,0,0.1): effectively invisible on dark themes -> must be overridden with theme tokens",
+    "pass": true,
+    "evidence": "rgba(0, 0, 0, 0.1)"
+  },
+  {
+    "section": "7 motion/contrast",
+    "name": "forced-colors: active (Windows High Contrast / VS Code HC maps to system colours) with our overrides",
+    "pass": null,
+    "evidence": {
+      "forcedColors": true,
+      "placeholderBorder": "rgba(0, 230, 255, 0.8)",
+      "placeholderBg": "rgba(0, 0, 0, 0)",
+      "sectionBorder": "rgb(255, 255, 255)"
+    }
+  },
+  {
+    "section": "7 motion/contrast",
+    "name": "forced-colors: placeholder uses a system colour border (Highlight), not the stock rgba(0,0,0,.1)",
+    "pass": true,
+    "evidence": {
+      "forcedColors": true,
+      "placeholderBorder": "rgba(0, 230, 255, 0.8)",
+      "placeholderBg": "rgba(0, 0, 0, 0)",
+      "sectionBorder": "rgb(255, 255, 255)"
+    }
+  },
+  {
+    "section": "8 misc",
+    "name": "package",
+    "pass": null,
+    "evidence": {
+      "name": "gridstack",
+      "version": "14.1.1",
+      "license": "MIT",
+      "dependencies": {},
+      "peer": {}
+    }
+  },
+  {
+    "section": "8 misc",
+    "name": "license MIT and zero runtime dependencies",
+    "pass": true
+  },
+  {
+    "section": "8 misc",
+    "name": "DnD implementation",
+    "pass": null,
+    "evidence": {
+      "html5DnD": false,
+      "mouseEvents": true,
+      "touchEvents": true,
+      "pointerEvents": false,
+      "note": "custom mouse (+touch->mouse emulation) engine, NOT HTML5 DnD and NOT pointer events"
+    }
+  },
+  {
+    "section": "8 misc",
+    "name": "destroy(): 60 init/load/setStatic/destroy cycles -> after GC only the 1 page-level GridStack instance is alive, no leftover DOM",
+    "pass": true,
+    "evidence": {
+      "liveGridStackInstances": 1,
+      "gridsInDom": 1
+    }
+  },
+  {
+    "section": "8 misc",
+    "name": "destroy(): every ResizeObserver created is disconnected; no document/window listener is left behind",
+    "pass": true,
+    "evidence": {
+      "roCreated": 60,
+      "roDisconnected": 60,
+      "docWinAdds": 0,
+      "docWinRemoves": 720,
+      "anyAdds": 1440,
+      "anyRemoves": 1440
+    }
+  },
+  {
+    "section": "8 misc",
+    "name": "drag helper position + visibility over the toolbar band (outside the grid box), per `contain` placement",
+    "pass": null,
+    "evidence": [
+      {
+        "label": "baseline (contain only on .wv-chart-section, as today)",
+        "helper": {
+          "x": 200,
+          "y": 27
+        },
+        "expectedIfNoOffset": {
+          "x": 216,
+          "y": -4
+        },
+        "helperVisibleOverToolbarBand": true
+      },
+      {
+        "label": "contain:layout paint on .grid-stack-item",
+        "helper": {
+          "x": 200,
+          "y": 27
+        },
+        "expectedIfNoOffset": {
+          "x": 216,
+          "y": -4
+        },
+        "helperVisibleOverToolbarBand": true
+      },
+      {
+        "label": "contain:layout paint on .grid-stack (ancestor of the fixed drag helper)",
+        "helper": {
+          "x": 200,
+          "y": 27
+        },
+        "expectedIfNoOffset": {
+          "x": 216,
+          "y": -4
+        },
+        "helperVisibleOverToolbarBand": false
+      }
+    ]
+  },
+  {
+    "section": "8 misc",
+    "name": "contain on the item or the grid does not break cursor tracking (gridstack probes the fixed containing block)",
+    "pass": true,
+    "evidence": [
+      {
+        "x": 200,
+        "y": 27
+      },
+      {
+        "x": 200,
+        "y": 27
+      },
+      {
+        "x": 200,
+        "y": 27
+      }
+    ]
+  },
+  {
+    "section": "8 misc",
+    "name": "baseline + contain on the item: helper stays visible outside the grid box",
+    "pass": true,
+    "evidence": [
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "section": "8 misc",
+    "name": "RISK CONFIRMED: contain:paint on an ANCESTOR of the items clips the dragged helper at that ancestor's box (keep contain on .wv-chart-section only)",
+    "pass": true,
+    "evidence": false
+  },
+  {
+    "section": "8 misc",
+    "name": "touch: long-press (300 ms) on the header then drag moves the panel (touch->mouse emulation)",
+    "pass": true,
+    "evidence": {
+      "before": "0,13,2x7",
+      "after": "2,20,2x7"
+    }
+  }
+]

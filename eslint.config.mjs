@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import security from 'eslint-plugin-security';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'out/', 'node_modules/', '.vscode-test/'] },
+  { ignores: ['dist/', 'out/', 'node_modules/', '.vscode-test/', 'spikes/'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   security.configs.recommended,

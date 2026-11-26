@@ -29,85 +29,78 @@ Four more charts sit behind the **Add chart** button, hidden until you want them
 - **GitHub billing items** — net amount per model/SKU from the billing API (needs sign-in).
 - **≈ By language** — spend per programming language, detected from the active editor the same way the repo heuristic works (live events only, never backfill). The `≈` in the title is deliberate: treat it as directional.
 
-Added charts behave like the stock ones: drag, resize, hide, all persisted to `config.json`.
+Added charts behave like the stock ones: drag, resize and hide them like any other panel.
 
 ## Layout
 
-Use **Resize** and **Move** to drag, resize, or hide panels. Your arrangement is saved automatically into `config.json`. **Reset layout** restores defaults.
+The analysis charts sit on a freeform grid (four columns wide). Press **Edit layout** to change it, and **Edit layout** again when you are done. While editing:
+
+- **Mouse or touch**: drag a panel by its header to move it, and drag its edge or bottom-right corner to resize it. Panels never overlap; neighbours make room.
+- **Hide**: the eye button on a panel's header removes it from the grid. **Add chart** lists hidden panels and brings one back.
+- **Reset layout** restores the default arrangement.
+
+Your arrangement is saved automatically in VS Code's own storage for the extension (not in the settings) and survives restarts. In a narrow window (700 px or less) the grid collapses to one column; editing is switched off there, and your wide layout is left untouched.
+
+### Moving and resizing with the keyboard
+
+Every panel has a **move handle** (a grip button in its header) that is reachable with Tab while editing. A screen reader announces each step.
+
+| Key | Does |
+| --- | --- |
+| `Space` or `Enter` on the move handle | **Lift** the panel |
+| Arrow keys | Move the lifted panel one column left or right, or past the nearest panel above or below |
+| `R` | Switch between moving and **resizing** |
+| Arrow keys while resizing | `Right` / `Left` make it one column wider / narrower; `Down` / `Up` make it one height step taller / shorter (compact, normal, tall) |
+| `Space` or `Enter` | **Drop** the panel where it is, saving the change |
+| `Escape` | **Cancel**: every panel goes back to where it was when you lifted |
+
+Moving focus away from the move handle drops the panel. Announcements give the column and an ordinal row band (for example "Models moved to column 3, row band 1"), and name any panel that had to make room.
 
 ## Budget and alerts
 
-Set a monthly budget, included-credit allowance, daily threshold, and velocity alert from the dashboard or directly in `config.json` (click **Edit alert rules**):
+Set a monthly budget, included-credit allowance, daily threshold, and velocity alert in VS Code Settings (click **Edit alert rules** to open them):
 
 ```json
-{
-  "monthlyBudget": 20,
-  "includedCredits": 300,
-  "dailyCreditAlert": 50,
-  "alerts": { "velocityEnabled": true, "velocityCreditsPerHour": 40 }
-}
+"mallard.monthlyBudget": 20,
+"mallard.includedCredits": 300,
+"mallard.dailyCreditAlert": 50,
+"mallard.alerts.velocityEnabled": true,
+"mallard.alerts.velocityCreditsPerHour": 40
 ```
 
 ## Custom alert rules
 
-Write precise conditions using a JSONLogic-inspired language. Rules can fire VS Code notifications on any combination of spend, velocity, model, surface, branch, or time-of-day signals:
+Add your own threshold alerts to the `mallard.alerts.rules` setting. A rule compares one metric (today's, this month's or the forecast's credits and cost, the budget percentage, the spending rate, the last 7 days, the current branch, or one model or repository) with a number, and has a cooldown that is remembered across reloads:
 
 ```json
-{
-  "rules": [{
-    "id": "daily-high",
-    "severity": "warning",
-    "message": "{{today.credits}} credits used today, slow down.",
-    "when": { ">": [{ "var": "today.credits" }, 100] },
-    "cooldown": "2h"
-  }]
-}
+"mallard.alerts.rules": [
+  { "id": "big-day", "metric": "today.credits", "op": ">", "value": 100, "cooldown": "2h", "severity": "warning" }
+]
 ```
 
-## Rule groups
-
-Group rules to toggle a whole set at once from the dashboard without deleting them:
-
-```json
-{
-  "groups": [{ "id": "work-hours", "label": "Work-hour rules", "active": true }],
-  "rules": [{
-    "id": "velocity",
-    "severity": "warning",
-    "message": "High velocity during work hours.",
-    "when": { ">": [{ "var": "velocity.creditsPerHour" }, 40] },
-    "active": { "var": "group.work-hours" }
-  }]
-}
-```
+The notification text is fixed: `today.credits > 100 (now 113)`. See the [alert rules reference](../reference/alert-rules.md) for every metric, the built-in alerts and how your old `config.json` rules were converted.
 
 ## Restriction popups
 
-Add a `restrict` block to any rule to show a popup when the condition fires. No extensions are disabled; the popup creates friction.
+Add `"restrict": true` to a rule to show a popup while its condition holds. No extensions are disabled; the popup creates friction. `clearBelow` keeps the restriction until the metric has dropped below a number:
 
 ```json
-{
-  "id": "budget-exhausted",
-  "severity": "critical",
-  "message": "Monthly budget exhausted.",
-  "when": { ">=": [{ "var": "budget.percentOfBudget" }, 1] },
-  "restrict": {}
-}
+{ "id": "budget-exhausted", "metric": "budget.percentOfBudget", "op": ">=", "value": 1, "cooldown": "4h", "severity": "critical", "restrict": true, "clearBelow": 0.9 }
 ```
 
-The popup shows Dismiss, Snooze 15m, Snooze 1h, and Disable Mallard... buttons. Disable Mallard... opens the Extensions view so you can turn Mallard off yourself; it is a manual step, never an automatic one.
+The popup shows Dismiss, Snooze 15m, Snooze 1h, and Disable Mallard... buttons. Disable Mallard... opens the Extensions view so you can turn Mallard off yourself; it is a manual step, never an automatic one. Restrictions on `velocity.creditsPerHour` work too: they read the same recent-spend history as the velocity alert.
 
 Run **Mallard: Simulate Restriction State** from the Command Palette for a dry run. It reports what would happen without disabling anything.
 
 ## Branch-aware tracking
 
-Every event is tagged to the active git branch and repo. Set per-branch credit caps in `config.json`:
+Every event is tagged to the active git branch and repo. Set per-branch credit caps in the `mallard.branchBudgets` setting:
 
 ```json
-{ "branchBudgets": { "feature/big-refactor": 500, "main": 200 } }
+"mallard.branchBudgets": { "feature/big-refactor": 500, "main": 200 }
 ```
 
-When a branch hits its cap, Mallard fires a critical notification (4-hour cooldown). Custom rules can reference `currentBranchCredits` and `branchBudgets.<branch>` in conditions.
+When a branch hits its cap, Mallard shows a warning notification (4-hour cooldown). Custom rules can use the `currentBranchCredits` metric.
 
 ## Per-repo filtering and attribution
 

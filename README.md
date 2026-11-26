@@ -18,14 +18,14 @@
 
 Mallard is a VS Code extension that turns GitHub Copilot's local usage logs into a live cost dashboard: today's spend, month-to-date, and a projected month-end total, broken down by model, surface, cost type, and repository. By default there's nothing to sign into and nothing to configure — install it, use Copilot, and watch the numbers update in real time. Connect GitHub billing later if you want the authoritative charge alongside Mallard's estimate.
 
-Under the hood it's a DuckDB-backed dashboard with branch-aware spend tracking, programmable budget alerts, and an optional restriction popup when a budget runs out, all running locally. No telemetry is collected and no external accounts are required by default; GitHub sign-in and metric export are opt-in.
+Under the hood it's a DuckDB-backed dashboard with branch-aware spend tracking, budget alerts plus your own threshold rules (one metric, one comparison, one cooldown, kept in your settings), and an optional restriction popup when a budget runs out, all running locally. No telemetry is collected and no external accounts are required by default; GitHub sign-in and metric export are opt-in.
 
 ## What talks to the network
 
-By default, Mallard reads only local log files and sends nothing anywhere. Two background reference fetches are unconditional (no user data is sent):
+By default, Mallard reads only local log files and sends none of your usage data anywhere. Two background reference fetches are unconditional: they carry no usage data, but like any HTTPS request they reveal your IP address to the hosts below (GitHub's raw-content host, OpenRouter, and Frankfurter):
 
 - **Pricing manifest** — the Copilot credit-multiplier table is fetched daily from `raw.githubusercontent.com/RelativelyUnknown/mallard/main/media/pricing-manifest.json`. Per-token model prices are fetched from OpenRouter's public `/api/v1/models` endpoint (LiteLLM's community price sheet as fallback).
-- **Currency rates** — daily FX rates from `api.frankfurter.app` for display-currency conversion.
+- **Currency rates** — daily FX rates from `api.frankfurter.app` for display-currency conversion. Today this fetch happens even when your display currency is USD and no conversion is needed.
 
 If you opt in to metric export, payloads are sent to your self-hosted server only. If you opt in to GitHub billing, the extension calls GitHub's billing API using your token.
 
@@ -43,7 +43,7 @@ If you opt in to metric export, payloads are sent to your self-hosted server onl
    "Mallard: Open Dashboard" from the Command Palette.
 
 If the dashboard shows "not enough data", run "Mallard: Show Detected Log Path" to check,
-and set `mallard.copilotLogPath` if needed.
+and, for Copilot, run "Mallard: Enable Copilot Usage Tracking" (or set `mallard.copilotOtelPath`).
 
 ## Documentation
 

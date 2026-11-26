@@ -2,6 +2,7 @@ import { strict as assert } from 'assert';
 import {
   costForCredits,
   modelFamily,
+  normalizeModelId,
   priceRequest,
   priceTokens,
   resolveMultiplier,
@@ -197,5 +198,75 @@ describe('token price feed parsers', () => {
     assert.deepEqual(parseOpenRouterModels({ data: 'nope' }), {});
     assert.deepEqual(parseLiteLlmPrices(null), {});
     assert.deepEqual(parseLiteLlmPrices([1, 2, 3]), {});
+  });
+});
+
+describe('model-id normalization across spellings', () => {
+  it('normalizeModelId reduces every spelling to one canonical id', () => {
+    const canon: Record<string, string[]> = {
+      'claude-opus-4.5': ['claude-opus-4.5', 'claude-opus-4-5', 'claude-opus-4-5-20251101', 'anthropic/claude-opus-4.5', 'Claude-Opus-4.5'],
+      'claude-sonnet-3.5': ['claude-3.5-sonnet', 'claude-3-5-sonnet', 'claude-3-5-sonnet-20241022', 'anthropic.claude-3-5-sonnet-20241022-v2:0'],
+      'claude-haiku-4.5': ['claude-haiku-4.5', 'claude-haiku-4-5-20251001', 'claude-haiku-4-5@20251001'],
+      'claude-sonnet-4': ['claude-sonnet-4', 'claude-sonnet-4-20250514'],
+      'claude-sonnet-3.7': ['claude-3.7-sonnet', 'claude-3-7-sonnet-20250219', 'claude-3.7-sonnet:thinking'],
+      'gpt-4o': ['gpt-4o', 'openai/gpt-4o'],
+    };
+    for (const [want, spellings] of Object.entries(canon)) {
+      for (const s of spellings) assert.equal(normalizeModelId(s), want, `${s} → ${want}`);
+    }
+    assert.equal(normalizeModelId('gpt-4o-2024-08-06'), 'gpt-4o', 'ISO date suffix is stripped');
+    assert.equal(normalizeModelId(''), '');
+  });
+
+  it('does not mistake non-version digit pairs for minor versions', () => {
+    assert.equal(normalizeModelId('gpt-4-1106-preview'), 'gpt-4-1106-preview');
+    assert.equal(normalizeModelId('meta-llama-3-70b-instruct'), 'meta-llama-3-70b-instruct');
+  });
+
+  it('resolves credit multipliers for Copilot (dotted) and Claude Code (dashed, dated) spellings alike', () => {
+    // claude-opus-4-5 is 15 credits; the bare claude-opus-4 family is 10.
+    assert.equal(resolveMultiplier('claude-opus-4.5'), 15);
+    assert.equal(resolveMultiplier('claude-opus-4-5-20251101'), 15);
+    assert.equal(resolveMultiplier('claude-opus-4'), 10);
+    assert.equal(resolveMultiplier('claude-opus-4-20250514'), 10);
+    assert.equal(resolveMultiplier('claude-sonnet-4.5'), 6);
+    assert.equal(resolveMultiplier('claude-sonnet-4-5-20250929'), 6);
+    assert.equal(resolveMultiplier('claude-sonnet-4-20250514'), 1);
+    assert.equal(resolveMultiplier('claude-haiku-4.5'), 0.33);
+    assert.equal(resolveMultiplier('claude-haiku-4-5-20251001'), 0.33);
+    assert.equal(resolveMultiplier('claude-3-5-sonnet-20241022'), 1);
+    assert.equal(resolveMultiplier('claude-3.5-sonnet'), 1);
+    assert.equal(resolveMultiplier('claude-3-7-sonnet-20250219'), 1.25);
+    assert.equal(resolveMultiplier('claude-opus-4.8'), 27);
+  });
+
+  it('manifest keys are normalized too, so a dashed key matches a dotted id and vice versa', () => {
+    const manifest: PricingManifest = {
+      version: 1,
+      pricePerCredit: 0.04,
+      updatedAt: '2026-01-01',
+      models: { 'claude-opus-4': 10, 'claude-opus-4-5': 15, 'claude-3.5-sonnet': 2 },
+    };
+    assert.equal(resolveMultiplier('claude-opus-4.5', undefined, manifest), 15);
+    assert.equal(resolveMultiplier('claude-opus-4-5-20251101', undefined, manifest), 15);
+    assert.equal(resolveMultiplier('claude-3-5-sonnet-20241022', undefined, manifest), 2);
+    assert.equal(resolveMultiplier('claude-opus-4-1-20250805', undefined, manifest), 10, 'unlisted minor falls back to the family');
+  });
+
+  it('the most specific token-price key wins: claude-opus-4.5 never prices as claude-opus-4', () => {
+    const prices: TokenPrices = {
+      'claude-opus-4': { input: 15e-6, output: 75e-6 },
+      'claude-opus-4.5': { input: 5e-6, output: 25e-6 },
+    };
+    const cost = (id: string) => priceTokens(id, { prompt: 1_000_000 }, prices)!.total;
+    assert.ok(Math.abs(cost('claude-opus-4-5-20251101') - 5) < 1e-9);
+    assert.ok(Math.abs(cost('claude-opus-4.5') - 5) < 1e-9);
+    assert.ok(Math.abs(cost('claude-opus-4-20250514') - 15) < 1e-9);
+  });
+
+  it('feed keys in one spelling price ids in the other', () => {
+    const prices: TokenPrices = { 'claude-sonnet-4-5': { input: 3e-6, output: 15e-6 } };
+    assert.ok(priceTokens('claude-sonnet-4.5', { prompt: 1 }, prices));
+    assert.ok(priceTokens('claude-sonnet-4-5-20250929', { prompt: 1 }, prices));
   });
 });

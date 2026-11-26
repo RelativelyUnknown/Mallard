@@ -32,7 +32,7 @@ _FIELD_KEY_RE = re.compile(r"[^A-Za-z0-9._-]+")
 _MAX_DYNAMIC_FIELDS = 32
 
 
-def _tag_value(value: str) -> str:
+def tag_value(value: str) -> str:
     return _TAG_VALUE_RE.sub("_", value)[:64] or "unknown"
 
 
@@ -74,19 +74,23 @@ async def write_payload(
     batch arrived. The client event id is written as a field — not a tag, to
     keep cardinality bounded — so duplicates from retries can be audited.
     """
+    # instance_id and schema_version come straight off the wire: sanitise and cap
+    # them like every other tag (instance_id is also what the logs below print).
+    instance_id = tag_value(batch.instance_id or "unknown")
+    schema_version = tag_value(str(batch.schema_version))
     points: list[Point] = []
     for e in batch.events:
         point = (
             Point(_MEASUREMENT)
-            .tag("instance_id", batch.instance_id or "unknown")
-            .tag("schema_version", str(batch.schema_version))
+            .tag("instance_id", instance_id)
+            .tag("schema_version", schema_version)
             .tag("source", source)
-            .tag("connector", _tag_value(e.connector))
-            .tag("model", _tag_value(e.model))
-            .tag("surface", _tag_value(e.surface))
-            .tag("language", _tag_value(e.language) if e.language else "unknown")
-            .tag("repo", _tag_value(e.repo) if e.repo else "unattributed")
-            .tag("branch", _tag_value(e.branch) if e.branch else "unknown")
+            .tag("connector", tag_value(e.connector))
+            .tag("model", tag_value(e.model))
+            .tag("surface", tag_value(e.surface))
+            .tag("language", tag_value(e.language) if e.language else "unknown")
+            .tag("repo", tag_value(e.repo) if e.repo else "unattributed")
+            .tag("branch", tag_value(e.branch) if e.branch else "unknown")
             .field("credits", float(e.credits))
             .field("cost_usd", float(e.cost_usd))
             .field("estimated", bool(e.estimated))
@@ -100,12 +104,12 @@ async def write_payload(
                     "Dropping %d cost_by_category entries beyond the %d-field cap (instance=%s)",
                     len(e.cost_by_category) - _MAX_DYNAMIC_FIELDS,
                     _MAX_DYNAMIC_FIELDS,
-                    batch.instance_id,
+                    instance_id,
                 )
                 break
             point = point.field(_field_key("cbc", key), float(value))
         if e.attribution:
-            point = point.tag("attribution", _tag_value(e.attribution))
+            point = point.tag("attribution", tag_value(e.attribution))
         if e.event_id:
             point = point.field("event_id", e.event_id[:128])
         if e.extra:
@@ -119,7 +123,7 @@ async def write_payload(
         "Writing %d InfluxDB points: measurement=%s instance=%s",
         len(points),
         _MEASUREMENT,
-        batch.instance_id,
+        instance_id,
     )
     await write_api.write(bucket=bucket, org=org, record=points)
 

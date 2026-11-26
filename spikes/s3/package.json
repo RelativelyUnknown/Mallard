@@ -1,0 +1,26 @@
+{
+  "name": "mallard-spike-s3",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Phase 0 spike S3: gridstack viability. Throwaway.",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p .",
+    "serve": "node serve.mjs",
+    "spike": "node build.mjs && node run-spike.mjs",
+    "test:unit": "NODE_PATH=$PWD/node_modules node --require ../../test/unit/setup/jsdom.cjs --require tsx/cjs --test test/keyboard.test.ts test/gridstackEngine.test.ts",
+    "jsdom": "NODE_PATH=$PWD/node_modules node --require ../../test/unit/setup/jsdom.cjs --require tsx/cjs jsdom-probe.ts",
+    "coverage": "NODE_PATH=$PWD/node_modules c8 --check-coverage=false --include src/gridstackEngine.ts --include src/gridEngine.ts --include src/keyboard.ts --reporter text node --require ../../test/unit/setup/jsdom.cjs --require tsx/cjs --test test/keyboard.test.ts test/gridstackEngine.test.ts"
+  },
+  "dependencies": {
+    "echarts": "6.1.0",
+    "esbuild": "0.28.1",
+    "gridstack": "14.1.1",
+    "jsdom": "29.1.1"
+  },
+  "devDependencies": {
+    "c8": "12.0.0",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3"
+  }
+}

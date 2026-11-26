@@ -1,0 +1,26 @@
+[
+  {
+    "entry": "empty",
+    "js": 36,
+    "jsGzip": 56,
+    "jsBrotli": 38,
+    "css": 0,
+    "cssGzip": 0
+  },
+  {
+    "entry": "gridstack",
+    "js": 98047,
+    "jsGzip": 27702,
+    "jsBrotli": 24217,
+    "css": 6068,
+    "cssGzip": 1435
+  },
+  {
+    "entry": "echarts",
+    "js": 574783,
+    "jsGzip": 197473,
+    "jsBrotli": 166638,
+    "css": 0,
+    "cssGzip": 0
+  }
+]

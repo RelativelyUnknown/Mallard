@@ -1,0 +1,11 @@
+{
+  "node": "20.19.0",
+  "electron": null,
+  "sqliteVersionHint": null,
+  "loads": false,
+  "loadError": "No such built-in module: node:sqlite",
+  "moduleExports": [],
+  "databaseSyncProto": [],
+  "statementSyncProto": [],
+  "checks": {}
+}

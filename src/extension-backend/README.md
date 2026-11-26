@@ -31,7 +31,7 @@ extension-backend/
 
 ## app/
 
-`UsageService` (`app/UsageService.ts`) is the central orchestrator: it reads events via `EventReader`, prices them with `PricingService`, applies the active filter, computes budget and forecast, evaluates alert rules, and emits a host-side `SnapshotData` (core + dims + billing facets, see `domain/types.ts`). The render-ready `chartData` is composed lazily in the `current` getter at the UI boundary, and GitHub billing rides its own `onDidChangeBilling` stream — a billing refresh never triggers a store re-read or a metric export. `UserConfigStore` persists rules/budgets/currency/layout to `config.json` (the single user-config store; `LayoutStore` is a thin facade over its `dashboard.panels` block); `RestrictionEngine` owns the restriction popup state; `EphemeralFlags` names the few machine-local globalState dismissal flags; `ReportGenerator` builds the standalone HTML export.
+`UsageService` (`app/UsageService.ts`) is the central orchestrator: it reads events via `EventReader`, prices them with `PricingService`, applies the active filter, computes budget and forecast, hands each unfiltered snapshot to the alerts, and emits a host-side `SnapshotData` (core + dims + billing facets, see `domain/types.ts`). The render-ready `chartData` is composed lazily in the `current` getter at the UI boundary, and GitHub billing rides its own `onDidChangeBilling` stream — a billing refresh never triggers a store re-read or a metric export. `ConfigService` (`app/ConfigService.ts`) is the one home for configuration: it reads the `mallard.*` VS Code settings through the table in `config/settings.ts` (which owns every default, range, enum and scope, and is checked against `package.json` by a test), returns the `UserConfig` view, writes back through `update()` and fires one `onDidChange` for every change; a pre-settings `config.json` is imported once by `ConfigImporter`, and `LayoutStore` keeps the dashboard layout in globalState; `AlertService` evaluates the built-in and flat alert rules for every unfiltered snapshot, keeps the velocity history and persists the alert cooldowns in globalState (`LegacyRulesImport` converts the alert rules of an old `config.json` once, at activation); `RestrictionEngine` owns the restriction popup state and decides it with the flat rules and that history; `EphemeralFlags` names the few machine-local globalState dismissal flags; `ReportGenerator` builds the standalone HTML export.
 
 ## ingest/
 
@@ -53,11 +53,11 @@ DuckDB-backed event storage via `@duckdb/node-api`. Schema lives in `schema/ddl.
 
 Framework-free core logic:
 
-- `types.ts`: the shared data model (`UsageEvent`, `UsageSnapshot`, `AlertRule`, etc).
-- `expr/`: a minimal JSONLogic-style condition evaluator used by both alert rules and restrictions.
-- `restriction/`: the pure restriction evaluator (the stateful engine lives in `app/RestrictionEngine.ts`, since it needs vscode + file I/O — domain/ stays framework-free, now enforced by ESLint import boundaries).
+- `types.ts`: the shared data model (`UsageEvent`, `UsageSnapshot`, `UserConfig`, etc); `contracts.ts` holds `FlatAlertRule` and the other cross-stream contracts.
+- `alertMetrics.ts`: the metric lookup flat alert rules read (snapshot plus the recent spend history, least-squares velocity included); `compare.ts`: the one comparison they use.
+- `flatAlerts.ts`: flat alert rules: the fixed metric list, evaluation with per-rule cooldowns (plain `Record<string, number>` state, pruned by each rule's own cooldown), the built-in alerts as default rules, and the validator for `mallard.alerts.rules`. `flatRestriction.ts` is the pure restriction decision over the same rules (the stateful engine lives in `app/RestrictionEngine.ts`, since it needs vscode + file I/O — domain/ stays framework-free, now enforced by ESLint import boundaries). `flatAlertImport.ts` converts the rules of a pre-settings `config.json` once.
 - `forecasters/`: pluggable month-end forecasters (linear regression, Holt-Winters seasonal).
-- `aggregate.ts`, `budget.ts`, `alerts.ts`, `chartData.ts`, `format.ts`: snapshot aggregation, budget/pace calculation, alert firing, and chart-ready data shaping.
+- `aggregate.ts`, `budget.ts`, `chartData.ts`, `format.ts`: snapshot aggregation, budget/pace calculation, and chart-ready data shaping.
 
 ## export/
 
@@ -73,7 +73,7 @@ Shared helpers with no domain logic of their own: `logger.ts` (tagged console lo
 
 ## Tests
 
-Unit tests live in `../../test/unit/`, mirroring this structure: `connectors/` for `ingest/`, `forecasters/` for `domain/forecasters/`, `store/` for `store/`, plus top-level files like `restriction.test.ts`, `pricing.test.ts`, `metricExporter.test.ts`, and `usageService.test.ts`. Integration tests that exercise a real VS Code host live in `../../test/integration/`.
+Unit tests live in `../../test/unit/`, mirroring this structure: `connectors/` for `ingest/`, `forecasters/` for `domain/forecasters/`, `store/` for `store/`, plus top-level files like `flatAlerts.test.ts` (and `flatAlertsFrozen.test.ts`, which holds the old rules language's answers frozen as an oracle), `pricing.test.ts`, `metricExporter.test.ts`, and `usageService.test.ts`. Integration tests that exercise a real VS Code host live in `../../test/integration/`.
 
 ```bash
 bun run check-types   # type-check both host and webview tsconfigs

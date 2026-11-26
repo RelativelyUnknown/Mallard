@@ -1,0 +1,39 @@
+{
+  "activatedAt": "2026-11-25T05:37:55.356Z",
+  "info": {
+    "vscodeVersion": "1.101.2",
+    "appName": "Visual Studio Code",
+    "uiKind": 1,
+    "remoteName": null,
+    "platform": "linux",
+    "arch": "x64",
+    "pid": 7864,
+    "execPath": "/home/user/Mallard/.claude/worktrees/agent-a46488cff5c2483b2/spikes/s1-s4/.vscode-test/vscode-linux-x64-1.101.2/code",
+    "processType": "utility",
+    "versions": {
+      "node": "22.15.1",
+      "electron": "35.5.1",
+      "chrome": "134.0.6998.205",
+      "v8": "13.4.114.21-electron.0",
+      "sqlite": "3.49.1"
+    },
+    "execArgv": [
+      "--dns-result-order=ipv4first",
+      "--experimental-network-inspection",
+      "--expose-gc"
+    ],
+    "NODE_OPTIONS": null,
+    "ELECTRON_RUN_AS_NODE": "1",
+    "globalStorage": "/tmp/claude-0/-home-user-Mallard/0c0b2e31-d5db-5616-acab-078f14e6d5bc/scratchpad/s1s4/tmp/vsc-1.101.2-untrusted-s4-1795585071878/user-data/User/globalStorage/spike.mallard-spike",
+    "extensionKind": 1
+  },
+  "sqliteLoads": true,
+  "sqliteLoadError": null,
+  "sqliteExports": [
+    "DatabaseSync",
+    "StatementSync",
+    "constants"
+  ],
+  "warningsEmittedByRequire": [],
+  "activationMs": 1
+}

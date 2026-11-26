@@ -8,6 +8,7 @@ import * as vscode from 'vscode';
 import { UsageService } from '../app/UsageService';
 import { getNonce } from '../util/nonce';
 import { isHostBoundMsg, WebviewBoundMsg } from './messaging';
+import { escapeHtml } from '../../extension-frontend/escapeHtml';
 
 export class SidebarView implements vscode.WebviewViewProvider {
   static readonly viewType = 'mallard.sidebar';
@@ -330,6 +331,8 @@ export class SidebarView implements vscode.WebviewViewProvider {
           minimumFractionDigits: digits, maximumFractionDigits: digits,
         }).format(amount);
       } catch {
+        // The raw code is echoed here; every caller passes the result through
+        // escHtml before it reaches innerHTML.
         return (currency || 'USD') + ' ' + amount.toFixed(digits);
       }
     }
@@ -361,18 +364,18 @@ export class SidebarView implements vscode.WebviewViewProvider {
           segs += '<div class="sb-gauge-seg' + (i < lit ? ' sb-gauge-seg--on' : '') + '"></div>';
         }
         html += '<div class="sb-budget-numbers ' + sev + '">';
-        html += '<span class="sb-budget-spend">' + fmtMoney(mtdCost, currency) + '</span>';
-        html += '<span class="sb-budget-cap">/ ' + fmtMoney(budget.monthly, currency) + '</span>';
+        html += '<span class="sb-budget-spend">' + escHtml(fmtMoney(mtdCost, currency)) + '</span>';
+        html += '<span class="sb-budget-cap">/ ' + escHtml(fmtMoney(budget.monthly, currency)) + '</span>';
         html += '<span class="sb-budget-pct">' + pct + '%</span>';
         html += '</div>';
         html += '<div class="sb-gauge-segments ' + sev + '">' + segs + '</div>';
-        html += '<div class="sb-budget-sub">today ' + fmtMoney(snap.today.cost, currency) + '</div>';
+        html += '<div class="sb-budget-sub">today ' + escHtml(fmtMoney(snap.today.cost, currency)) + '</div>';
       } else {
         html += '<div class="sb-budget-numbers">';
-        html += '<span class="sb-budget-spend">' + fmtMoney(mtdCost, currency) + '</span>';
+        html += '<span class="sb-budget-spend">' + escHtml(fmtMoney(mtdCost, currency)) + '</span>';
         html += '<span class="sb-budget-cap">this month</span>';
         html += '</div>';
-        html += '<div class="sb-budget-sub">today ' + fmtMoney(snap.today.cost, currency) + '</div>';
+        html += '<div class="sb-budget-sub">today ' + escHtml(fmtMoney(snap.today.cost, currency)) + '</div>';
       }
       html += '</div>';
 
@@ -404,19 +407,31 @@ export class SidebarView implements vscode.WebviewViewProvider {
         }
       }
 
-      document.getElementById('body').innerHTML = html;
-      document.querySelectorAll('.sb-model-row').forEach((row) => {
+      setBody(html);
+    }
+
+    // Snapshots stream in constantly. Skip a rebuild when nothing changed, and
+    // when rebuilding put keyboard focus back on the model row it was on --
+    // clicking a row triggers a snapshot, which would otherwise drop focus to
+    // <body> and break keyboard navigation of the list.
+    let lastHtml = null;
+    function setBody(html) {
+      if (html === lastHtml) return;
+      lastHtml = html;
+      const body = document.getElementById('body');
+      const active = document.activeElement;
+      const focusedModel = active && body.contains(active) ? active.dataset.model : undefined;
+      body.innerHTML = html;
+      body.querySelectorAll('.sb-model-row').forEach((row) => {
         row.addEventListener('click', () => {
           vscode.postMessage({ type: 'toggleModelFilter', model: row.dataset.model });
         });
+        if (focusedModel !== undefined && row.dataset.model === focusedModel) row.focus();
       });
     }
 
-    function escHtml(s) {
-      return s.replace(/[&<>"']/g, c =>
-        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]
-      );
-    }
+    // Same implementation the dashboard uses (extension-frontend/escapeHtml).
+    const escHtml = ${escapeHtml.toString()};
 
     window.addEventListener('message', e => {
       if (!e.origin.startsWith('vscode-webview://')) return;

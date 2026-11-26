@@ -1,0 +1,288 @@
+{
+  "name": "mallard-spike",
+  "displayName": "Spike without capabilities block (variant)",
+  "description": "Throwaway extension for Phase 0 spikes S1 (node:sqlite in the extension host) and S4 (settings schema). Never published.",
+  "version": "0.0.0",
+  "publisher": "spike",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "main": "../../extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Spike",
+      "properties": {
+        "spike.rulesApp": {
+          "type": "array",
+          "scope": "application",
+          "order": 10,
+          "default": [],
+          "markdownDescription": "Alert rules (**application** scope). Edit in `settings.json`.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "metric",
+              "op",
+              "value"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "metric": {
+                "type": "string",
+                "enum": [
+                  "today.credits",
+                  "today.cost",
+                  "month.credits",
+                  "month.cost",
+                  "velocity.creditsPerHour"
+                ]
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  ">",
+                  ">=",
+                  "<",
+                  "<=",
+                  "==",
+                  "!="
+                ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "cooldown": {
+                "type": "number",
+                "minimum": 0,
+                "default": 3600
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "info",
+                  "warning",
+                  "critical"
+                ],
+                "default": "warning"
+              },
+              "notify": {
+                "type": "boolean",
+                "default": true
+              },
+              "restrict": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
+        "spike.rulesMachine": {
+          "type": "array",
+          "scope": "machine",
+          "order": 11,
+          "default": [],
+          "markdownDescription": "Alert rules (**machine** scope).",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "metric",
+              "op",
+              "value"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "metric": {
+                "type": "string",
+                "enum": [
+                  "today.credits",
+                  "today.cost",
+                  "month.credits",
+                  "month.cost",
+                  "velocity.creditsPerHour"
+                ]
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  ">",
+                  ">=",
+                  "<",
+                  "<=",
+                  "==",
+                  "!="
+                ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "cooldown": {
+                "type": "number",
+                "minimum": 0,
+                "default": 3600
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "info",
+                  "warning",
+                  "critical"
+                ],
+                "default": "warning"
+              },
+              "notify": {
+                "type": "boolean",
+                "default": true
+              },
+              "restrict": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
+        "spike.targets": {
+          "type": "array",
+          "scope": "machine",
+          "order": 12,
+          "default": [],
+          "description": "Export targets {name, url} (machine scope).",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "url"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        },
+        "spike.rulesResource": {
+          "type": "array",
+          "scope": "resource",
+          "default": [],
+          "description": "Same shape idea as rulesApp but resource scope (for workspace-override comparison).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "spike.rulesMachineOverridable": {
+          "type": "array",
+          "scope": "machine-overridable",
+          "default": [],
+          "description": "machine-overridable scope array.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "spike.rulesWindow": {
+          "type": "array",
+          "scope": "window",
+          "default": [],
+          "description": "window scope array.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "spike.rulesLang": {
+          "type": "array",
+          "scope": "language-overridable",
+          "default": [],
+          "description": "language-overridable scope array.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "spike.branchBudgets": {
+          "type": "object",
+          "scope": "application",
+          "order": 20,
+          "default": {},
+          "markdownDescription": "Per-branch credit budgets: `{ \"main\": 500 }`.",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "spike.monthlyBudget": {
+          "type": "number",
+          "scope": "application",
+          "default": 100,
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "Scalar with range."
+        },
+        "spike.display.mode": {
+          "type": "string",
+          "scope": "application",
+          "default": "credits",
+          "enum": [
+            "credits",
+            "cost"
+          ],
+          "enumDescriptions": [
+            "Show credits",
+            "Show cost"
+          ],
+          "description": "Enum with defaults for the table-vs-manifest check."
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "3.1.0",
+    "esbuild": "0.28.2"
+  }
+}

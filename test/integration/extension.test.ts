@@ -1,7 +1,30 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { SETTING_ENTRIES } from '../../src/extension-backend/config/settings';
+import { manifestProperties, manifestProperty } from '../unit/config/manifestProperty';
 
 const EXT_ID = 'RelativelyUnknown.mallard';
+
+/** What activate() returns (see MallardExports in extension.ts). */
+interface MallardExports {
+  status: 'ready' | 'failed';
+  error?: string;
+}
+
+/**
+ * Activates the extension and fails the calling test if startup itself failed.
+ * A failed startup still registers recovery handlers for every command, so
+ * "activate() resolved" and "the commands exist" both hold even when Mallard
+ * is not actually running — the reported status is the only honest signal.
+ */
+async function activateOrFail(): Promise<vscode.Extension<MallardExports>> {
+  const ext = vscode.extensions.getExtension<MallardExports>(EXT_ID);
+  assert.ok(ext, `extension ${EXT_ID} should be installed`);
+  const exports = await ext.activate();
+  assert.strictEqual(ext.isActive, true);
+  assert.strictEqual(exports?.status, 'ready', `Mallard failed to start: ${exports?.error ?? 'unknown error'}`);
+  return ext;
+}
 
 const EXPECTED_COMMANDS = [
   'mallard.openDashboard',
@@ -26,16 +49,12 @@ const EXPECTED_COMMANDS = [
 ];
 
 describe('Mallard extension (integration)', () => {
-  it('is present and activates without throwing', async () => {
-    const ext = vscode.extensions.getExtension(EXT_ID);
-    assert.ok(ext, `extension ${EXT_ID} should be installed`);
-    await ext!.activate();
-    assert.strictEqual(ext!.isActive, true);
+  it('is present and activates successfully (not just without throwing)', async () => {
+    await activateOrFail();
   });
 
   it('registers exactly the contributed mallard.* commands', async () => {
-    const ext = vscode.extensions.getExtension(EXT_ID);
-    await ext!.activate();
+    await activateOrFail();
     const all = await vscode.commands.getCommands(true);
     for (const cmd of EXPECTED_COMMANDS) {
       assert.ok(all.includes(cmd), `command ${cmd} should be registered`);
@@ -53,39 +72,36 @@ describe('Mallard extension (integration)', () => {
     );
   });
 
-  it('opens the dashboard without throwing', async () => {
-    const ext = vscode.extensions.getExtension(EXT_ID);
-    await ext!.activate();
+  it('opens the dashboard panel', async () => {
+    await activateOrFail();
     await vscode.commands.executeCommand('mallard.openDashboard');
-    assert.ok(true);
+    const dashboardTabs = vscode.window.tabGroups.all
+      .flatMap((g) => g.tabs)
+      .filter((t) => t.input instanceof vscode.TabInputWebview && t.label === 'Mallard');
+    assert.strictEqual(dashboardTabs.length, 1, 'exactly one Mallard dashboard tab should be open');
   });
 
-  it('runs refresh without throwing', async () => {
+  it('runs refresh and leaves the extension running', async () => {
+    const ext = await activateOrFail();
     await vscode.commands.executeCommand('mallard.refresh');
-    assert.ok(true);
+    assert.strictEqual(ext.isActive, true);
+    assert.strictEqual(ext.exports.status, 'ready');
   });
 
-  it('exposes only the documented settings', () => {
+  it('contributes exactly the settings in the table, as the table says (read back from the installed manifest)', () => {
     const ext = vscode.extensions.getExtension(EXT_ID)!;
-    const props = ext.packageJSON.contributes.configuration.properties as Record<string, unknown>;
-    assert.deepStrictEqual(Object.keys(props).sort(), [
-      'mallard.copilotLogPath',
-      'mallard.copilotOtelPath',
-      'mallard.dataRetentionDays',
-      'mallard.enabledConnectors',
-      'mallard.export.transport',
-      'mallard.githubBilling.org',
-      'mallard.mqtt.auth',
-      'mallard.mqtt.url',
-      'mallard.mqtt.username',
-      'mallard.palette',
-      'mallard.pricingManifestUrl',
-      'mallard.refreshIntervalMinutes',
-      'mallard.server.url',
-      'mallard.shared.certificate.caFile',
-      'mallard.shared.certificate.file',
-      'mallard.shared.certificate.keyFile',
-      'mallard.webhook.auth',
-    ]);
+    // contributes.configuration is one object or an array of them.
+    const props = manifestProperties(ext.packageJSON.contributes.configuration);
+    assert.deepStrictEqual(Object.keys(props).sort(), SETTING_ENTRIES.map(([k]) => k).sort());
+    for (const [key, def] of SETTING_ENTRIES) {
+      assert.deepStrictEqual(props[key], manifestProperty(def), `${key} differs from the settings table`);
+    }
+  });
+
+  it('serves each setting\'s contributed default through the real configuration API', () => {
+    for (const [key, def] of SETTING_ENTRIES) {
+      const inspected = vscode.workspace.getConfiguration('mallard').inspect(key.slice('mallard.'.length));
+      assert.deepStrictEqual(inspected?.defaultValue, def.default, `${key} default`);
+    }
   });
 });

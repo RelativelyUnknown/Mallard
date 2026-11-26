@@ -265,3 +265,82 @@ class TestHashedCredentials:
         settings = config_module.get_settings()
         assert settings.secret_manager_type == "static"
         assert settings.openbao_secret_path == "secret/data/mallard/server"
+
+
+class TestPlaceholderSecrets:
+    """The shipped example files use CHANGE_ME values. They are non-empty, so
+    compose's `${VAR:?required}` accepts them; the server must not."""
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("influx_token", "CHANGE_ME"),
+            ("influx_token", "change-me-influx-api-token"),
+            ("api_keys", "team-alpha:CHANGE_ME_api_key_1"),
+            ("mqtt_password", "CHANGE_ME_mqtt_broker_password"),
+            ("webhook_hmac_secrets", "old-secret,ChangeMe"),
+            ("jwt_hmac_secret", "change_me"),
+        ],
+    )
+    def test_placeholder_is_rejected_at_startup(self, field: str, value: str) -> None:
+        from server.config import Settings
+
+        kwargs = {"influx_url": "http://x:8086", "influx_token": "real-token", field: value}
+        with pytest.raises(ValidationError, match="CHANGE_ME"):
+            Settings(**kwargs)
+
+    def test_error_names_every_offending_setting_but_not_the_value(self) -> None:
+        from server.config import Settings
+
+        with pytest.raises(ValidationError) as exc:
+            Settings(influx_url="http://x:8086", influx_token="CHANGE_ME_secret-1", mqtt_password="change-me-2")
+        message = str(exc.value)
+        assert "INFLUX_TOKEN" in message and "MQTT_PASSWORD" in message
+        assert "secret-1" not in message
+
+    def test_dev_flag_allows_placeholders(self) -> None:
+        from server.config import Settings
+
+        s = Settings(influx_url="http://x:8086", influx_token="CHANGE_ME", allow_placeholder_secrets=True)
+        assert s.influx_token == "CHANGE_ME"
+
+    def test_real_secrets_pass(self) -> None:
+        from server.config import Settings
+
+        Settings(
+            influx_url="http://x:8086",
+            influx_token="a1b2c3d4e5",
+            api_keys="team:s3cr3t",
+            mqtt_password="hunter2hunter2",
+        )
+
+    def test_shipped_env_example_is_rejected_as_is(self) -> None:
+        """Guard against a placeholder drifting away from the CHANGE_ME marker."""
+        from pathlib import Path
+
+        from server.config import Settings
+
+        text = (Path(__file__).parents[1] / "docker" / ".env.example").read_text()
+        env = dict(
+            line.split("=", 1) for line in text.splitlines() if "=" in line and not line.startswith("#")
+        )
+        with pytest.raises(ValidationError, match="CHANGE_ME"):
+            Settings(
+                influx_url="http://x:8086",
+                influx_token=env["INFLUX_TOKEN"],
+                api_keys=env["API_KEYS"],
+                mqtt_password=env["MQTT_PASSWORD"],
+            )
+
+
+class TestCredentialMaxStale:
+    def test_default_is_24_hours(self) -> None:
+        from server.config import Settings
+
+        assert Settings(influx_url="http://x:8086", influx_token="t").credential_max_stale_seconds == 86400
+
+    def test_negative_rejected(self) -> None:
+        from server.config import Settings
+
+        with pytest.raises(ValidationError):
+            Settings(influx_url="http://x:8086", influx_token="t", credential_max_stale_seconds=-1)

@@ -1,10 +1,10 @@
 import { strict as assert } from 'assert';
 import * as vscode from 'vscode';
+import { defaultLayout } from '../../../src/extension-backend/domain/layout';
 import { bindDashboard, DashboardDeps } from '../../../src/extension-backend/ui/dashboardBridge';
 import type { WebviewBoundMsg } from '../../../src/extension-backend/ui/messaging';
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
-const win = vscode.window as Mutable<typeof vscode.window>;
 const cmd = vscode.commands as Mutable<typeof vscode.commands>;
 
 type Listener<T> = (value: T) => void;
@@ -35,8 +35,10 @@ function makeHarness() {
   } as unknown as vscode.Webview;
 
   const snapshotEmitter = emitter<unknown>();
+  const configEmitter = emitter<void>();
+  let config: unknown = { monthlyBudget: 0 };
   const calls: Record<string, unknown[][]> = {
-    refresh: [], setFilter: [], signIn: [], setConfig: [], setLayout: [], snooze: [],
+    refresh: [], setFilter: [], signIn: [], update: [], setLayout: [], snooze: [],
   };
 
   const deps = {
@@ -48,13 +50,12 @@ function makeHarness() {
       onDidChangeSnapshot: snapshotEmitter.event,
     },
     userConfig: {
-      get: () => ({ monthlyBudget: 0 }),
-      set: async (...a: unknown[]) => void calls.setConfig!.push(a),
-      uri: vscode.Uri.file('/storage/config.json'),
-      onDidChange: emitter<unknown>().event,
+      get: () => config,
+      update: async (...a: unknown[]) => void calls.update!.push(a),
+      onDidChange: configEmitter.event,
     },
     layout: {
-      get: () => [],
+      get: () => defaultLayout(),
       set: async (...a: unknown[]) => void calls.setLayout!.push(a),
       onDidChange: emitter<unknown>().event,
     },
@@ -66,7 +67,18 @@ function makeHarness() {
   } as unknown as DashboardDeps;
 
   const disposables = bindDashboard(webview, deps);
-  return { posted, send: (m: unknown) => receive!(m), calls, snapshotEmitter, disposables };
+  return {
+    posted,
+    send: (m: unknown) => receive!(m),
+    calls,
+    snapshotEmitter,
+    disposables,
+    /** The configuration changed (any mallard.* setting): new values, then the one event. */
+    changeConfig: (next: unknown) => {
+      config = next;
+      configEmitter.fire(undefined as never);
+    },
+  };
 }
 
 describe('dashboardBridge — message routing', () => {
@@ -93,8 +105,8 @@ describe('dashboardBridge — message routing', () => {
     } as unknown as vscode.Webview;
     const deps = {
       usage: { current: undefined, onDidChangeSnapshot: emitter<unknown>().event },
-      userConfig: { get: () => ({}), uri: vscode.Uri.file('/x'), onDidChange: emitter<unknown>().event },
-      layout: { get: () => [], onDidChange: emitter<unknown>().event },
+      userConfig: { get: () => ({}), onDidChange: emitter<unknown>().event },
+      layout: { get: () => defaultLayout(), onDidChange: emitter<unknown>().event },
       restriction: { getState: () => ({ active: false }), onDidChange: emitter<unknown>().event },
     } as unknown as DashboardDeps;
     bindDashboard(webview, deps);
@@ -103,18 +115,17 @@ describe('dashboardBridge — message routing', () => {
     assert.deepEqual(posted.map((m) => m.type), ['config', 'layout', 'restriction', 'theme']);
   });
 
-  it('routes refresh, setFilter, setConfig, setLayout, and restrictSnooze', async () => {
+  it('routes refresh, setFilter, setLayout, and restrictSnooze', async () => {
     const h = makeHarness();
     h.send({ type: 'refresh' });
     h.send({ type: 'setFilter', value: { models: ['gpt-4o'] } });
-    h.send({ type: 'setConfig', value: { monthlyBudget: 5 } });
-    h.send({ type: 'setLayout', value: [] });
+    h.send({ type: 'setLayout', value: defaultLayout() });
+    h.send({ type: 'setLayout', value: [] }); // the v1 shape is rejected, never reaches the store
     h.send({ type: 'restrictSnooze', minutes: 15 });
     await new Promise((r) => setImmediate(r));
 
     assert.equal(h.calls.refresh!.length, 1);
     assert.deepEqual(h.calls.setFilter![0], [{ models: ['gpt-4o'] }]);
-    assert.deepEqual(h.calls.setConfig![0], [{ monthlyBudget: 5 }]);
     assert.equal(h.calls.setLayout!.length, 1);
     assert.deepEqual(h.calls.snooze![0], [15]);
   });
@@ -141,30 +152,43 @@ describe('dashboardBridge — message routing', () => {
     }
   });
 
-  it('writes setCurrency to UserConfigStore (uppercased), not VS Code settings', async () => {
+  it('writes setCurrency to the mallard.currency setting through the config service', async () => {
     const h = makeHarness();
     h.send({ type: 'setCurrency', value: 'eur' });
     await new Promise((r) => setImmediate(r));
-    // Persisted through userConfig.set so it shares the config store and its
-    // change event (immediate recompute), rather than settings.json.
-    assert.deepEqual(h.calls.setConfig!.at(-1), [{ currency: 'EUR' }]);
+    // update() validates and upper-cases it (see ConfigService); the settings
+    // change event then recomputes the snapshot.
+    assert.deepEqual(h.calls.update!.at(-1), [{ currency: 'eur' }]);
   });
 
-  it('opens the config file for openConfig', async () => {
-    const opened: unknown[] = [];
-    const originalShow = win.showTextDocument;
-    win.showTextDocument = ((uri: unknown) => {
-      opened.push(uri);
+  it('no longer accepts a setConfig patch from the webview: the dashboard writes nothing but the currency', async () => {
+    const h = makeHarness();
+    h.send({ type: 'setConfig', value: { monthlyBudget: 5 } });
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual(h.calls.update, []);
+  });
+
+  it('opens the Settings UI on the alert settings for openConfig', async () => {
+    const executed: unknown[][] = [];
+    const originalExec = cmd.executeCommand;
+    cmd.executeCommand = ((...a: unknown[]) => {
+      executed.push(a);
       return Promise.resolve(undefined);
-    }) as unknown as typeof win.showTextDocument;
+    }) as typeof cmd.executeCommand;
     try {
       const h = makeHarness();
       h.send({ type: 'openConfig' });
       await new Promise((r) => setImmediate(r));
-      assert.equal(opened.length, 1);
+      assert.deepEqual(executed, [['workbench.action.openSettings', '@ext:RelativelyUnknown.mallard alerts']]);
     } finally {
-      win.showTextDocument = originalShow;
+      cmd.executeCommand = originalExec;
     }
+  });
+
+  it('pushes the new configuration to the webview whenever any setting changes', () => {
+    const h = makeHarness();
+    h.changeConfig({ monthlyBudget: 42 });
+    assert.deepEqual(h.posted, [{ type: 'config', value: { monthlyBudget: 42 } }]);
   });
 
   it('ignores malformed messages entirely', async () => {
@@ -190,38 +214,28 @@ describe('dashboardBridge — message routing', () => {
     for (const d of h.disposables) assert.doesNotThrow(() => d.dispose());
   });
 
-  it('posts a new theme message when mallard.palette config changes', async () => {
-    const posted: WebviewBoundMsg[] = [];
-    let configCb: ((e: { affectsConfiguration(s: string): boolean }) => void) | undefined;
-    const webview = {
-      postMessage: (m: WebviewBoundMsg) => { posted.push(m); return Promise.resolve(true); },
-      onDidReceiveMessage: (_handler: (m: unknown) => void) => { return { dispose() {} }; },
-    } as unknown as vscode.Webview;
+  it('posts a new theme message when the mallard.palette setting changes, and not for other settings', async () => {
     const wsc = vscode.workspace as Mutable<typeof vscode.workspace>;
-    const origOnChanged = wsc.onDidChangeConfiguration;
-    wsc.onDidChangeConfiguration = ((fn: (e: { affectsConfiguration(s: string): boolean }) => void) => {
-      configCb = fn;
-      return { dispose() {} };
-    }) as unknown as typeof wsc.onDidChangeConfiguration;
+    const origGet = wsc.getConfiguration;
+    let palette = 'swiss';
+    wsc.getConfiguration = (() => ({
+      get: (key: string) => (key === 'palette' ? palette : undefined),
+      update: () => Promise.resolve(),
+    })) as unknown as typeof wsc.getConfiguration;
     try {
-      const deps = {
-        usage: { current: undefined, onDidChangeSnapshot: emitter<unknown>().event },
-        userConfig: { get: () => ({}), uri: vscode.Uri.file('/x'), onDidChange: emitter<unknown>().event },
-        layout: { get: () => [], onDidChange: emitter<unknown>().event },
-        restriction: { getState: () => ({ active: false }), onDidChange: emitter<unknown>().event },
-      } as unknown as DashboardDeps;
-      bindDashboard(webview, deps);
-      const before = posted.filter((m) => m.type === 'theme').length;
-      configCb!({ affectsConfiguration: (s: string) => s === 'mallard.palette' });
-      await Promise.resolve();
-      assert.ok(posted.filter((m) => m.type === 'theme').length > before, 'theme re-posted on palette change');
-      // Non-matching config change must not re-post.
-      const mid = posted.filter((m) => m.type === 'theme').length;
-      configCb!({ affectsConfiguration: () => false });
-      await Promise.resolve();
-      assert.equal(posted.filter((m) => m.type === 'theme').length, mid, 'no theme re-post for unrelated config');
+      const h = makeHarness();
+      const themes = () => h.posted.filter((m) => m.type === 'theme') as Array<Extract<WebviewBoundMsg, { type: 'theme' }>>;
+      assert.equal(themes().length, 0);
+
+      h.changeConfig({ monthlyBudget: 1 }); // another setting changed
+      assert.equal(themes().length, 0, 'no theme re-post for unrelated config');
+
+      palette = 'theme';
+      h.changeConfig({ monthlyBudget: 1 });
+      assert.equal(themes().length, 1, 'theme re-posted on palette change');
+      assert.equal(themes()[0]!.palette, 'theme');
     } finally {
-      wsc.onDidChangeConfiguration = origOnChanged;
+      wsc.getConfiguration = origGet;
     }
   });
 });
@@ -249,8 +263,8 @@ describe('dashboardBridge — theme kind mapping', () => {
       } as unknown as vscode.Webview;
       const deps = {
         usage: { current: undefined, onDidChangeSnapshot: emitter<unknown>().event },
-        userConfig: { get: () => ({}), uri: vscode.Uri.file('/x'), onDidChange: emitter<unknown>().event },
-        layout: { get: () => [], onDidChange: emitter<unknown>().event },
+        userConfig: { get: () => ({}), onDidChange: emitter<unknown>().event },
+        layout: { get: () => defaultLayout(), onDidChange: emitter<unknown>().event },
         restriction: { getState: () => ({ active: false }), onDidChange: emitter<unknown>().event },
       } as unknown as DashboardDeps;
       bindDashboard(webview, deps);

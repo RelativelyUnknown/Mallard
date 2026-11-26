@@ -51,15 +51,17 @@ VS Code does not delete extension storage when you uninstall an extension. Run *
 
 ## Alert rule not firing {#rule-not-firing}
 
-Rules are skipped silently when any of these conditions are true:
+A rule in `mallard.alerts.rules` stays quiet when any of these is true:
 
-**Cooldown not elapsed**: the default cooldown is 1 hour even if you don't set one. A rule that fired recently won't fire again until the cooldown window passes. Set a shorter `cooldown` (e.g. `"5m"`) while testing, then restore it.
+**The rule has a mistake**: a rule with an unknown `metric`, a bad `cooldown` (`"1 hour"` instead of `"1h"`), a missing field or a repeated `id` is skipped, and the reason is written once to the **Mallard** output channel (`View → Output → Mallard`). All six fields `id`, `metric`, `op`, `value`, `cooldown` and `severity` are required.
 
-**`active` condition is false**: if your rule has an `active` field, the rule is skipped entirely when that condition evaluates to false. Check it separately from `when`.
+**Cooldown not elapsed**: a rule that fired recently won't fire again until its `cooldown` has passed, and the cooldown survives a window reload. Rules on `today.*` start over each local day, rules on `month.*`, `budget.*` and `forecast.*` each month. Set a shorter `cooldown` (e.g. `"5m"`) while testing, then restore it. There is no snooze for notifications; changing the rule's `id` forgets its cooldown.
 
-**Rule is snoozed**: clicking Snooze on a notification suppresses that rule until the snooze expires. There is no UI to clear a snooze early; edit the rule's `id` to reset its state, then change it back.
+**The metric is unavailable**: before the first snapshot, without daily totals (`window7d.credits`), or for a model or repository that has no data at all, a comparison is never true (except `!=`). `velocity.creditsPerHour` is `0` until two samples exist, and restarts after midnight.
 
-**`when` condition not met**: use **Mallard: Simulate Restriction State** from the Command Palette to see which rule (if any) would be active right now against the live snapshot. The output channel prints the full evaluation result as JSON.
+**It is silent on purpose**: `"notify": false` and `"restrict": true` rules show no toast (restriction rules show the popup instead).
+
+**The condition is not met**: use **Mallard: Simulate Restriction State** from the Command Palette to see which restriction rule (if any) would be active right now against the live snapshot and the recent spend history; the output channel prints the result as JSON.
 
 ## Metric export disabled {#export-disabled}
 

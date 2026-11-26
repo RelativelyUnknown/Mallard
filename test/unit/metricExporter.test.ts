@@ -394,7 +394,12 @@ describe('MetricExporter (real class) — flushQueue', () => {
     const exporter = new MetricExporter(protocol, fakeSerializer(), queue);
     holder.exporter = exporter;
     await exporter.export(makeSnapshot());
-    assert.equal(queue.peekAll().length, 1, 'entry left intact when disposed mid-flush');
+    // Updated: this used to expect 1 — the new batch was silently dropped when
+    // the exporter was disposed mid-flush. It is now queued behind the intact
+    // backlog entry so no events are lost.
+    const remaining = queue.peekAll();
+    assert.equal(remaining.length, 2, 'backlog entry left intact, new batch queued behind it');
+    assert.deepEqual(remaining[0]!.payload, { n: 1 });
     await fs.rm(dir, { recursive: true });
   });
 });

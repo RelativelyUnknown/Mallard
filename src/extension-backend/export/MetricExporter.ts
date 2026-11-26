@@ -4,7 +4,8 @@
  * Extension points:
  *   MetricProtocol — transport (MQTT, HTTP, NATS, …)
  *   MetricSerializer — payload shape (vector, Prometheus, …)
- *   MetricExporter — orchestrates the two; the only class UsageService needs.
+ *   MetricExporter — orchestrates the two (implements Exporter, as do the
+ *     no-op and fanout exporters; consumers hold the Exporter interface).
  *
  * MqttProtocol: publishes to an MQTT broker after each snapshot.
  * Only mqtts:// and wss:// (TLS) URLs are accepted. Plain mqtt:// is rejected
@@ -45,9 +46,19 @@ export interface MetricSerializer {
   serialize(batch: StreamBatch): Record<string, unknown>;
 }
 
+/**
+ * What the rest of the extension needs from "something that exports event
+ * batches". The real exporter, the no-op one and the fanout all implement this
+ * directly — none of them fakes a protocol/serializer just to fit a base class.
+ */
+export interface Exporter {
+  export(batch: StreamBatch): Promise<void>;
+  dispose(): void;
+}
+
 // ── Orchestrator ─────────────────────────────────────────────────────────────
 
-export class MetricExporter {
+export class MetricExporter implements Exporter {
   private flushing = false;
   private disposed = false;
 
@@ -74,18 +85,21 @@ export class MetricExporter {
     this.flushing = true;
     try {
       const stillDown = this.queue ? await this.flushQueue() : false;
-      if (this.disposed) return;
 
       const topic = this.serializer.topic;
       const payload = this.serializer.serialize(batch);
 
-      if (stillDown) {
+      // Disposed mid-flush: don't attempt a send on a torn-down protocol, but
+      // keep the batch — it is a delta, and dropping it would lose events.
+      if (stillDown || this.disposed) {
         this.queue?.enqueue(topic, payload);
         return;
       }
 
       const result = await this.protocol.send(topic, payload);
-      if (this.disposed) return;
+      // Judge the outcome even if dispose() landed mid-send: a retryable
+      // failure (disposing the protocol itself makes in-flight sends fail that
+      // way) must be queued, not silently dropped with the exporter.
       if (!result.ok && result.retryable) {
         this.queue?.enqueue(topic, payload);
       }
@@ -121,29 +135,9 @@ export class MetricExporter {
 }
 
 /** No-op exporter used when metric export is not configured. Eliminates optional chaining. */
-export class NullMetricExporter extends MetricExporter {
-  // Never actually invoked — export()/dispose() below are both overridden as
-  // no-ops, so the base MetricExporter machinery that would call these never
-  // runs. They exist only to satisfy MetricExporter's constructor signature.
-  /* c8 ignore start */
-  private static readonly nullProtocol: MetricProtocol = {
-    async send() {
-      return { ok: true };
-    },
-    dispose() {},
-  };
-  /* c8 ignore stop */
-  private static readonly nullSerializer: MetricSerializer = {
-    topic: '',
-    serialize: () => ({}),
-  };
-
-  constructor() {
-    super(NullMetricExporter.nullProtocol, NullMetricExporter.nullSerializer);
-  }
-
-  override async export(_batch: StreamBatch): Promise<void> {}
-  override dispose(): void {}
+export class NullMetricExporter implements Exporter {
+  async export(_batch: StreamBatch): Promise<void> {}
+  dispose(): void {}
 }
 
 /**
@@ -155,26 +149,14 @@ export class NullMetricExporter extends MetricExporter {
  * queue across all targets, so any retry replayed the payload to every target,
  * double-counting on non-idempotent receivers.)
  */
-export class FanoutMetricExporter extends MetricExporter {
-  /* c8 ignore start */
-  private static readonly nullProtocol: MetricProtocol = {
-    async send() {
-      return { ok: true };
-    },
-    dispose() {},
-  };
-  private static readonly nullSerializer: MetricSerializer = { topic: '', serialize: () => ({}) };
-  /* c8 ignore stop */
+export class FanoutMetricExporter implements Exporter {
+  constructor(private readonly children: readonly Exporter[]) {}
 
-  constructor(private readonly children: readonly MetricExporter[]) {
-    super(FanoutMetricExporter.nullProtocol, FanoutMetricExporter.nullSerializer);
-  }
-
-  override async export(batch: StreamBatch): Promise<void> {
+  async export(batch: StreamBatch): Promise<void> {
     await Promise.all(this.children.map((c) => c.export(batch)));
   }
 
-  override dispose(): void {
+  dispose(): void {
     for (const c of this.children) c.dispose();
   }
 }
@@ -204,6 +186,8 @@ const MQTT_ACK_TIMEOUT_MS = 3_000;
 export class MqttProtocol implements MetricProtocol {
   private client: mqtt.MqttClient | null = null;
   private readonly resolvedTopic: string;
+  /** Set when the TLS files named in the config cannot be read — retrying cannot help. */
+  private fatalConfig = false;
 
   constructor(opts: MqttProtocolOptions, private readonly logger: Logger = defaultLogger) {
     if (!opts.brokerUrl.startsWith('mqtts://') && !opts.brokerUrl.startsWith('wss://')) {
@@ -233,33 +217,39 @@ export class MqttProtocol implements MetricProtocol {
       this.logger.warn('mqtt', 'certPath and keyPath must both be set for mTLS');
     }
 
-    if (useMtls) {
-      let cert: Buffer;
-      let key: Buffer;
-      let ca: Buffer | undefined;
-      try {
+    // The CA applies to every auth mode: with username/password it is what
+    // pins the broker's certificate, exactly as it does with mTLS.
+    let cert: Buffer | undefined;
+    let key: Buffer | undefined;
+    let ca: Buffer | undefined;
+    try {
+      if (useMtls) {
         cert = fs.readFileSync(opts.certPath!);
         key = fs.readFileSync(opts.keyPath!);
-        if (opts.caPath) ca = fs.readFileSync(opts.caPath);
-      } catch (err) {
-        this.logger.error('mqtt', 'failed to read mTLS cert files:', (err as Error).message);
-        return;
       }
-      this.client = mqtt.connect(opts.brokerUrl, {
-        cert,
-        key,
-        ...(ca ? { ca } : {}),
-        reconnectPeriod: 5_000,
-        keepalive: 60,
-      });
-    } else {
-      this.client = mqtt.connect(opts.brokerUrl, {
+      if (opts.caPath) ca = fs.readFileSync(opts.caPath);
+    } catch (err) {
+      // A missing/unreadable file won't fix itself between retries: fail the
+      // export permanently (the settings-change rebuild retries once the
+      // user has corrected the path) and say so, rather than queueing forever.
+      this.fatalConfig = true;
+      this.logger.error('mqtt', 'failed to read TLS cert files:', (err as Error).message);
+      void vscode.window.showWarningMessage(
+        `Mallard: could not read the MQTT certificate files (${(err as Error).message}). ` +
+          'Metric export is disabled until the mallard.shared.certificate.* paths are fixed.',
+      );
+      return;
+    }
+
+    this.client = mqtt.connect(opts.brokerUrl, {
+      ...(cert && key ? { cert, key } : {
         ...(opts.username ? { username: opts.username } : {}),
         ...(opts.password ? { password: opts.password } : {}),
-        reconnectPeriod: 5_000,
-        keepalive: 60,
-      });
-    }
+      }),
+      ...(ca ? { ca } : {}),
+      reconnectPeriod: 5_000,
+      keepalive: 60,
+    });
 
     this.client.on('error', (err: Error) => {
       this.logger.error('mqtt', 'connection error:', err.message);
@@ -267,17 +257,16 @@ export class MqttProtocol implements MetricProtocol {
   }
 
   /**
-   * Publishes with `retain: true` on a single per-instance topic, so the
-   * broker only ever keeps the *latest* retained message regardless of how
-   * many queued entries a caller replays through here after an outage. That's
-   * expected, not a bug: MQTT consumers see current state, not a historical
-   * backfill the way a webhook receiver replaying queued entries would.
+   * Publishes at QoS 1 WITHOUT `retain`. Each payload is a delta batch of new
+   * events (not a state snapshot), so a retained message would keep only the
+   * latest batch and hand a late-joining subscriber just that one — silently
+   * missing everything before it. Live subscribers receive every batch.
    */
   async send(topic: string, payload: Record<string, unknown>): Promise<SendResult> {
     // A permanently-invalid config (rejected in the constructor — e.g. a
-    // plaintext broker URL) leaves resolvedTopic empty and no client. That's
+    // plaintext broker URL, or unreadable cert files) leaves no client. That's
     // a fatal config error: never retry it (would hold an export slot forever).
-    if (!this.resolvedTopic) {
+    if (!this.resolvedTopic || this.fatalConfig) {
       return { ok: false, retryable: false };
     }
     // No client yet, or not yet connected — transient; the broker may come up.
@@ -301,7 +290,7 @@ export class MqttProtocol implements MetricProtocol {
         resolve({ ok: false, retryable: true });
       }, MQTT_ACK_TIMEOUT_MS);
 
-      client.publish(resolvedTopic, JSON.stringify(payload), { qos: 1, retain: true }, (err?: Error) => {
+      client.publish(resolvedTopic, JSON.stringify(payload), { qos: 1, retain: false }, (err?: Error) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);

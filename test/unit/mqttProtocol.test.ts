@@ -2,6 +2,7 @@ import { strict as assert } from 'assert';
 import { promises as fs, writeFileSync } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as vscode from 'vscode';
 import { MqttProtocol } from '../../src/extension-backend/export/MetricExporter';
 
 /** A scriptable fake MqttClient. */
@@ -225,17 +226,88 @@ describe('MqttProtocol — mTLS cert handling', () => {
     }
   });
 
-  it('reports retryable (not fatal) when mTLS cert files cannot be read', async () => {
+  // Pinned the old behaviour (retryable forever → entries piled up in the
+  // queue for a path that can never be read); unreadable cert files are a
+  // permanent config error, so they are fatal and the user is told.
+  it('reports fatal (not retryable) and warns when mTLS cert files cannot be read', async () => {
     const restore = setMqttImpl(() => { throw new Error('should not connect'); });
+    const win = vscode.window as unknown as { showWarningMessage: (m: string) => Promise<undefined> };
+    const origWarn = win.showWarningMessage;
+    const warnings: string[] = [];
+    win.showWarningMessage = async (m: string) => { warnings.push(m); return undefined; };
     try {
       const p = new MqttProtocol(
         { brokerUrl: 'mqtts://broker:8883', topicPrefix: TOPIC, certPath: '/no/cert.pem', keyPath: '/no/key.pem' },
         quietLogger,
       );
-      // No client created (cert read failed) but resolvedTopic is set → retryable, not fatal.
       const r = await p.send('t', { schema_version: 3 });
-      assert.equal(r.ok, false);
-      assert.equal((r as { retryable: boolean }).retryable, true);
+      assert.deepEqual(r, { ok: false, retryable: false });
+      assert.equal(warnings.length, 1);
+      assert.match(warnings[0]!, /certificate/i);
+      p.dispose();
+    } finally {
+      win.showWarningMessage = origWarn;
+      restore();
+    }
+  });
+
+  it('applies caPath with username/password auth too (not only with mTLS)', async () => {
+    const dir = await tmpDir();
+    const caPath = path.join(dir, 'ca.pem');
+    writeFileSync(caPath, 'ca-bytes');
+    let capturedOpts: unknown;
+    const restore = setMqttImpl((_url, opts) => {
+      capturedOpts = opts;
+      return { connected: false, on() {}, publish() {}, end() {} } as unknown as FakeClient;
+    });
+    try {
+      const p = new MqttProtocol(
+        { brokerUrl: 'mqtts://broker:8883', topicPrefix: TOPIC, username: 'u', password: 'p', caPath },
+        quietLogger,
+      );
+      const o = capturedOpts as { ca?: Buffer; username?: string; password?: string; cert?: Buffer };
+      assert.equal(o.ca?.toString(), 'ca-bytes');
+      assert.equal(o.username, 'u');
+      assert.equal(o.password, 'p');
+      assert.equal(o.cert, undefined, 'no client cert without certPath/keyPath');
+      p.dispose();
+    } finally {
+      restore();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('treats an unreadable CA file as fatal even with username/password auth', async () => {
+    const restore = setMqttImpl(() => { throw new Error('should not connect'); });
+    try {
+      const p = new MqttProtocol(
+        { brokerUrl: 'mqtts://broker:8883', topicPrefix: TOPIC, username: 'u', password: 'p', caPath: '/no/ca.pem' },
+        quietLogger,
+      );
+      assert.deepEqual(await p.send('t', { schema_version: 3 }), { ok: false, retryable: false });
+      p.dispose();
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('MqttProtocol — publish options', () => {
+  // Payloads are event DELTAS: a retained message would keep only the latest
+  // batch and hand late subscribers just that one, losing the rest.
+  it('publishes at QoS 1 without retain', async () => {
+    let published: { topic: string; opts: unknown } | undefined;
+    const fake: FakeClient = {
+      connected: true,
+      on() {},
+      publish(topic, _b, opts, cb) { published = { topic, opts }; cb(); },
+      end() {},
+    };
+    const restore = setMqttImpl(() => fake);
+    try {
+      const p = new MqttProtocol({ brokerUrl: 'mqtts://broker:8883', topicPrefix: TOPIC }, quietLogger);
+      assert.equal((await p.send('t', { schema_version: 3 })).ok, true);
+      assert.deepEqual(published!.opts, { qos: 1, retain: false });
       p.dispose();
     } finally {
       restore();

@@ -37,6 +37,15 @@ spec:
               app: influxdb
       ports:
         - port: 8086
+    # mallard-server → Redis (shared per-credential rate limiter; REDIS_URL in
+    # server/configmap.yaml). Without this egress rule the default-deny blocks
+    # it and the limiter silently runs in its degraded per-replica fallback.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mallard-redis
+      ports:
+        - port: 6379
     # mallard-server → OpenBao (only needed with SECRET_MANAGER_TYPE=openbao;
     # harmless but removable in the default static setup). Without it the
     # server cannot fetch credentials: /health stays green (it needs no
@@ -88,6 +97,27 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
+---
+# Allow only the mallard-server pods to reach Redis on 6379. Redis initiates no
+# connections, so it gets no egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-server-to-redis
+  namespace: mallard
+spec:
+  podSelector:
+    matchLabels:
+      app: mallard-redis
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: mallard-server
+      ports:
+        - port: 6379
+  egress: []
 ---
 # Allow ingress-nginx to reach Grafana on 3000.
 apiVersion: networking.k8s.io/v1

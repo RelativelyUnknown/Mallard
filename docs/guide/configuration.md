@@ -1,115 +1,84 @@
 # Configuration
 
-Mallard works out of the box. Budget and alert settings live in a JSON config file in Mallard's storage directory:
+Mallard works out of the box. Everything you can configure is a normal VS Code setting: open **Settings** and search for `@ext:RelativelyUnknown.mallard`, or edit `settings.json`. The **Edit alert rules** button in the dashboard opens the same Settings editor, filtered to Mallard.
 
-```
-~/.config/Code/User/globalStorage/RelativelyUnknown.mallard/mallard/config.json
-```
+There is no separate config file any more. Budgets, alerts, display preferences, currency, GitHub billing and export targets all live in your user settings, so they sync with Settings Sync like the rest of your editor setup.
 
-Click **Edit alert rules** in the dashboard to open it with inline validation, hover docs, and autocompletion.
+## Where each setting lives
+
+| What | Setting | Scope |
+| --- | --- | --- |
+| Budget and alert thresholds | `mallard.monthlyBudget`, `mallard.includedCredits`, `mallard.dailyCreditAlert`, `mallard.alerts.*`, `mallard.branchBudgets` | user (synced) |
+| Custom threshold alerts | `mallard.alerts.rules` | user (synced) |
+| Dashboard display | `mallard.display.*`, `mallard.palette`, `mallard.currency` | user (synced) |
+| Refresh, retention, connectors | `mallard.refreshIntervalMinutes`, `mallard.dataRetentionDays`, `mallard.enabledConnectors` | user (synced) |
+| GitHub billing | `mallard.githubBilling.mode`, `mallard.githubBilling.org` | user (synced) |
+| Export server, transport, targets, certificates | `mallard.server.url`, `mallard.export.*`, `mallard.webhook.auth`, `mallard.mqtt.*`, `mallard.shared.certificate.*` | this machine only |
+| Pricing feed override, Copilot telemetry path | `mallard.pricingManifestUrl`, `mallard.copilotOtelPath` | this machine only |
+| Passwords, API keys, tokens | VS Code SecretStorage (your OS keychain), via the **Mallard: Manage Credentials** command | never in settings |
+| Dashboard layout (panel order, size, hidden panels) | VS Code extension storage, edited in the dashboard | this machine |
+
+"This machine only" settings are never synced, and a workspace's `.vscode/settings.json` can never set them, so an opened project cannot redirect your usage data. The full list, with types, defaults and ranges, is in the [Settings reference](../reference/settings.md).
+
+Mallard validates every value itself, because VS Code does not: a number outside its range is clamped, an unknown choice falls back to the default, and in a list (alert rules, export targets) one bad entry is ignored, with a note in the **Mallard** Output panel, without affecting the entries next to it.
 
 ## Budget and alerts
 
 ```json
 {
-  "monthlyBudget": 20,
-  "includedCredits": 300,
-  "dailyCreditAlert": 50,
-  "alerts": { "velocityEnabled": true, "velocityCreditsPerHour": 40 }
+  "mallard.monthlyBudget": 20,
+  "mallard.includedCredits": 300,
+  "mallard.dailyCreditAlert": 50,
+  "mallard.alerts.velocityEnabled": true,
+  "mallard.alerts.velocityCreditsPerHour": 100,
+  "mallard.branchBudgets": { "main": 500, "feature/billing": 120 }
 }
 ```
 
-| Field | Default | Meaning |
+| Setting | Default | Meaning |
 | --- | --- | --- |
-| `monthlyBudget` | 0 | USD budget; 0 disables budget alerts. |
-| `includedCredits` | 300 | Plan's monthly premium-request allowance; colours the gauge. |
-| `dailyCreditAlert` | 0 | Daily credit threshold; 0 disables it. |
-| `alerts.velocityEnabled` | false | Enable the spending-velocity alert. |
-| `alerts.velocityCreditsPerHour` | 40 | Credits/hour rate that triggers it. |
+| `mallard.monthlyBudget` | 0 | USD budget; 0 disables budget alerts. |
+| `mallard.includedCredits` | 300 | Plan's monthly premium-request allowance; colours the gauge. |
+| `mallard.dailyCreditAlert` | 50 | Daily credit threshold; 0 disables it. |
+| `mallard.alerts.velocityEnabled` | true | Enable the spending-velocity alert. |
+| `mallard.alerts.velocityCreditsPerHour` | 100 | Credits/hour rate that triggers it. |
+| `mallard.branchBudgets` | `{}` | Per-branch credit caps. |
 
-## Custom alert rules {#custom-alert-rules}
-
-Rules live in the `rules` array. Each rule fires a VS Code notification and optionally restricts Copilot.
-
-```json
-{
-  "rules": [{
-    "id": "velocity-warning",
-    "severity": "warning",
-    "message": "High velocity ({{velocity.creditsPerHour}} cr/h), not on weekends.",
-    "when": {
-      "and": [
-        { ">":  [{ "var": "velocity.creditsPerHour" }, 40] },
-        { "<":  [{ "var": "budget.percentOfBudget" }, 1] }
-      ]
-    },
-    "active": {
-      "and": [
-        { "!=": [{ "var": "now.weekday" }, 0] },
-        { "!=": [{ "var": "now.weekday" }, 6] }
-      ]
-    },
-    "cooldown": "2h"
-  }]
-}
-```
-
-The most-used context fields are
-`today.credits`, `budget.percentOfBudget`, `budget.pace`, and `velocity.creditsPerHour`.
-
-### User-defined variables
+`mallard.alerts.rules` holds your own threshold alerts as an array of objects; it shows **Edit in settings.json** in the Settings editor. Each rule compares one metric with a number:
 
 ```json
-{
-  "vars": { "alertThreshold": 80 },
-  "rules": [{
-    "id": "threshold",
-    "severity": "warning",
-    "message": "Over {{vars.alertThreshold}} credits today.",
-    "when": { ">": [{ "var": "today.credits" }, { "var": "vars.alertThreshold" }] }
-  }]
-}
+"mallard.alerts.rules": [
+  { "id": "big-day", "metric": "today.credits", "op": ">", "value": 200, "cooldown": "6h", "severity": "warning" }
+]
 ```
 
-### Rule groups
+The fixed list of metrics, the operators, cooldowns, `restrict` and `clearBelow` are in the [alert rules reference](../reference/alert-rules.md). The scalar settings above are the built-in alerts (budget at 80 % and 100 %, daily credits, velocity, branch caps); alert cooldowns are remembered across reloads.
 
-Group rules so you can toggle a whole set at once:
+## Moving from `config.json`
 
-```json
-{
-  "groups": [{ "id": "work-hours", "label": "Work-hour rules", "active": true }],
-  "rules": [{
-    "id": "velocity",
-    "severity": "warning",
-    "message": "High velocity during work hours.",
-    "when": { ">": [{ "var": "velocity.creditsPerHour" }, 40] },
-    "active": { "var": "group.work-hours" }
-  }]
-}
-```
+Earlier versions kept these settings in `config.json` inside Mallard's storage folder. On the first start after upgrading, Mallard imports that file once:
 
-### Restriction popups
+- budgets, alert thresholds, branch budgets, display preferences, currency, GitHub billing and export targets become the matching settings;
+- the dashboard layout is copied into extension storage (unless you already have one);
+- export targets get a stable `id` (the old target name when it can serve as one, so stored credentials keep working; otherwise a generated id, and the credentials are moved to it);
+- the file is renamed to `config.json.migrated`, never deleted, and a single message tells you what moved.
 
-A rule with a `restrict` block shows a popup when it fires, instead of (or alongside) a plain notification.
+Your **custom alert rules** are converted too, in a second step: the rules a flat rule can express are appended to `mallard.alerts.rules` (nothing is duplicated if it runs twice) and one message says how many were converted and how many were not. Rules that need the old rules language (combined conditions, groups, variables, `requiresAuth`, `in`/`matches` and the like) are listed with their reason in the **Mallard** output channel and stay in `config.json.migrated`; recreate the ones you still need as flat rules. [What converts and what does not](../reference/alert-rules.md#legacy) is in the reference.
 
-```json
-{
-  "id": "budget-exhausted",
-  "severity": "critical",
-  "message": "Budget exhausted.",
-  "when": { ">=": [{ "var": "budget.percentOfBudget" }, 1] },
-  "restrict": {}
-}
-```
+If `config.json` cannot be read (for example it is not valid JSON), Mallard leaves it untouched, warns once, and tries again on the next start once you have fixed it. **Mallard: Prepare for Uninstall** removes `config.json` and its `.migrated` backup along with everything else.
 
-The popup offers **Dismiss**, **Snooze 15m**, **Snooze 1h**, and **Disable Mallard...**. Mallard never disables any extension automatically; **Disable Mallard...** opens the Extensions view filtered to Mallard so you can turn it off yourself in one click. Snoozing sets a temporary override; the popup won't reappear until the override expires.
+## Restriction popups
 
-Set `"restrict": { "reEnableWhen": <condition> }` to have the popup clear itself automatically once that condition becomes true (for example, once spend drops back under budget), instead of waiting for the next snooze to expire.
+A rule with `"restrict": true` shows a popup while it matches, and `clearBelow` lifts it once the metric has dropped below a number (see the [alert rules reference](../reference/alert-rules.md#restrictions)).
+
+The popup offers **Dismiss**, **Snooze 15m**, **Snooze 1h**, and **Disable Mallard...**. Mallard never disables any extension automatically; **Disable Mallard...** opens the Extensions view filtered to Mallard so you can turn it off yourself in one click.
 
 ## Dashboard layout
 
-Use the **Resize** and **Move** buttons to drag, resize, or hide panels, and **Add chart** to bring in the optional extra charts (by repository, cost categories over time, tokens over time, GitHub billing items). Every change is saved straight into `config.json`'s `dashboard.panels` block — the same file as your budget and rules — so the layout is hand-editable and travels with the file. **Reset layout** restores defaults.
+Use **Edit layout** in the dashboard to drag, resize, or hide panels, and **Add chart** to bring in the optional extra charts (by repository, cost categories over time, tokens over time, GitHub billing items). Every change is saved automatically into VS Code's `globalState` for the extension (key `mallard.layout.v2`), so it survives restarts but is not hand-editable and is not a setting. **Reset layout** restores defaults; **Mallard: Prepare for Uninstall** clears it. See [Features](./features.md#layout) for the keyboard controls.
+
+A layout saved by an earlier version (the older `dashboard.panels` block of `config.json` or the previous `globalState` layout) is migrated automatically the first time the dashboard opens. The grid is always four columns wide, so the old `dashboard.columns` option and the `gridColumn` / `gridRow` panel fields are no longer read.
 
 ## Display currency
 
-The currency selector in the dashboard header writes `currency` into `config.json` (e.g. `"currency": "EUR"`). Exchange rates are fetched daily from Frankfurter; metric exports always use USD regardless.
+The currency selector in the dashboard header writes `mallard.currency` (e.g. `"mallard.currency": "EUR"`); you can also set it in Settings. Exchange rates are fetched daily from Frankfurter; metric exports always use USD regardless.

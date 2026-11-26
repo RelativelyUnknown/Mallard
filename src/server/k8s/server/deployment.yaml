@@ -50,8 +50,9 @@ spec:
               mountPath: /tmp
           # Liveness is a TCP-socket check (process is up / not wedged), NOT an
           # HTTP /health check: /health reports dependency health and returns 503
-          # when InfluxDB/secret-manager/Redis are unreachable. Using it for
-          # liveness would restart-loop the pod on a transient dependency blip.
+          # when InfluxDB or the secret manager are unreachable (Redis is not a
+          # hard dependency — see redis.yaml). Using it for liveness would
+          # restart-loop the pod on a transient dependency blip.
           livenessProbe:
             tcpSocket:
               port: 8080

@@ -6,6 +6,7 @@ import { readTheme } from '../theme';
 import { UsageSnapshot } from '../../extension-backend/domain/types';
 import { formatMoney, formatCredits } from '../../extension-backend/domain/format';
 import { ChartComponent } from './ChartComponent';
+import { escapeHtml } from '../escapeHtml';
 
 export interface DailyBarsHandle {
   update(snapshot: UsageSnapshot): void;
@@ -13,16 +14,38 @@ export interface DailyBarsHandle {
   reinit(): void;
 }
 
+type DayPoint = UsageSnapshot['chartData']['dailyBars']['points'][number];
+
+/**
+ * Tooltip text for the hovered day. Built from the points of the *current*
+ * snapshot — it closes over them, so it is rebuilt on every update (including
+ * incremental ones) or the tooltip would keep reading the previous render's data.
+ */
+function tooltipFormatter(points: readonly DayPoint[], currency: string) {
+  return (params: TooltipComponentOption): string => {
+    const p = (params as unknown as Array<{ dataIndex: number }>)[0];
+    if (!p) return '';
+    const pt = points[p.dataIndex];
+    if (!pt) return '';
+    return [
+      `<strong>${escapeHtml(pt.date)}</strong>`,
+      `${formatCredits(pt.credits)} cr`,
+      escapeHtml(formatMoney(pt.cost, currency)),
+    ].join('<br/>');
+  };
+}
+
 class DailyBarsChart extends ChartComponent {
   protected hasData(s: UsageSnapshot): boolean {
     return s.chartData.dailyBars.points.length > 0;
   }
 
-  // Incremental updates only touch today's bar — skip the full rebuild.
+  // Incremental updates only touch today's bar — skip the full rebuild. That
+  // is only valid on top of a full render of this same ECharts instance: a
+  // freshly (re)created one (first paint, or after a theme reinit) has no axes
+  // or series yet, and a partial option would leave bars floating in a void.
   override update(s: UsageSnapshot): void {
-    if (!this.hasData(s)) { this.chart.clear(); return; }
-
-    if (s.isIncremental) {
+    if (s.isIncremental && !this.fresh && this.hasData(s)) {
       const { points } = s.chartData.dailyBars;
       const t = readTheme();
       const sev = [t.sevOk, t.sevWarn, t.sevOver];
@@ -31,13 +54,18 @@ class DailyBarsChart extends ChartComponent {
         itemStyle: { color: sev[p.colorIndex] ?? t.sevOk },
       }));
       this.chart.setOption(
-        { animation: true, animationDuration: 500, series: [{ data: barData }] } as EChartsOption,
+        {
+          animation: true,
+          animationDuration: 500,
+          tooltip: { formatter: tooltipFormatter(points, s.currency) },
+          series: [{ data: barData }],
+        } as EChartsOption,
         { notMerge: false, lazyUpdate: false },
       );
       return;
     }
 
-    this.chart.setOption(this.buildOption(s) as EChartsOption, { notMerge: this.notMerge, lazyUpdate: true });
+    super.update(s);
   }
 
   protected buildOption(s: UsageSnapshot): object {
@@ -86,17 +114,7 @@ class DailyBarsChart extends ChartComponent {
       animation: false,
       tooltip: {
         trigger: 'axis',
-        formatter(params: TooltipComponentOption) {
-          const p = (params as unknown as Array<{ dataIndex: number }>)[0];
-          if (!p) return '';
-          const pt = points[p.dataIndex];
-          if (!pt) return '';
-          return [
-            `<strong>${pt.date}</strong>`,
-            `${formatCredits(pt.credits)} cr`,
-            formatMoney(pt.cost, currency),
-          ].join('<br/>');
-        },
+        formatter: tooltipFormatter(points, currency),
       },
       grid: { left: 40, right: 16, top: 12, bottom: 40, containLabel: false },
       xAxis: {

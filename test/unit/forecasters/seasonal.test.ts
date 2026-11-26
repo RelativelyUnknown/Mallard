@@ -93,3 +93,80 @@ describe('seasonalForecaster', () => {
     assert.ok(Math.abs(f.projectedCost - f.projectedCredits * 0.05) < 1e-6);
   });
 });
+
+describe('seasonalForecaster — gap-free series and the partial day', () => {
+  const june = (day: number, hour = 12) => new Date(2026, 5, day, hour).getTime(); // 2026-06-01 is a Monday
+
+  // Mon–Fri usage only: the aggregates simply have no rows for weekends.
+  const weekdays = [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 22, 23];
+  const weekends = [6, 7, 13, 14, 20, 21];
+
+  it('treats days without events as zero-credit days', () => {
+    const events = [
+      ...weekdays.map((d) => makeEvent({ id: `wd${d}`, ts: june(d), credits: 10 })),
+      makeEvent({ id: 'today', ts: june(24, 9), credits: 4 }), // Wed, partial
+    ];
+    const sparse = aggregateBy(events, 'day');
+    const dense = aggregateBy(
+      [...events, ...weekends.map((d) => makeEvent({ id: `we${d}`, ts: june(d), credits: 0 }))],
+      'day',
+    );
+    const now = june(24, 12);
+
+    const fromSparse = seasonalForecaster.forecast({ dayAggregates: sparse, now, pricePerCredit: 0.04 });
+    const fromDense = seasonalForecaster.forecast({ dayAggregates: dense, now, pricePerCredit: 0.04 });
+
+    assert.equal(fromSparse.basis, 'seasonal');
+    assert.ok(Math.abs(fromSparse.projectedCredits - fromDense.projectedCredits) < 1e-9,
+      'idle days must not change the result whether or not they appear as zero rows');
+    // Remaining: today's rest (~6) + Thu, Fri, Mon, Tue (~40) + a quiet weekend,
+    // not the ~60 a weekend-blind series projects.
+    const mtd = 17 * 10 + 4;
+    const remainder = fromSparse.projectedCredits - mtd;
+    assert.ok(remainder > 38 && remainder < 52, `remaining ${remainder.toFixed(1)} should reflect the idle weekend`);
+  });
+
+  it('fits complete days only and expects today to finish at the model value for its weekday', () => {
+    // 19 steady days (Jun 1–19), then 09:00–12:00 of day 20 with 1 credit so far.
+    const events = [
+      ...Array.from({ length: 19 }, (_, i) => makeEvent({ id: `d${i}`, ts: june(i + 1), credits: 10 })),
+      makeEvent({ id: 'today', ts: june(20, 9), credits: 1 }),
+    ];
+    const f = seasonalForecaster.forecast({
+      dayAggregates: aggregateBy(events, 'day'),
+      now: june(20, 12),
+      pricePerCredit: 0.04,
+    });
+    // mtd 191 + today brought up to 10 (+9) + 10 remaining days × 10.
+    assert.ok(Math.abs(f.projectedCredits - 300) < 1e-6, `got ${f.projectedCredits}`);
+  });
+
+  it('reports insufficient-data instead of fitting a week or less of history', () => {
+    const events = Array.from({ length: 5 }, (_, i) => makeEvent({ id: `d${i}`, ts: june(i + 1), credits: 10 }));
+    const f = seasonalForecaster.forecast({
+      dayAggregates: aggregateBy(events, 'day'),
+      now: june(6, 12), // day 6: five complete days behind it
+      pricePerCredit: 0.04,
+    });
+    assert.equal(f.basis, 'insufficient-data');
+    assert.equal(f.projectedCredits, 50);
+  });
+
+  it('ignores history beyond the fitted window (a stray epoch-0 event costs nothing)', () => {
+    const recent = Array.from({ length: 19 }, (_, i) => makeEvent({ id: `d${i}`, ts: june(i + 1), credits: 10 }));
+    const stray = makeEvent({ id: 'epoch', ts: 1000, credits: 10 });
+    const input = { now: june(20, 12), pricePerCredit: 0.04 };
+
+    const started = Date.now();
+    const withStray = seasonalForecaster.forecast({ dayAggregates: aggregateBy([stray, ...recent], 'day'), ...input });
+    const elapsed = Date.now() - started;
+    const without = seasonalForecaster.forecast({ dayAggregates: aggregateBy(recent, 'day'), ...input });
+
+    assert.ok(Math.abs(withStray.projectedCredits - without.projectedCredits) < 1e-9);
+    assert.ok(elapsed < 2000, `fit took ${elapsed}ms — the series must not span decades`);
+  });
+
+  it('is deterministic — the fit stamp comes from the injected clock', () => {
+    assert.equal(fitHoltWinters([1, 2, 3, 4, 5, 6, 7, 8, 9], 1234).fittedAt, 1234);
+  });
+});

@@ -1,9 +1,14 @@
 # ── Build stage ───────────────────────────────────────────────────────────────
 FROM python:3.14-slim AS builder
 
+# Pinned so an unreviewed uv release can't change how the venv is resolved or
+# installed between two builds of the same commit. Bump deliberately
+# (`--build-arg UV_VERSION=...` to try a newer one).
+ARG UV_VERSION=0.11.32
+
 WORKDIR /build
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir "uv==${UV_VERSION}"
 
 COPY pyproject.toml .
 COPY src/server/requirements.lock .

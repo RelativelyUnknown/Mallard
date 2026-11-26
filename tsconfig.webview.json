@@ -9,8 +9,6 @@
   "include": [
     "src/extension-frontend/**/*.ts",
     "src/extension-backend/domain/types.ts",
-    "src/extension-backend/domain/expr/**/*.ts",
-    "src/extension-backend/domain/alertRules.ts",
     "src/extension-backend/ui/messaging.ts"
   ]
 }

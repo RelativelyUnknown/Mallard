@@ -2,6 +2,7 @@ import { strict as assert } from 'assert';
 import { buildSnapshot } from '../snapshotFixture';
 import { makeEvent } from '../helpers';
 import type { UsageSnapshot, RestrictionState, GitHubBillingData } from '../../../src/extension-backend/domain/types';
+import { formatMoney } from '../../../src/extension-backend/domain/format';
 import { mountGitHubBillingStrip } from '../../../src/extension-frontend/components/GitHubBillingStrip';
 import { mountKpiCards } from '../../../src/extension-frontend/components/KpiCards';
 import { mountStatusBanner } from '../../../src/extension-frontend/components/StatusBanner';
@@ -42,7 +43,12 @@ describe('components — remaining branch coverage', () => {
       totalNetAmount: 100, // diverges from localCost to trigger the warning
     };
     h.update({ ...snap, authStatus: 'signed-in', githubBilling: billing });
-    assert.ok(el.innerHTML.length > 0);
+    assert.equal(el.querySelector('.wv-gh-badge')!.textContent!.trim(), 'Verified by GitHub');
+    assert.equal(el.querySelector('.wv-gh-amount')!.textContent, `${formatMoney(100, 'USD')} actual`);
+    assert.match(el.querySelector('.wv-gh-reset')!.textContent!, /^Resets \S+/);
+    const warning = el.querySelector('.wv-gh-divergence')!;
+    assert.ok(warning, 'local estimate is far from the billed total');
+    assert.ok(warning.textContent!.includes(formatMoney(100, 'USD')), 'warning names the API figure');
     el.remove();
   });
 
@@ -95,6 +101,23 @@ describe('components — remaining branch coverage', () => {
       authStatus: 'signed-in',
       githubBilling: { quota: { plan: 'unlimited', entitlement: 0, used: 0, resetDate: null, unlimited: true }, items: [], fetchedAt: Date.now(), totalNetAmount: 0 },
     });
+    assert.ok(el.querySelector('.wv-gh-verified'), 'verified row still shown');
+    assert.equal(el.querySelector('.wv-gh-reset'), null, 'no reset date to show, so no "Resets" label');
+    assert.equal(el.querySelector('.wv-gh-divergence'), null, 'nothing billed, so nothing to diverge from');
+    el.remove();
+  });
+
+  it('GitHubBillingStrip hides the reset label rather than printing "Invalid Date"', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const h = mountGitHubBillingStrip(el);
+    h.update({
+      ...makeSnapshot(100),
+      authStatus: 'signed-in',
+      githubBilling: { quota: { plan: 'p', entitlement: 1, used: 0, resetDate: Number.NaN, unlimited: false }, items: [], fetchedAt: 1, totalNetAmount: 1 },
+    });
+    assert.equal(el.querySelector('.wv-gh-reset'), null);
+    assert.ok(!el.textContent!.includes('Invalid Date'));
     el.remove();
   });
 
@@ -105,6 +128,23 @@ describe('components — remaining branch coverage', () => {
     const snap = makeSnapshot(100);
     // Force a non-insufficient-data forecast so the projected-cost branch runs.
     h.update({ ...snap, forecast: { granularity: 'month', projectedCredits: 300, projectedCost: 12.5, low: 10, high: 15, basis: 'linear', asOf: Date.now() } }, 'cost');
+    assert.equal(el.querySelector('#kpi-proj-val')!.textContent, formatMoney(12.5, 'USD'));
+    // The range is in credits x price-per-credit (0.04), not raw credits.
+    assert.equal(
+      el.querySelector('#kpi-proj-sub')!.textContent,
+      `${formatMoney(10 * 0.04, 'USD')} – ${formatMoney(15 * 0.04, 'USD')}`,
+    );
+    el.remove();
+  });
+
+  it('KpiCards says more data is needed while the forecast has insufficient data', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const h = mountKpiCards(el);
+    const snap = makeSnapshot(100);
+    h.update({ ...snap, forecast: { ...snap.forecast, basis: 'insufficient-data' } }, 'cost');
+    assert.equal(el.querySelector('#kpi-proj-val')!.textContent, '—');
+    assert.equal(el.querySelector('#kpi-proj-sub')!.textContent, 'Need 3+ days of data');
     el.remove();
   });
 
@@ -114,6 +154,8 @@ describe('components — remaining branch coverage', () => {
     const h = mountKpiCards(el);
     const snap = makeSnapshot(0);
     h.update({ ...snap, topModels: [] }, 'cost');
+    assert.equal(el.querySelector('#kpi-model-val')!.textContent, '—');
+    assert.equal(el.querySelector('#kpi-model-sub')!.textContent, '');
     el.remove();
   });
 
@@ -121,9 +163,16 @@ describe('components — remaining branch coverage', () => {
     const el = document.createElement('div');
     document.body.appendChild(el);
     const h = mountStatusBanner(el);
+    const dot = () => el.querySelector('.wv-banner-dot')!;
     h.update(makeSnapshot(100));
+    assert.equal(dot().classList.contains('wv-banner-dot--flash'), false, 'a full snapshot does not flash');
+
     // Update with isIncremental=true and ok status to trigger the flash
     h.update({ ...makeSnapshot(100), isIncremental: true, status: { kind: 'ok', reason: '' } });
+    assert.equal(dot().classList.contains('wv-banner-dot--flash'), true);
+
+    h.update({ ...makeSnapshot(100), isIncremental: true, status: { kind: 'degraded', reason: 'x' } });
+    assert.equal(el.querySelector<HTMLElement>('.wv-banner')!.dataset.kind, 'warn');
     el.remove();
   });
 
@@ -152,6 +201,56 @@ describe('components — remaining branch coverage', () => {
     assert.ok(getPosted().some((m) => JSON.stringify(m).includes('disableExtension')), 'disable posted');
     // Test the override (snoozed) state
     h.update({ ...active2, userOverrideUntil: Date.now() + 60000 });
+    assert.match(el.querySelector('.wv-restrict-override')!.textContent!, /Snoozed for 1m\. Rule r will show again/);
+    assert.equal(el.querySelector('[role="alert"]'), null, 'the alert is replaced by the snoozed notice');
+    el.remove();
+  });
+
+  it('RestrictionBanner: a dismissed alert stays dismissed after a snooze ends, but a new firing shows again', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const h = mountRestrictionBanner(el);
+    const active: RestrictionState = { version: 1, active: true, ruleId: 'r', reasonMessage: 'Over budget', firedAt: 111, userOverrideUntil: null };
+    h.update(active);
+    el.querySelector<HTMLButtonElement>('#restrict-dismiss')!.click();
+    assert.equal(el.style.display, 'none');
+
+    // Snoozing replaces the (hidden) alert with the snoozed notice...
+    h.update({ ...active, userOverrideUntil: Date.now() + 5 * 60_000 });
+    assert.ok(el.querySelector('.wv-restrict-override'), 'the snoozed notice is shown');
+    assert.notEqual(el.style.display, 'none');
+
+    // ...and when the snooze runs out the SAME firing must not come back after the user dismissed it.
+    h.update(active);
+    assert.equal(el.style.display, 'none', 'hidden again, not re-alerted');
+    assert.equal(el.innerHTML, '');
+
+    h.update({ ...active, firedAt: 222 });
+    assert.equal(el.querySelector('[role="alert"] strong')!.textContent, 'Over budget', 'a fresh firing is announced');
+    el.remove();
+  });
+
+  it('RestrictionBanner: an unchanged state is not re-rendered (no repeated screen-reader announcement, focus kept)', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const h = mountRestrictionBanner(el);
+    const active: RestrictionState = { version: 1, active: true, ruleId: 'r', reasonMessage: 'Over budget', firedAt: 111, userOverrideUntil: null };
+    h.update(active);
+    const alert = el.querySelector('[role="alert"]');
+    h.update({ ...active });
+    assert.equal(el.querySelector('[role="alert"]'), alert, 'same DOM node: not rebuilt');
+
+    const snoozed = { ...active, userOverrideUntil: Date.now() + 10 * 60_000 };
+    h.update(snoozed);
+    const notice = el.querySelector('.wv-restrict-override');
+    h.update({ ...snoozed });
+    assert.equal(el.querySelector('.wv-restrict-override'), notice, 'the snoozed notice is not rebuilt either');
+
+    h.update(null);
+    assert.equal(el.style.display, 'none');
+    el.style.display = '';
+    h.update({ ...active, active: false });
+    assert.equal(el.style.display, '', 'already hidden state is not hidden twice');
     el.remove();
   });
 
@@ -164,27 +263,48 @@ describe('components — remaining branch coverage', () => {
     el.remove();
   });
 
-  it('EmptyState buttons post refresh and signIn commands', () => {
+  it('EmptyState buttons post refresh, signIn and enableCopilotTelemetry', () => {
     clearPosted();
     const el = document.createElement('div');
     document.body.appendChild(el);
     const h = mountEmptyState(el);
     h.update(true, 'No data');
-    const buttons = el.querySelectorAll('button');
-    buttons.forEach((btn) => btn.click());
-    assert.ok(getPosted().some((m) => JSON.stringify(m).includes('refresh')), 'refresh posted');
+    assert.equal(el.style.display, '');
+    assert.equal(el.querySelector('#empty-reason')!.textContent, 'No data');
+
+    el.querySelectorAll('button').forEach((btn) => btn.click());
+    assert.deepEqual(getPosted(), [
+      { type: 'refresh' },
+      { type: 'command', id: 'signIn' },
+      { type: 'command', id: 'enableCopilotTelemetry' },
+    ]);
+
+    h.update(false);
+    assert.equal(el.style.display, 'none');
+    assert.equal(el.querySelector('#empty-reason')!.textContent, '');
     el.remove();
   });
 
-  it('AlertConfigPanel button posts openConfig', () => {
+  it('AlertConfigPanel button posts openConfig and the count reflects the configured rules', () => {
     clearPosted();
     const el = document.createElement('div');
     document.body.appendChild(el);
     const h = mountAlertConfigPanel(el);
     h.update(DEFAULT_USER_CONFIG);
-    const btn = el.querySelector('button');
-    if (btn) btn.click();
-    assert.ok(getPosted().some((m) => JSON.stringify(m).includes('openConfig')), 'openConfig posted');
+    const count = () => el.querySelector('#rule-count')!.textContent;
+    assert.equal(count(), 'No rules configured');
+
+    el.querySelector<HTMLButtonElement>('button')!.click();
+    assert.deepEqual(getPosted(), [{ type: 'openConfig' }]);
+
+    // The rules are the flat `mallard.alerts.rules` setting.
+    const flat = { id: 'r1', metric: 'today.credits', op: '>', value: 1, cooldown: '1h', severity: 'info' } as const;
+    h.update({ ...DEFAULT_USER_CONFIG, flatRules: [flat] });
+    assert.equal(count(), '1 rule configured');
+    h.update({ ...DEFAULT_USER_CONFIG, flatRules: [flat, { ...flat, id: 'r2' }] });
+    assert.equal(count(), '2 rules configured');
+    h.update({ ...DEFAULT_USER_CONFIG, flatRules: [] });
+    assert.equal(count(), 'No rules configured');
     el.remove();
   });
 

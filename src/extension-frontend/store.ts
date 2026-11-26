@@ -1,9 +1,9 @@
 import { createStore } from 'zustand/vanilla';
 import { subscribeWithSelector } from 'zustand/middleware';
+import type { LayoutV2 } from '../extension-backend/domain/contracts';
+import { defaultLayout } from '../extension-backend/domain/layout';
 import {
-  DashboardLayout,
   DatePreset,
-  DEFAULT_DASHBOARD_LAYOUT,
   DEFAULT_RESTRICTION_STATE,
   DEFAULT_USER_CONFIG,
   Filter,
@@ -16,7 +16,7 @@ import {
 export interface AppState {
   snapshot: UsageSnapshot | null;
   config: UserConfig;
-  layout: DashboardLayout;
+  layout: LayoutV2;
   metric: Metric;
   filter: Filter;
   datePreset: DatePreset;
@@ -35,7 +35,7 @@ export const store = createStore<AppState>()(
     (): AppState => ({
       snapshot: null,
       config: DEFAULT_USER_CONFIG,
-      layout: DEFAULT_DASHBOARD_LAYOUT,
+      layout: defaultLayout(),
       metric: 'cost',
       filter: {},
       datePreset: 'month',

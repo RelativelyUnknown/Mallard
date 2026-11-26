@@ -1,8 +1,8 @@
-/* c8 ignore next */
 import { DuckDBConnection } from '@duckdb/node-api';
 import { z } from 'zod';
 import { CostCategory, SourceKind, Surface, UsageEvent } from '../domain/types';
-import { DAY_MS } from '../util/time';
+import type { SnapshotSourceData } from '../domain/snapshotSource';
+import { bucketKey, nextBucketStart, startOf } from '../util/time';
 import {
   AggregateResult,
   BucketBy,
@@ -10,7 +10,7 @@ import {
   RecordFilter,
   TimeBucket,
 } from './EventRepository';
-import { readRows, readPrepared } from './dbUtils';
+import { dateToId, readRows, readPrepared } from './dbUtils';
 import {
   COUNT_ALL_SQL,
   CREDITS_BY_BRANCH_SQL,
@@ -22,39 +22,9 @@ import { FilterClauseBuilder } from './FilterClauseBuilder';
 
 // ── SnapshotSourceData ─────────────────────────────────────────────────────────
 
-/**
- * The normalized data bundle the snapshot engine produces. There is one engine
- * (readFilteredSnapshot); the no-filter dashboard load is its memoized
- * empty-filter case (readSnapshotCache), so both return the same shape and can
- * never disagree.
- */
-export interface SnapshotSourceData {
-  totals: {
-    all:   { credits: number; cost: number; tokens: number; eventCount: number };
-    mtd:   { credits: number; cost: number; tokens: number; eventCount: number };
-    today: { credits: number; cost: number; tokens: number; eventCount: number };
-  };
-  /** Events whose cost is estimated (log-derived) rather than authoritative. */
-  estimatedEventCount: number;
-  /** day_start = epoch ms of local midnight, DST-correct. */
-  daily:      Array<{
-    dayStart: number; credits: number; cost: number; tokens: number; eventCount: number;
-    /** Per-day cost split by category (USD), for the category-trend chart. */
-    catInput: number; catOutput: number; catCacheRead: number; catCacheCreation: number; catThinking: number; catTool: number;
-  }>;
-  models:     Array<{ modelId: string; credits: number; cost: number; tokens: number }>;
-  repos:      Array<{ repo: string; credits: number; cost: number; tokens: number; heuristicShare: number }>;
-  /** Per-language spend; language is 'unknown' for rows without one. */
-  languages:  Array<{ language: string; credits: number; cost: number; tokens: number }>;
-  /** hour_local = 0-23 in session timezone (DST-correct). */
-  hourly:     Array<{ hourLocal: number; credits: number }>;
-  categories: Array<{ category: string; cost: number }>;
-  sankey:     Array<{ model: string; surface: string; count: number; credits: number }>;
-  /** Distinct values; in the filtered path scoped to the range filter only. */
-  dims:       { models: string[]; surfaces: string[]; sources: string[]; repos: string[] };
-  /** Credits per weekday, index 0=Sun … 6=Sat. */
-  weekday:    number[];
-}
+// The type lives with the pure engine that builds it (domain/snapshotSource.ts);
+// re-exported so the readers' importers keep their path.
+export type { SnapshotSourceData };
 
 // ── FactRow ────────────────────────────────────────────────────────────────────
 
@@ -120,17 +90,20 @@ function coerceEnum<T extends string>(fallback: T, label: string) {
   };
 }
 
+// DuckDB hands BIGINT columns back as bigint, INTEGER as number.
+const NumLike = z.union([z.number(), z.bigint()]).transform(Number);
+
 const EventRow = z.object({
   id: z.string(),
-  ts: z.union([z.number(), z.bigint()]).transform(Number),
+  ts: NumLike,
   modelId: z.string(),
   surface: z.enum(['chat', 'inline', 'agent', 'edit', 'unknown']).catch(coerceEnum('unknown', 'surface')),
   source: z.enum(['lm', 'local', 'github', 'claude-code']).catch(coerceEnum('local', 'source')),
   credits: z.number(),
   cost: z.number(),
   estimated: z.boolean().catch(true),
-  promptTokens: z.number().nullish(),
-  completionTokens: z.number().nullish(),
+  promptTokens: NumLike.nullish(),
+  completionTokens: NumLike.nullish(),
   repo: z.string().nullish(),
   branch: z.string().nullish(),
   attribution: z.enum(['authoritative', 'heuristic']).nullish(),
@@ -140,7 +113,6 @@ const EventRow = z.object({
 
 function rowToEvent(row: Record<string, unknown>): UsageEvent | null {
   const result = EventRow.safeParse(row);
-  /* c8 ignore next 4 */
   if (!result.success) {
     console.warn('[mallard] EventReader: skipping malformed row', result.error.issues[0]?.message, row);
     return null;
@@ -150,7 +122,6 @@ function rowToEvent(row: Record<string, unknown>): UsageEvent | null {
   if (typeof r.costByCategory === 'string') {
     try {
       costByCategory = JSON.parse(r.costByCategory) as Categories;
-    /* c8 ignore next 3 */
     } catch {
       costByCategory = undefined;
     }
@@ -176,17 +147,7 @@ function rowToEvent(row: Record<string, unknown>): UsageEvent | null {
 
 // ── Filter helpers ─────────────────────────────────────────────────────────────
 
-function dateToId(ms: number): number {
-  // Local date parts, not UTC: fact_daily_usage.date_id is written via DuckDB
-  // strftime on a TIMESTAMPTZ, which renders in the session (= system) timezone.
-  // Using UTC here made range filters miss rows on machines east of UTC.
-  const d = new Date(ms);
-  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-}
-
-function buildFilterSQL(filter?: RecordFilter): { clause: string; params: unknown[] } {
-  /* c8 ignore next */
-  if (!filter) return { clause: '', params: [] };
+function buildFilterSQL(filter: RecordFilter): { clause: string; params: unknown[] } {
   const fb = new FilterClauseBuilder()
     .addRange(filter.range, 'ts')
     .addIn(filter.models, 'modelId')
@@ -217,11 +178,13 @@ export interface SnapshotCacheToken {
 }
 
 export class EventReader implements IEventReader {
-  private snapCache?: { version: number; data: SnapshotSourceData };
+  private snapCache?: { version: number; dayKey: string; data: SnapshotSourceData };
 
   constructor(
     private readonly conn: DuckDBConnection,
     private readonly cacheToken: SnapshotCacheToken = { version: 0 },
+    /** Injectable clock; defines "today" / "month to date" for the snapshot. */
+    private readonly clock: () => number = Date.now,
   ) {}
 
   async find(filter?: RecordFilter): Promise<UsageEvent[]> {
@@ -251,8 +214,7 @@ export class EventReader implements IEventReader {
   async count(filter?: RecordFilter): Promise<number> {
     if (!filter || Object.keys(filter).length === 0) {
       const rows = await readRows(this.conn, COUNT_ALL_SQL, (r) => Number(r['c']));
-      /* c8 ignore next */
-      return rows[0] ?? 0;
+      return rows[0]!;
     }
     const { clause, params } = buildFilterSQL(filter);
     const rows = await readPrepared(
@@ -261,8 +223,7 @@ export class EventReader implements IEventReader {
       params,
       (r) => Number(r['c']),
     );
-    /* c8 ignore next */
-    return rows[0] ?? 0;
+    return rows[0]!;
   }
 
   async exists(id: string): Promise<boolean> {
@@ -291,23 +252,19 @@ export class EventReader implements IEventReader {
     const sql = `SELECT COUNT(*) AS total, ${selects.join(', ')} FROM events ${clause}`;
 
     const rows = await readPrepared(this.conn, sql, params, (r) => r);
-    /* c8 ignore next */
-    const row = rows[0] ?? {};
+    const row = rows[0]!;
     const out: AggregateResult = {
-      /* c8 ignore next */
-      count: Number(row['total'] ?? 0),
+      count: Number(row['total']),
       sum: {}, mean: {}, stddev: {}, p50: {}, p95: {}, min: {}, max: {},
     };
     for (const f of safe) {
-      /* c8 ignore start */
-      out.sum[f]    = Number(row[`sum_${f}`]    ?? 0);
-      out.mean[f]   = Number(row[`mean_${f}`]   ?? 0);
-      out.stddev[f] = Number(row[`stddev_${f}`] ?? 0);
-      out.p50[f]    = Number(row[`p50_${f}`]    ?? 0);
-      out.p95[f]    = Number(row[`p95_${f}`]    ?? 0);
-      out.min[f]    = Number(row[`min_${f}`]    ?? 0);
-      out.max[f]    = Number(row[`max_${f}`]    ?? 0);
-      /* c8 ignore stop */
+      out.sum[f]    = Number(row[`sum_${f}`]);
+      out.mean[f]   = Number(row[`mean_${f}`]);
+      out.stddev[f] = Number(row[`stddev_${f}`]);
+      out.p50[f]    = Number(row[`p50_${f}`]);
+      out.p95[f]    = Number(row[`p95_${f}`]);
+      out.min[f]    = Number(row[`min_${f}`]);
+      out.max[f]    = Number(row[`max_${f}`]);
     }
     return out;
   }
@@ -335,21 +292,18 @@ export class EventReader implements IEventReader {
       ORDER BY bucket_key`;
 
     const rows = await readPrepared(this.conn, sql, params, (r) => r);
-    /* c8 ignore start */
     return rows.map((r) => ({
-      key: String(r['bucket_key'] ?? ''),
+      key: String(r['bucket_key']),
       values: {
-        credits:     Number(r['credits']     ?? 0),
-        cost:        Number(r['cost']        ?? 0),
-        tokens:      Number(r['tokens']      ?? 0),
-        event_count: Number(r['event_count'] ?? 0),
+        credits:     Number(r['credits']),
+        cost:        Number(r['cost']),
+        tokens:      Number(r['tokens']),
+        event_count: Number(r['event_count']),
       },
     }));
-    /* c8 ignore stop */
   }
 
   async pivot(filter: RecordFilter, on: string, value: string): Promise<CrossTab> {
-    /* c8 ignore next 2 */
     const safeOn    = /^[a-zA-Z_]+$/.test(on)    ? on    : 'surface';
     const safeValue = /^[a-zA-Z_]+$/.test(value) ? value : 'credits';
     const { clause, params } = buildFilterSQL(filter);
@@ -358,11 +312,9 @@ export class EventReader implements IEventReader {
       this.conn,
       `SELECT DISTINCT ${safeOn} AS col FROM events ${clause} ORDER BY col`,
       params,
-      /* c8 ignore next */
       (r) => String(r['col'] ?? ''),
     );
 
-    /* c8 ignore next */
     const columnKeys = colRows.filter(Boolean);
     if (columnKeys.length === 0) return { rows: [], columnKeys: [] };
 
@@ -382,21 +334,17 @@ export class EventReader implements IEventReader {
     );
 
     return {
-      /* c8 ignore start */
       rows: dataRows.map((r) => {
-        const row: Record<string, string | number> = { modelId: String(r['modelId'] ?? '') };
-        for (const k of columnKeys) row[k] = Number(r[k] ?? 0);
+        const row: Record<string, string | number> = { modelId: String(r['modelId']) };
+        for (const k of columnKeys) row[k] = Number(r[k]);
         return row;
       }),
-      /* c8 ignore stop */
       columnKeys,
     };
   }
 
   async rank(filter: RecordFilter, by: string, limit = 10): Promise<TimeBucket[]> {
-    /* c8 ignore next */
     const safeBy = /^[a-zA-Z_]+$/.test(by) ? by : 'credits';
-    /* c8 ignore next */
     if (!Number.isInteger(limit) || limit <= 0) limit = 10;
     const { clause, params } = buildFilterSQL(filter);
 
@@ -412,16 +360,14 @@ export class EventReader implements IEventReader {
       LIMIT ${limit}`;
 
     const rows = await readPrepared(this.conn, sql, params, (r) => r);
-    /* c8 ignore start */
     return rows.map((r) => ({
-      key: String(r['rank_key'] ?? ''),
+      key: String(r['rank_key']),
       values: {
-        credits: Number(r['credits'] ?? 0),
-        cost:    Number(r['cost']    ?? 0),
-        tokens:  Number(r['tokens']  ?? 0),
+        credits: Number(r['credits']),
+        cost:    Number(r['cost']),
+        tokens:  Number(r['tokens']),
       },
     }));
-    /* c8 ignore stop */
   }
 
   async queryFacts(filter?: RecordFilter): Promise<FactRow[]> {
@@ -429,19 +375,18 @@ export class EventReader implements IEventReader {
     const sql = `${QUERY_FACTS_BASE_SQL} ${clause} GROUP BY d.date ORDER BY d.date`;
 
     const rows = await readPrepared(this.conn, sql, params, (r) => r);
-    /* c8 ignore next 14 */
     return rows.map((row) => ({
-      day:            String(row['date']            ?? ''),
-      credits:        Number(row['credits']         ?? 0),
-      cost:           Number(row['cost']            ?? 0),
-      tokens:         Number(row['tokens']          ?? 0),
-      eventCount:     Number(row['event_count']     ?? 0),
-      costInput:      Number(row['cost_input']      ?? 0),
-      costOutput:     Number(row['cost_output']     ?? 0),
-      costCacheRead:  Number(row['cost_cache_read'] ?? 0),
-      costCacheWrite: Number(row['cost_cache_write']?? 0),
-      costThinking:   Number(row['cost_thinking']   ?? 0),
-      costTool:       Number(row['cost_tool']       ?? 0),
+      day:            String(row['date']),
+      credits:        Number(row['credits']),
+      cost:           Number(row['cost']),
+      tokens:         Number(row['tokens']),
+      eventCount:     Number(row['event_count']),
+      costInput:      Number(row['cost_input']),
+      costOutput:     Number(row['cost_output']),
+      costCacheRead:  Number(row['cost_cache_read']),
+      costCacheWrite: Number(row['cost_cache_write']),
+      costThinking:   Number(row['cost_thinking']),
+      costTool:       Number(row['cost_tool']),
     }));
   }
 
@@ -452,17 +397,26 @@ export class EventReader implements IEventReader {
    * O(1). (Previously a second, separately-maintained snap_* materialization
    * computed the same numbers and could silently drift from the filtered path.)
    * The writer bumps cacheToken.version on every mutation to invalidate this.
+   *
+   * The totals also depend on the clock (today / month-to-date), so the memo is
+   * keyed on the local calendar day as well — a month change implies a day
+   * change. The version is captured BEFORE the read: a write that commits while
+   * the query is in flight bumps the token, so the (possibly pre-write) result
+   * is stored under the old version and is not served as current afterwards.
    */
   async readSnapshotCache(): Promise<SnapshotSourceData> {
-    if (this.snapCache && this.snapCache.version === this.cacheToken.version) {
+    const version = this.cacheToken.version;
+    const now = this.clock();
+    const dayKey = bucketKey(now, 'day');
+    if (this.snapCache && this.snapCache.version === version && this.snapCache.dayKey === dayKey) {
       return this.snapCache.data;
     }
-    const data = await this.readFilteredSnapshot({});
-    this.snapCache = { version: this.cacheToken.version, data };
+    const data = await this.readFilteredSnapshot({}, now);
+    this.snapCache = { version, dayKey, data };
     return data;
   }
 
-  async readFilteredSnapshot(filter: RecordFilter): Promise<SnapshotSourceData> {
+  async readFilteredSnapshot(filter: RecordFilter, now: number = this.clock()): Promise<SnapshotSourceData> {
     const { clause, params }                           = buildFilterSQL(filter);
     const rangeOnly: RecordFilter                      = filter.range ? { range: filter.range } : {};
     const { clause: rangeClause, params: rangeParams } = buildFilterSQL(rangeOnly);
@@ -472,8 +426,10 @@ export class EventReader implements IEventReader {
     // Arrays are serialised to JSON inside DuckDB so JS receives plain strings —
     // avoiding @duckdb/node-api's LIST<STRUCT> → JS conversion quirks.
     const tok      = `COALESCE(CAST(SUM(COALESCE(promptTokens,0)+COALESCE(completionTokens,0)) AS BIGINT),0)`;
-    const mtdCond  = `date_trunc('month', to_timestamp(ts/1000.0)::TIMESTAMPTZ) = date_trunc('month', now()::TIMESTAMPTZ)`;
-    const todaCond = `date_trunc('day',   to_timestamp(ts/1000.0)::TIMESTAMPTZ) = date_trunc('day',   now()::TIMESTAMPTZ)`;
+    // "Today" / month-to-date are local-calendar windows of the injected clock
+    // (not SQL now()); the bounds are integers we computed, safe to inline.
+    const mtdCond  = `ts >= ${startOf(now, 'month')} AND ts < ${nextBucketStart(now, 'month')}`;
+    const todaCond = `ts >= ${startOf(now, 'day')} AND ts < ${nextBucketStart(now, 'day')}`;
 
     // Scalar subquery over f (optional extra WHERE condition)
     const agg = (col: string, cond = '') =>
@@ -570,21 +526,17 @@ SELECT
   (SELECT COALESCE(to_json(list(name ORDER BY name))::VARCHAR,'[]') FROM (SELECT DISTINCT COALESCE(repo,'unattributed') AS name FROM ro))       AS dim_repos
 `;
 
-    /* c8 ignore start */
     const rows = await readPrepared(this.conn, sql, [...params, ...rangeParams], (r) => r);
-    const row  = rows[0] ?? {};
+    const row  = rows[0]!;
 
-    const parseArr = <T>(key: string): T[] => {
-      const v = row[key];
-      if (v == null) return [];
-      return JSON.parse(String(v)) as T[];
-    };
+    // Every list column is COALESCEd to '[]' in the query, so it is always JSON text.
+    const parseArr = <T>(key: string): T[] => JSON.parse(String(row[key])) as T[];
 
     const mkTotals = (pfx: string): SnapshotSourceData['totals']['all'] => ({
-      credits:    Number(row[`${pfx}_credits`] ?? 0),
-      cost:       Number(row[`${pfx}_cost`]    ?? 0),
-      tokens:     Number(row[`${pfx}_tokens`]  ?? 0),
-      eventCount: Number(row[`${pfx}_ec`]      ?? 0),
+      credits:    Number(row[`${pfx}_credits`]),
+      cost:       Number(row[`${pfx}_cost`]),
+      tokens:     Number(row[`${pfx}_tokens`]),
+      eventCount: Number(row[`${pfx}_ec`]),
     });
 
     const catPairs: [string, string][] = [
@@ -594,7 +546,7 @@ SELECT
     ];
     const categories: SnapshotSourceData['categories'] = [];
     for (const [col, cat] of catPairs) {
-      const cost = Number(row[col] ?? 0);
+      const cost = Number(row[col]);
       if (cost > 0) categories.push({ category: cat, cost });
     }
 
@@ -607,53 +559,53 @@ SELECT
     const wdArr      = parseArr<Record<string, unknown>>('weekday_data');
 
     const weekdayArr = new Array<number>(7).fill(0);
-    for (const r of wdArr) weekdayArr[Number(r['weekday'] ?? 0)] = Number(r['credits'] ?? 0);
+    for (const r of wdArr) weekdayArr[Number(r['weekday'])] = Number(r['credits']);
 
     return {
       totals: { all: mkTotals('all'), mtd: mkTotals('mtd'), today: mkTotals('today') },
-      estimatedEventCount: Number(row['all_est_ec'] ?? 0),
+      estimatedEventCount: Number(row['all_est_ec']),
       daily: dailyArr.map((r) => ({
-        dayStart:   Number(r['day_start']   ?? 0),
-        credits:    Number(r['credits']     ?? 0),
-        cost:       Number(r['cost']        ?? 0),
-        tokens:     Number(r['tokens']      ?? 0),
-        eventCount: Number(r['event_count'] ?? 0),
-        catInput:         Number(r['cat_input']          ?? 0),
-        catOutput:        Number(r['cat_output']         ?? 0),
-        catCacheRead:     Number(r['cat_cache_read']     ?? 0),
-        catCacheCreation: Number(r['cat_cache_creation'] ?? 0),
-        catThinking:      Number(r['cat_thinking']       ?? 0),
-        catTool:          Number(r['cat_tool']           ?? 0),
+        dayStart:   Number(r['day_start']),
+        credits:    Number(r['credits']),
+        cost:       Number(r['cost']),
+        tokens:     Number(r['tokens']),
+        eventCount: Number(r['event_count']),
+        catInput:         Number(r['cat_input']),
+        catOutput:        Number(r['cat_output']),
+        catCacheRead:     Number(r['cat_cache_read']),
+        catCacheCreation: Number(r['cat_cache_creation']),
+        catThinking:      Number(r['cat_thinking']),
+        catTool:          Number(r['cat_tool']),
       })),
       models: modelArr.map((r) => ({
-        modelId: String(r['modelId'] ?? ''),
-        credits: Number(r['credits'] ?? 0),
-        cost:    Number(r['cost']    ?? 0),
-        tokens:  Number(r['tokens']  ?? 0),
+        modelId: String(r['modelId']),
+        credits: Number(r['credits']),
+        cost:    Number(r['cost']),
+        tokens:  Number(r['tokens']),
       })),
       repos: repoArr.map((r) => ({
-        repo:           String(r['repo']            ?? ''),
-        credits:        Number(r['credits']         ?? 0),
-        cost:           Number(r['cost']            ?? 0),
-        tokens:         Number(r['tokens']          ?? 0),
-        heuristicShare: Number(r['heuristic_share'] ?? 0),
+        repo:           String(r['repo']),
+        credits:        Number(r['credits']),
+        cost:           Number(r['cost']),
+        tokens:         Number(r['tokens']),
+        heuristicShare: Number(r['heuristic_share']),
       })),
       languages: langArr.map((r) => ({
-        language: String(r['language'] ?? ''),
-        credits:  Number(r['credits']  ?? 0),
-        cost:     Number(r['cost']     ?? 0),
-        tokens:   Number(r['tokens']   ?? 0),
+        language: String(r['language']),
+        credits:  Number(r['credits']),
+        cost:     Number(r['cost']),
+        tokens:   Number(r['tokens']),
       })),
       sankey: sankeyArr.map((r) => ({
-        model:   String(r['model']   ?? ''),
-        surface: String(r['surface'] ?? ''),
-        count:   Number(r['count']   ?? 0),
-        credits: Number(r['credits'] ?? 0),
+        model:   String(r['model']),
+        surface: String(r['surface']),
+        count:   Number(r['count']),
+        credits: Number(r['credits']),
       })),
       categories,
       hourly: hourArr.map((r) => ({
-        hourLocal: Number(r['hour_local'] ?? 0),
-        credits:   Number(r['credits']   ?? 0),
+        hourLocal: Number(r['hour_local']),
+        credits:   Number(r['credits']),
       })),
       dims: {
         models:   parseArr<string>('dim_models'),
@@ -663,7 +615,6 @@ SELECT
       },
       weekday: weekdayArr,
     };
-    /* c8 ignore stop */
   }
 
   async exportTo(filePath: string, format: 'csv' | 'json'): Promise<void> {
@@ -682,18 +633,14 @@ SELECT
       this.conn,
       CREDITS_BY_BRANCH_SQL,
       [branch],
-      /* c8 ignore next */
-      (r) => Number(r['c'] ?? 0),
+      (r) => Number(r['c']),
     );
-    /* c8 ignore next */
-    return rows[0] ?? 0;
+    return rows[0]!;
   }
 }
 
-/* c8 ignore next */
 function emptyAggregate(): AggregateResult {
   return { count: 0, sum: {}, mean: {}, stddev: {}, p50: {}, p95: {}, min: {}, max: {} };
 }
 
 export type { RecordFilter, AggregateResult, BucketBy, CrossTab, TimeBucket };
-export { DAY_MS };

@@ -248,3 +248,50 @@ describe('connectorUtils', () => {
     });
   });
 });
+
+describe('connectorUtils — non-finite and blank numbers', () => {
+  it('num() rejects Infinity and blank strings instead of coercing them', () => {
+    assert.equal(num(Infinity), undefined);
+    assert.equal(num(-Infinity), undefined);
+    assert.equal(num('Infinity'), undefined);
+    assert.equal(num(''), undefined);
+    assert.equal(num('   '), undefined);
+    assert.equal(num('1e999'), undefined);
+    assert.equal(num('12'), 12);
+  });
+
+  it('parseTimestamp() rejects an infinite or blank numeric timestamp', () => {
+    assert.equal(parseTimestamp({ timestamp: Infinity }), undefined);
+    assert.equal(parseTimestamp({ timestamp: '' }), undefined);
+    assert.equal(parseTimestamp({ startTimeUnixNano: '' }), undefined);
+    assert.equal(parseTimestamp({ startTimeUnixNano: Infinity }), undefined);
+  });
+});
+
+describe('parseTimestamp() — zone handling is host-TZ independent', () => {
+  const EPOCH = Date.UTC(2026, 0, 1, 12, 0, 0, 123);
+  for (const tz of ['UTC', 'America/Los_Angeles', 'Pacific/Auckland']) {
+    it(`TZ=${tz}`, () => {
+      const prev = process.env['TZ'];
+      process.env['TZ'] = tz;
+      try {
+        // DuckDB-rendered TIMESTAMP (UTC instant, no zone) and its ISO sibling.
+        assert.equal(parseTimestamp({ timestamp: '2026-01-01 12:00:00.123' }), EPOCH);
+        assert.equal(parseTimestamp({ timestamp: '2026-01-01T12:00:00.123' }), EPOCH);
+        assert.equal(parseTimestamp({ timestamp: '2026-01-01 12:00:00.123456' }), EPOCH);
+        // Explicit zones are honoured, in every notation DuckDB/JS emit.
+        assert.equal(parseTimestamp({ timestamp: '2026-01-01T12:00:00.123Z' }), EPOCH);
+        assert.equal(parseTimestamp({ timestamp: '2026-01-01T14:00:00.123+02:00' }), EPOCH);
+        assert.equal(parseTimestamp({ timestamp: '2026-01-01T14:00:00.123+0200' }), EPOCH);
+        assert.equal(parseTimestamp({ timestamp: '2026-01-01 04:00:00.123-08' }), EPOCH);
+        // Numeric text is epoch ms; a number is passed through.
+        assert.equal(parseTimestamp({ timestamp: '1767268800123' }), EPOCH);
+        assert.equal(parseTimestamp({ timestamp: EPOCH }), EPOCH);
+        assert.equal(parseTimestamp({ timestamp: 'garbage' }), undefined);
+      } finally {
+        if (prev === undefined) delete process.env['TZ'];
+        else process.env['TZ'] = prev;
+      }
+    });
+  }
+});

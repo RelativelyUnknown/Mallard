@@ -69,6 +69,10 @@ jobs:
           output: trivy-iac.sarif
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          # Fail the job on HIGH/CRITICAL findings (the SARIF is still written and
+          # uploaded below, `if: always()`). Accepted findings go in .trivyignore
+          # with an expiry date and a reason.
+          exit-code: "1"
           # Exclude files that Trivy cannot evaluate correctly:
           #   patch-server-envfrom.yaml / patch-server-env.yaml — kustomize strategic-merge
           #     patches; each only lists env/envFrom, so Trivy sees an incomplete container
@@ -124,8 +128,9 @@ jobs:
 
   # ── Container image CVE scan (Trivy) ───────────────────────────────────────
   # Runs after Server CI pushes the image to GHCR, and on the weekly schedule.
-  # Does NOT fail the build — new CVEs in python:3.12-slim should be visible in
-  # the Security tab without blocking unrelated PRs.
+  # Fails (red run) on fixed HIGH/CRITICAL CVEs found since the image was
+  # published — Server CI already gates the push itself with the same scan. It
+  # never runs on pull requests, so a new base-image CVE cannot block unrelated PRs.
   trivy-image:
     name: Trivy image scan
     if: >
@@ -151,6 +156,7 @@ jobs:
           output: trivy-image.sarif
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          exit-code: "1"
 
       - name: Upload Trivy image SARIF
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0

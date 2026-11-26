@@ -1,0 +1,6 @@
+{"vscodeServer":"1.100.3","node":"20.19.0","electron":null,"sqlite":null,"loads":false,"err":"ERR_UNKNOWN_BUILTIN_MODULE"}
+warnings []
+{"vscodeServer":"1.101.2","node":"22.15.1","electron":null,"sqlite":"3.49.1","loads":true,"err":null}
+warnings ["ExperimentalWarning: SQLite is an experimental feature and might change at any time"]
+{"vscodeServer":"1.147.0","node":"24.22.1","electron":null,"sqlite":"3.53.4","loads":true,"err":null}
+warnings []

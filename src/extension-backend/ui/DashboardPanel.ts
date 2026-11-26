@@ -4,7 +4,7 @@
  */
 import * as vscode from 'vscode';
 import { UsageService } from '../app/UsageService';
-import { UserConfigStore } from '../app/UserConfigStore';
+import type { IConfigService } from '../app/ConfigService';
 import { LayoutStore } from '../app/LayoutStore';
 import { RestrictionEngine } from '../app/RestrictionEngine';
 import { bindDashboard } from './dashboardBridge';
@@ -19,7 +19,7 @@ export class DashboardPanel {
   static show(
     context: vscode.ExtensionContext,
     usage: UsageService,
-    userConfig: UserConfigStore,
+    userConfig: IConfigService,
     layout: LayoutStore,
     restriction: RestrictionEngine,
   ): void {
@@ -54,7 +54,7 @@ export class DashboardPanel {
     context: vscode.ExtensionContext,
     deps: {
       usage: UsageService;
-      userConfig: UserConfigStore;
+      userConfig: IConfigService;
       layout: LayoutStore;
       restriction: RestrictionEngine;
     },

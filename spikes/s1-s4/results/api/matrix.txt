@@ -1,0 +1,116 @@
+node                                        20.19.0  22.12.0  22.13.0  22.13.1  22.14.0  22.15.1  22.16.0  22.17.0  22.18.0  22.19.0  22.20.0  22.21.1  22.23.5  24.9.0   
+require("node:sqlite") loads (no flags)     NO       NO       yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.aggregate                      -        -        -        -        -        -        yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.applyChangeset                 -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.close                          -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.createSession                  -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.createTagStore                 -        -        -        -        -        -        -        -        -        -        -        -        -        yes      
+DatabaseSync.enableLoadExtension            -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.exec                           -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.function                       -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.isOpen                         -        -        -        -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.isTransaction                  -        -        -        -        -        -        yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.loadExtension                  -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.location                       -        -        -        -        -        -        yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.open                           -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+DatabaseSync.prepare                        -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+StatementSync.all                           -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+StatementSync.columns                       -        -        -        -        -        -        yes      yes      yes      yes      yes      yes      yes      yes      
+StatementSync.get                           -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+StatementSync.iterate                       -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+StatementSync.run                           -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+StatementSync.setAllowBareNamedParameters   -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+StatementSync.setAllowUnknownNamedParameters-        -        -        -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      
+StatementSync.setReadBigInts                -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+StatementSync.setReturnArrays               -        -        -        -        -        -        yes      yes      yes      yes      yes      yes      yes      yes      
+module export DatabaseSync                  -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+module export Session                       -        -        -        -        -        -        -        -        -        -        -        -        -        yes      
+module export StatementSync                 -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+module export backup                        -        -        -        -        -        -        yes      yes      yes      yes      yes      yes      yes      yes      
+module export constants                     -        -        yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      yes      
+check: exec                                 -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: prepare().run                        -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: prepare().get                        -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: prepare().all                        -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: prepare().iterate                    -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: named params                         -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: isOpen (property)                    -        -        FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: isTransaction (property)             -        -        FAIL     FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       
+check: location()                           -        -        FAIL     FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       
+check: function()                           -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: aggregate()                          -        -        FAIL     FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       
+check: createTagStore()                     -        -        FAIL     FAIL     FAIL     FAIL     FAIL     FAIL     FAIL     FAIL     FAIL     FAIL     FAIL     ok       
+check: StatementSync.setReadBigInts         -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: StatementSync.setAllowBareNamedParameters-        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: StatementSync.setAllowUnknownNamedParameters-        -        FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: StatementSync.setReturnArrays        -        -        FAIL     FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       
+check: StatementSync.columns()              -        -        FAIL     FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       
+check: StatementSync.sourceSQL / expandedSQL-        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: sqlite.backup() function             -        -        FAIL     FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       
+check: DatabaseSync.prototype.enableLoadExtension-        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: DatabaseSync.prototype.loadExtension -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: DatabaseSync.prototype.createSession/applyChangeset-        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: Symbol.dispose on DatabaseSync       -        -        FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: close()                              -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: isOpen after close                   -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: exec after close throws              -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: opt: open:false then open()          -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: opt: readOnly:true on existing db    -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: opt: timeout:1234 is effective (PRAGMA busy_timeout == 1234)-        -        FAIL     FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       
+check: PRAGMA busy_timeout via exec is effective-        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: opt: enableForeignKeyConstraints:false-        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: opt: enableDoubleQuotedStringLiterals-        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: opt: allowExtension                  -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: opt: readBigInts (db-level)          -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: opt: returnArrays (db-level)         -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: opt: unknown option is ignored or throws-        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: URI filename (file:...?mode=ro) accepted by constructor-        -        FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: Buffer path accepted                 -        -        FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: URL path accepted                    -        -        FAIL     FAIL     FAIL     ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: sqlite_version()                     -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+check: constants                            -        -        ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       ok       
+
+Failure details (first version where each check fails):
+  isOpen (property) @22.13.0: isOpen is undefined
+  isTransaction (property) @22.13.0: isTransaction is undefined
+  location() @22.13.0: db.location is not a function
+  aggregate() @22.13.0: db.aggregate is not a function
+  createTagStore() @22.13.0: db.createTagStore is not a function
+  StatementSync.setAllowUnknownNamedParameters @22.13.0: s.setAllowUnknownNamedParameters is not a function
+  StatementSync.setReturnArrays @22.13.0: s.setReturnArrays is not a function
+  StatementSync.columns() @22.13.0: db.prepare(...).columns is not a function
+  sqlite.backup() function @22.13.0: sqlite.backup is undefined
+  Symbol.dispose on DatabaseSync @22.13.0: absent
+  opt: timeout:1234 is effective (PRAGMA busy_timeout == 1234) @22.13.0: option ignored, busy_timeout=0
+  URI filename (file:...?mode=ro) accepted by constructor @22.13.0: ERR_SQLITE_ERROR: unable to open database file
+  Buffer path accepted @22.13.0: ERR_INVALID_ARG_TYPE: The "path" argument must be a string.
+  URL path accepted @22.13.0: ERR_INVALID_ARG_TYPE: The "path" argument must be a string.
+
+Values at 22.13.0 for ok checks:
+  exec null
+  prepare().run {"changes":1,"lastInsertRowid":1,"typeofRowid":"number"}
+  prepare().get {"id":1,"a":1,"b":"x"}
+  prepare().all [{"id":1,"a":1,"b":"x"}]
+  prepare().iterate [{"id":1,"a":1,"b":"x"}]
+  named params {"id":1,"a":1,"b":"x"}
+  function() {"v":42}
+  StatementSync.setReadBigInts {"v":"1","type":"bigint"}
+  StatementSync.setAllowBareNamedParameters {"v":5}
+  StatementSync.sourceSQL / expandedSQL {"sourceSQL":"SELECT ? AS v","expandedSQL":"SELECT 7.0 AS v"}
+  DatabaseSync.prototype.enableLoadExtension "function"
+  DatabaseSync.prototype.loadExtension "function"
+  DatabaseSync.prototype.createSession/applyChangeset {"createSession":"function","applyChangeset":"function"}
+  close() null
+  isOpen after close null
+  exec after close throws "threw: ERR_INVALID_STATE database is not open"
+  opt: open:false then open() {}
+  opt: readOnly:true on existing db {"n":1,"writeErr":"attempt to write a readonly database"}
+  PRAGMA busy_timeout via exec is effective {"timeout":4321}
+  opt: enableForeignKeyConstraints:false {"foreign_keys":0}
+  opt: enableDoubleQuotedStringLiterals "accepted"
+  opt: allowExtension "accepted"
+  opt: readBigInts (db-level) "number"
+  opt: returnArrays (db-level) {"n":1}
+  opt: unknown option is ignored or throws "ignored"
+  sqlite_version() "3.47.2"
+  constants {"SQLITE_CHANGESET_OMIT":0,"SQLITE_CHANGESET_REPLACE":1,"SQLITE_CHANGESET_ABORT":2}
