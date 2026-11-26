@@ -251,7 +251,8 @@ export class Db {
     this.retry = { ...DEFAULT_BUSY_RETRY, ...busy };
     try {
       this.raw.exec(readOnly ? 'PRAGMA busy_timeout=0' : 'PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=0; PRAGMA foreign_keys=OFF');
-      this.journalMode = String(this.raw.prepare('PRAGMA journal_mode').get()?.['journal_mode']);
+      // A read-only connection never reads the file here: opening must not fail on an unreadable WAL index (see openReadOnly).
+      this.journalMode = readOnly ? 'read-only' : String(this.raw.prepare('PRAGMA journal_mode').get()?.['journal_mode']);
     } catch (err) {
       this.raw.close();
       throw err;

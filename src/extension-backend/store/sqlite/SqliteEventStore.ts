@@ -253,9 +253,11 @@ export class SqliteEventStore implements IUsageStore {
   }
 
   private async exclusive<T>(task: () => Promise<T> | T): Promise<T> {
+    // Work requested before dispose() still runs; work requested after it is refused.
+    const refused = this.disposed;
     const release = await this.acquire();
     try {
-      if (this.disposed) throw new Error('SqliteEventStore is disposed');
+      if (refused) throw new Error('SqliteEventStore is disposed');
       return await task();
     } finally {
       release();
